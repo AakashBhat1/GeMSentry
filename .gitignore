@@ -27,3 +27,9 @@ Thumbs.db
 # Scraper data and downloads
 tenders/
 tenders_backup/
+
+# Sensitive source data (company profile + tender history) — do not commit
+EtsplCompanyProfile_2026.pdf
+TENDER MASTER SHEET*.xlsx
+history.json
+scratch/

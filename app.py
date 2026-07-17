@@ -194,6 +194,64 @@ def update_tender_status():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/scoring-config", methods=["GET"])
+def get_scoring_config():
+    """Return current scoring config (defaults if file absent)."""
+    try:
+        cfg = scraper.load_scoring_config()
+        return jsonify(cfg)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/scoring-config", methods=["POST"])
+def update_scoring_config():
+    """Validate and atomically persist scoring_config.json."""
+    try:
+        data = request.json
+        if data is None:
+            return jsonify({"error": "JSON body required."}), 400
+
+        err = scraper.validate_scoring_config(data)
+        if err:
+            return jsonify({"error": err}), 400
+
+        scraper.save_scoring_config(data)
+        return jsonify({
+            "message": "Scoring config updated successfully. Applies on next scrape.",
+            "config": data
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/company-profile", methods=["GET"])
+def get_company_profile():
+    """Return current company profile (defaults if file absent)."""
+    try:
+        profile = scraper.load_company_profile()
+        return jsonify(profile)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/company-profile", methods=["POST"])
+def update_company_profile():
+    """Validate and atomically persist company_profile.json."""
+    try:
+        data = request.json
+        if data is None:
+            return jsonify({"error": "JSON body required."}), 400
+
+        err = scraper.validate_company_profile(data)
+        if err:
+            return jsonify({"error": err}), 400
+
+        scraper.save_company_profile(data)
+        return jsonify({
+            "message": "Company profile updated successfully. Applies on next scrape.",
+            "profile": data
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/tenders/downloads/<path:filename>")
 def serve_pdf(filename):
     # Serve PDF files securely from the downloads directory

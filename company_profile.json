@@ -1,0 +1,26 @@
+{
+  "business_lines": [
+    {
+      "id": "drone",
+      "keywords": [
+        "drone"
+      ]
+    }
+  ],
+  "eligibility": {
+    "annual_turnover_inr": 1900000,
+    "can_meet_make_in_india": true,
+    "certifications": [
+      "ISO 9001:2015"
+    ],
+    "registrations": {
+      "mse_udyam": true,
+      "startup_dpiit": true
+    },
+    "turnover_waivable_by_exemption": true,
+    "years_experience": 6
+  },
+  "serviceability": {
+    "soft_avoid_penalty": 0.5
+  }
+}

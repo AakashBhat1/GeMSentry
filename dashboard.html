@@ -559,6 +559,73 @@
             display: inline-block;
         }
 
+        /* Fit vs Risk and Recommendation CSS rules */
+        .rec-chip {
+            font-size: 0.725rem;
+            font-weight: 700;
+            padding: 0.2rem 0.65rem;
+            border-radius: 99px;
+            border: 1px solid transparent;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            display: inline-block;
+        }
+
+        .recommendation-pursue {
+            background-color: var(--success-bg);
+            color: var(--success-color);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .recommendation-review {
+            background-color: rgba(245, 158, 11, 0.15);
+            color: #f59e0b;
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+
+        .recommendation-watch {
+            background-color: rgba(6, 182, 212, 0.15);
+            color: var(--secondary-accent);
+            border-color: rgba(6, 182, 212, 0.3);
+        }
+
+        .recommendation-drop {
+            background-color: var(--failed-bg);
+            color: var(--failed-color);
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .tag-business-line {
+            background-color: rgba(139, 92, 246, 0.15) !important;
+            color: var(--primary-accent) !important;
+            border: 1px solid rgba(139, 92, 246, 0.3) !important;
+        }
+
+        .tag-eligibility-warning {
+            background-color: rgba(239, 68, 68, 0.15) !important;
+            color: var(--failed-color) !important;
+            border: 1px solid rgba(239, 68, 68, 0.3) !important;
+        }
+
+        .tag-eligibility-ok {
+            background-color: var(--success-bg) !important;
+            color: var(--success-color) !important;
+            border: 1px solid rgba(16, 185, 129, 0.3) !important;
+        }
+
+        .breakdowns-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            width: 100%;
+        }
+
+        @media (max-width: 768px) {
+            .breakdowns-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
         /* Detail grids */
         .tender-details-grid {
             display: grid;
@@ -910,6 +977,76 @@
                 grid-template-columns: 1fr 1fr;
             }
         }
+
+        /* Score breakdown styles */
+        .breakdown-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+            margin-top: 0.75rem;
+            width: 100%;
+        }
+
+        .breakdown-row {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .breakdown-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+        }
+
+        .breakdown-name {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .breakdown-values {
+            font-weight: 700;
+            color: var(--text-secondary);
+        }
+
+        .breakdown-bar-bg {
+            height: 8px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            overflow: hidden;
+            width: 100%;
+            border: 1px solid var(--border-color);
+        }
+
+        .light-mode .breakdown-bar-bg {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+
+        .breakdown-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.4s ease;
+        }
+
+        .breakdown-detail {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-style: italic;
+            margin-left: 0.25rem;
+        }
+
+        .confidence-indicator {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+            margin-top: 0.1rem;
+        }
+        
+        .confidence-muted {
+            opacity: 0.55;
+            font-weight: 400;
+        }
     </style>
 </head>
 <body>
@@ -924,6 +1061,19 @@
             </div>
         </div>
         <div class="header-right">
+            <button class="btn-theme" id="profileToggle" onclick="openProfileModal()" aria-label="Company Profile" style="padding: 0.5rem 0.85rem;">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                <span>Company Profile</span>
+            </button>
+            <button class="btn-theme" id="settingsToggle" onclick="openSettingsModal()" aria-label="Scoring Settings" style="padding: 0.5rem 0.85rem;">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span>Scoring Config</span>
+            </button>
             <button class="btn btn-primary" onclick="openScraperModal()">
                 <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -980,6 +1130,79 @@
                     </button>
                 </div>
             </div>
+
+            <!-- Recommendation Filter -->
+            <div class="filter-section">
+                <span class="filter-title">Recommendation</span>
+                <div class="filter-options" id="recFilters">
+                    <button class="filter-btn active" id="rec-all" onclick="setRecFilter('all')">
+                        <span>All Recs</span>
+                        <span class="badge-count" id="rec-cnt-all">0</span>
+                    </button>
+                    <button class="filter-btn" id="rec-pursue" onclick="setRecFilter('Pursue')">
+                        <span>Pursue</span>
+                        <span class="badge-count" id="rec-cnt-pursue">0</span>
+                    </button>
+                    <button class="filter-btn" id="rec-review" onclick="setRecFilter('Review')">
+                        <span>Review</span>
+                        <span class="badge-count" id="rec-cnt-review">0</span>
+                    </button>
+                    <button class="filter-btn" id="rec-watch" onclick="setRecFilter('Watch')">
+                        <span>Watch</span>
+                        <span class="badge-count" id="rec-cnt-watch">0</span>
+                    </button>
+                    <button class="filter-btn" id="rec-drop" onclick="setRecFilter('Drop')">
+                        <span>Drop</span>
+                        <span class="badge-count" id="rec-cnt-drop">0</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Business Line Filter -->
+            <div class="filter-section">
+                <span class="filter-title">Business Line</span>
+                <div class="filter-options" id="businessLineFilters">
+                    <button class="filter-btn active" id="bl-all" onclick="setBusinessLineFilter('all')">
+                        <span>All Lines</span>
+                        <span class="badge-count" id="bl-cnt-all">0</span>
+                    </button>
+                    <button class="filter-btn" id="bl-drone" onclick="setBusinessLineFilter('drone')">
+                        <span>Drone / UAV</span>
+                        <span class="badge-count" id="bl-cnt-drone">0</span>
+                    </button>
+                    <button class="filter-btn" id="bl-power_supply" onclick="setBusinessLineFilter('power_supply')">
+                        <span>Power</span>
+                        <span class="badge-count" id="bl-cnt-power_supply">0</span>
+                    </button>
+                    <button class="filter-btn" id="bl-ai_it" onclick="setBusinessLineFilter('ai_it')">
+                        <span>AI / IT</span>
+                        <span class="badge-count" id="bl-cnt-ai_it">0</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Value Band Filter -->
+            <div class="filter-section">
+                <span class="filter-title">Estimated Value</span>
+                <div class="filter-options" id="valueBandFilters">
+                    <button class="filter-btn active" id="vb-all" onclick="setValueBandFilter('all')">
+                        <span>All Values</span>
+                        <span class="badge-count" id="vb-cnt-all">0</span>
+                    </button>
+                    <button class="filter-btn" id="vb-under-5l" onclick="setValueBandFilter('under-5l')">
+                        <span>&lt; ₹5 Lakh</span>
+                        <span class="badge-count" id="vb-cnt-under-5l">0</span>
+                    </button>
+                    <button class="filter-btn" id="vb-sweet" onclick="setValueBandFilter('sweet')">
+                        <span>₹5L - ₹3Cr</span>
+                        <span class="badge-count" id="vb-cnt-sweet">0</span>
+                    </button>
+                    <button class="filter-btn" id="vb-over-3cr" onclick="setValueBandFilter('over-3cr')">
+                        <span>&gt; ₹3 Crore</span>
+                        <span class="badge-count" id="vb-cnt-over-3cr">0</span>
+                    </button>
+                </div>
+            </div>
         </aside>
 
         <!-- Main Dashboard View -->
@@ -1001,10 +1224,23 @@
             </div>
 
             <!-- Tenders List Section -->
-            <div class="tenders-section-header">
+            <div class="tenders-section-header" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
                 <h2>Discovered Tenders</h2>
-                <div class="tenders-count-info">
-                    Showing <strong id="visible-count">0</strong> of <strong id="total-count">0</strong> tenders
+                <div style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; margin-left: auto;">
+                    <div class="tenders-count-info">
+                        Showing <strong id="visible-count">0</strong> of <strong id="total-count">0</strong> tenders
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Sort By</label>
+                        <select id="tendersSortSelect" onchange="filterData()" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem 0.75rem; border-radius: 6px; font-size: 0.825rem; outline: none; cursor: pointer;">
+                            <option value="none">Default (Scrape Order)</option>
+                            <option value="deadline-soonest">Deadline: Soonest First</option>
+                            <option value="score-desc">Risk Score: High to Low</option>
+                            <option value="score-asc">Risk Score: Low to High</option>
+                            <option value="fit-desc">Fit Score: High to Low</option>
+                            <option value="fit-asc">Fit Score: Low to High</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -1075,15 +1311,816 @@
         </div>
     </div>
 
+    <!-- Scoring Settings Modal Overlay -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Scoring Configuration</h3>
+                <button class="close-btn" onclick="closeSettingsModal()">&times;</button>
+            </div>
+            
+            <div id="settingsFeedback" style="display: none; padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.5rem;"></div>
+            
+            <form id="scoringConfigForm" onsubmit="saveScoringConfigForm(event)" style="display: flex; flex-direction: column; gap: 1.25rem;">
+                <!-- Weights Group -->
+                <div>
+                    <h4 style="margin-bottom: 0.75rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.25rem; font-size: 0.9rem; color: var(--text-primary);">Weights (Relative importance, must be &gt;= 0)</h4>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;">
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary);">EMD Requirement weight</label>
+                            <input type="number" step="any" min="0" id="weight_emd" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary);">Startup Exemption weight</label>
+                            <input type="number" step="any" min="0" id="weight_startup_exemption" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary);">MSE Exemption weight</label>
+                            <input type="number" step="any" min="0" id="weight_mse_exemption" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary);">Pre-Bid Meeting weight</label>
+                            <input type="number" step="any" min="0" id="weight_prebid" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary);">Remaining Days weight</label>
+                            <input type="number" step="any" min="0" id="weight_date_window" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary);">ePBG Guarantee weight</label>
+                            <input type="number" step="any" min="0" id="weight_epbg" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Parameters Group -->
+                <div>
+                    <h4 style="margin-bottom: 0.75rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.25rem; font-size: 0.9rem; color: var(--text-primary);">Scoring Parameters</h4>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;">
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary);">Unknown Exemption subscore (0 to 1)</label>
+                            <input type="number" step="any" min="0" max="1" id="unknown_subscore" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary);">Shortlist Min threshold</label>
+                            <input type="number" step="any" min="0" max="100" id="shortlist_min" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary);">Reject Max threshold</label>
+                            <input type="number" step="any" min="0" max="100" id="reject_max" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fit Weights Group -->
+                <div>
+                    <h4 style="margin-bottom: 0.75rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.25rem; font-size: 0.9rem; color: var(--text-primary);">Fit Weights &amp; Parameters</h4>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;">
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary);">Relevance weight</label>
+                            <input type="number" step="any" min="0" id="weight_fit_relevance" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary);">Serviceability weight</label>
+                            <input type="number" step="any" min="0" id="weight_fit_serviceability" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary);">Value Fit weight</label>
+                            <input type="number" step="any" min="0" id="weight_fit_value" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary);">Buyer Affinity weight</label>
+                            <input type="number" step="any" min="0" id="weight_fit_buyer" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary);">Eligibility weight</label>
+                            <input type="number" step="any" min="0" id="weight_fit_eligibility" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary);">Fit Minimum threshold</label>
+                            <input type="number" step="any" min="0" max="100" id="fit_min_threshold" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                        </div>
+                    </div>
+                </div>
+
+                <div style="font-size: 0.75rem; color: var(--text-secondary); font-style: italic; margin-top: -0.25rem;">
+                    * Applies on next scrape.
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-top: 0.5rem;">
+                    <button type="button" class="btn btn-secondary" onclick="resetConfigToDefaults()" style="padding: 0.5rem 1rem;">
+                        Reset to Defaults
+                    </button>
+                    <div style="display: flex; gap: 0.75rem;">
+                        <button type="button" class="btn btn-secondary" onclick="closeSettingsModal()" style="padding: 0.5rem 1rem;">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1.5rem;">
+                            Save Changes
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Company Profile Modal Overlay -->
+    <div id="profileModal" class="modal">
+        <div class="modal-content" style="max-width: 650px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Company Profile Settings</h3>
+                <button class="close-btn" onclick="closeProfileModal()">&times;</button>
+            </div>
+            
+            <div id="profileFeedback" style="display: none; padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.5rem;"></div>
+            
+            <form id="companyProfileForm" onsubmit="saveCompanyProfileForm(event)" style="display: flex; flex-direction: column; gap: 1.25rem;">
+                <!-- Eligibility -->
+                <div>
+                    <h4 style="margin-bottom: 0.75rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.25rem; font-size: 0.9rem; color: var(--text-primary);">Eligibility &amp; Certifications</h4>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;">
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary);">Annual Turnover (INR)</label>
+                            <input type="number" id="profile_turnover" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary);">Years of Experience</label>
+                            <input type="number" id="profile_experience" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem; grid-column: span 2;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary);">Certifications (Comma-separated)</label>
+                            <input type="text" id="profile_certifications" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin-top: 0.75rem;">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; color: var(--text-primary); cursor: pointer;">
+                            <input type="checkbox" id="profile_mse_udyam">
+                            <span>MSE Udyam Registered</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; color: var(--text-primary); cursor: pointer;">
+                            <input type="checkbox" id="profile_startup_dpiit">
+                            <span>DPIIT Startup Registered</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; color: var(--text-primary); cursor: pointer;">
+                            <input type="checkbox" id="profile_mii">
+                            <span>Can Meet Make in India (MII)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; color: var(--text-primary); cursor: pointer;">
+                            <input type="checkbox" id="profile_turnover_exempt">
+                            <span>Turnover requirement waivable by exemption</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Serviceability -->
+                <div>
+                    <h4 style="margin-bottom: 0.75rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.25rem; font-size: 0.9rem; color: var(--text-primary);">Serviceability (Avoidance)</h4>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;">
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem; grid-column: span 2;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary);">Soft Avoid States (Comma-separated)</label>
+                            <input type="text" id="profile_soft_avoid_states" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary);">Soft Avoid Penalty (0.0 to 1.0)</label>
+                            <input type="number" step="any" min="0" max="1" id="profile_soft_avoid_penalty" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary);">Soft Avoid Reason</label>
+                            <input type="text" id="profile_soft_avoid_reason" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Value preference -->
+                <div>
+                    <h4 style="margin-bottom: 0.75rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.25rem; font-size: 0.9rem; color: var(--text-primary);">Order Value Preference (INR)</h4>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;">
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary);">Sweet Spot Min (INR)</label>
+                            <input type="number" id="profile_sweet_min" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary);">Sweet Spot Max (INR)</label>
+                            <input type="number" id="profile_sweet_max" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Keywords & Affinities -->
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;">
+                    <div>
+                        <h4 style="margin-bottom: 0.75rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.25rem; font-size: 0.9rem; color: var(--text-primary);">Business Lines Keywords</h4>
+                        <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+                            <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                                <label style="font-size: 0.75rem; color: var(--text-secondary);">Drone / UAV Keywords (Comma-sep)</label>
+                                <textarea id="profile_kws_drone" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.8rem; outline: none; resize: vertical; height: 60px;"></textarea>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                                <label style="font-size: 0.75rem; color: var(--text-secondary);">Power Supply Keywords (Comma-sep)</label>
+                                <textarea id="profile_kws_power_supply" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.8rem; outline: none; resize: vertical; height: 60px;"></textarea>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                                <label style="font-size: 0.75rem; color: var(--text-secondary);">AI / IT / Electronics (Comma-sep)</label>
+                                <textarea id="profile_kws_ai_it" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.8rem; outline: none; resize: vertical; height: 60px;"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 style="margin-bottom: 0.75rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.25rem; font-size: 0.9rem; color: var(--text-primary);">Buyer Affinity (Name: Score)</h4>
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem; height: 100%;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary);">E.g. DRDO: 0.65 (one per line)</label>
+                            <textarea id="profile_buyer_affinity" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.8rem; outline: none; resize: vertical; height: 236px;"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="font-size: 0.75rem; color: var(--text-secondary); font-style: italic; margin-top: -0.25rem;">
+                    * Applies on next scrape.
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 0.75rem; width: 100%; margin-top: 0.5rem;">
+                    <button type="button" class="btn btn-secondary" onclick="closeProfileModal()" style="padding: 0.5rem 1rem;">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1.5rem;">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Script loading and dynamic injector -->
     <script>
         // Default filters state
         let currentKeyword = 'all';
         let currentStatus = 'all';
+        let currentRec = 'all';
+        let currentBusinessLine = 'all';
+        let currentValueBand = 'all';
         let searchStr = '';
         let tenders = [];
         let pollingInterval = null;
         let knownKeywords = [];
+        let scoringConfig = null;
+        let companyProfile = null;
+
+        const DEFAULT_SCORING_CONFIG = {
+            version: 1,
+            weights: {
+                emd: 2.0,
+                startup_exemption: 1.5,
+                mse_exemption: 1.5,
+                prebid: 0.5,
+                date_window: 1.0,
+                epbg: 0.5
+            },
+            emd: {
+                free_threshold_inr: 200000,
+                max_penalty_threshold_inr: 2000000
+            },
+            date_window: {
+                min_days: 7,
+                full_credit_days: 14
+            },
+            epbg: {
+                free_threshold_pct: 3.0,
+                max_penalty_pct: 10.0
+            },
+            unknown_subscore: 0.5,
+            status_thresholds: {
+                shortlist_min: 70,
+                reject_max: 40
+            },
+            fit: {
+                weights: {
+                    relevance: 3.0,
+                    serviceability: 1.0,
+                    value_fit: 1.0,
+                    buyer_affinity: 1.0,
+                    eligibility_factor: 2.0
+                },
+                fit_min: 60,
+                unknown_buyer_subscore: 0.4,
+                turnover_gap_subscore: 0.3,
+                weak_relevance_subscore: 0.5
+            }
+        };
+
+        const DEFAULT_COMPANY_PROFILE = {
+            version: 1,
+            company: {
+                legal_name: "Earnest Tactical Solutions Pvt. Ltd.",
+                short_name: "ETSPL",
+                incorporation_ym: "2020-03",
+                hq_state: "Haryana",
+                hq_city: "Gurgaon"
+            },
+            eligibility: {
+                annual_turnover_inr: 1800000,
+                years_experience: 6,
+                registrations: {
+                    mse_udyam: true,
+                    startup_dpiit: true
+                },
+                certifications: ["ISO 9001:2015"],
+                can_meet_make_in_india: true,
+                max_order_value_inr: null,
+                turnover_waivable_by_exemption: true
+            },
+            serviceability: {
+                all_india: true,
+                soft_avoid_states: ["Tamil Nadu", "Kerala", "Karnataka", "Andhra Pradesh", "Telangana", "Puducherry"],
+                soft_avoid_reason: "Local monopoly on these product categories in South India",
+                soft_avoid_penalty: 0.5
+            },
+            business_lines: [
+                { id: "drone", label: "Drone / UAV", priority: 1.0, keywords: ["drone", "drones", "uav", "unmanned aerial", "multirotor", "quadcopter", "aerostat", "gis", "mapping", "surveillance", "reconnaissance"] },
+                { id: "power_supply", label: "Power Supply / Electrical", priority: 1.0, keywords: ["power supply", "ac-dc", "ac dc", "rectifier", "alternator", "amplifier", "ups", "voltage regulator", "lvpsu", "hvpsu", "power unit", "static convertor", "power conversion", "battery charger", "solid state power amplifier", "power system", "psu"] },
+                { id: "ai_it", label: "AI / IT / Electronics", priority: 1.0, keywords: ["artificial intelligence", "ai based", "ai-based", "software", "server", "radar", "cctv", "camera", "connectors", "harness", "rugged laptop", "military grade", "repairing", "electronics", "data acquisition", "network switch", "router", "display", "laptop", "notebook"] }
+            ],
+            buyer_affinity: {
+                "INDIAN AIR FORCE": 1.0,
+                "INDIAN ARMY": 0.85,
+                "INDIAN NAVY": 0.75,
+                "HAL": 0.75,
+                "DRDO": 0.65,
+                "BHARAT PETROLEUM": 0.5,
+                "DEFENCE": 0.6
+            },
+            value_preference: {
+                sweet_min_inr: 500000,
+                sweet_max_inr: 30000000
+            },
+            avoid_rules: {
+                gem_q2_category: true,
+                prefer_custom_bids: true
+            }
+        };
+
+        async function loadScoringConfig() {
+            try {
+                const response = await fetch('/api/scoring-config');
+                const data = await response.json();
+                if (data && !data.error) {
+                    scoringConfig = data;
+                    if (tenders && tenders.length > 0) {
+                        updateBadges();
+                        filterData();
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to load scoring config from API:", err);
+            }
+        }
+
+        async function loadCompanyProfile() {
+            try {
+                const response = await fetch('/api/company-profile');
+                const data = await response.json();
+                if (data && !data.error) {
+                    companyProfile = data;
+                    if (tenders && tenders.length > 0) {
+                        updateBadges();
+                        filterData();
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to load company profile from API:", err);
+            }
+        }
+
+        function openSettingsModal() {
+            document.getElementById('settingsModal').style.display = 'flex';
+            populateSettingsForm();
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settingsModal').style.display = 'none';
+            const feedback = document.getElementById('settingsFeedback');
+            feedback.style.display = 'none';
+        }
+
+        function openProfileModal() {
+            document.getElementById('profileModal').style.display = 'flex';
+            populateProfileForm();
+        }
+
+        function closeProfileModal() {
+            document.getElementById('profileModal').style.display = 'none';
+            document.getElementById('profileFeedback').style.display = 'none';
+        }
+
+        function populateSettingsForm() {
+            const config = scoringConfig || DEFAULT_SCORING_CONFIG;
+            
+            const w = config.weights || {};
+            document.getElementById('weight_emd').value = w.emd !== undefined ? w.emd : 2.0;
+            document.getElementById('weight_startup_exemption').value = w.startup_exemption !== undefined ? w.startup_exemption : 1.5;
+            document.getElementById('weight_mse_exemption').value = w.mse_exemption !== undefined ? w.mse_exemption : 1.5;
+            document.getElementById('weight_prebid').value = w.prebid !== undefined ? w.prebid : 0.5;
+            document.getElementById('weight_date_window').value = w.date_window !== undefined ? w.date_window : 1.0;
+            document.getElementById('weight_epbg').value = w.epbg !== undefined ? w.epbg : 0.5;
+            
+            document.getElementById('unknown_subscore').value = config.unknown_subscore !== undefined ? config.unknown_subscore : 0.5;
+            
+            const thr = config.status_thresholds || {};
+            document.getElementById('shortlist_min').value = thr.shortlist_min !== undefined ? thr.shortlist_min : 70;
+            document.getElementById('reject_max').value = thr.reject_max !== undefined ? thr.reject_max : 40;
+
+            const fit = config.fit || {};
+            const fw = fit.weights || {};
+            document.getElementById('weight_fit_relevance').value = fw.relevance !== undefined ? fw.relevance : 3.0;
+            document.getElementById('weight_fit_serviceability').value = fw.serviceability !== undefined ? fw.serviceability : 1.0;
+            document.getElementById('weight_fit_value').value = fw.value_fit !== undefined ? fw.value_fit : 1.0;
+            document.getElementById('weight_fit_buyer').value = fw.buyer_affinity !== undefined ? fw.buyer_affinity : 1.0;
+            document.getElementById('weight_fit_eligibility').value = fw.eligibility_factor !== undefined ? fw.eligibility_factor : 2.0;
+            document.getElementById('fit_min_threshold').value = fit.fit_min !== undefined ? fit.fit_min : 60;
+        }
+
+        function populateProfileForm() {
+            const config = companyProfile || DEFAULT_COMPANY_PROFILE;
+            
+            const elig = config.eligibility || {};
+            document.getElementById('profile_turnover').value = elig.annual_turnover_inr !== undefined ? elig.annual_turnover_inr : 1800000;
+            document.getElementById('profile_experience').value = elig.years_experience !== undefined ? elig.years_experience : 6;
+            
+            const reg = elig.registrations || {};
+            document.getElementById('profile_mse_udyam').checked = !!reg.mse_udyam;
+            document.getElementById('profile_startup_dpiit').checked = !!reg.startup_dpiit;
+            
+            document.getElementById('profile_certifications').value = (elig.certifications || []).join(', ');
+            document.getElementById('profile_mii').checked = !!elig.can_meet_make_in_india;
+            document.getElementById('profile_turnover_exempt').checked = !!elig.turnover_waivable_by_exemption;
+
+            const svc = config.serviceability || {};
+            document.getElementById('profile_soft_avoid_states').value = (svc.soft_avoid_states || []).join(', ');
+            document.getElementById('profile_soft_avoid_penalty').value = svc.soft_avoid_penalty !== undefined ? svc.soft_avoid_penalty : 0.5;
+            document.getElementById('profile_soft_avoid_reason').value = svc.soft_avoid_reason || '';
+
+            const vp = config.value_preference || {};
+            document.getElementById('profile_sweet_min').value = vp.sweet_min_inr !== undefined ? vp.sweet_min_inr : 500000;
+            document.getElementById('profile_sweet_max').value = vp.sweet_max_inr !== undefined ? vp.sweet_max_inr : 30000000;
+
+            const lines = config.business_lines || [];
+            const blDrone = lines.find(l => l.id === 'drone') || {};
+            const blPower = lines.find(l => l.id === 'power_supply') || {};
+            const blAi = lines.find(l => l.id === 'ai_it') || {};
+            
+            document.getElementById('profile_kws_drone').value = (blDrone.keywords || []).join(', ');
+            document.getElementById('profile_kws_power_supply').value = (blPower.keywords || []).join(', ');
+            document.getElementById('profile_kws_ai_it').value = (blAi.keywords || []).join(', ');
+
+            let affinityText = '';
+            for (let [k, v] of Object.entries(config.buyer_affinity || {})) {
+                affinityText += `${k}: ${v}\n`;
+            }
+            document.getElementById('profile_buyer_affinity').value = affinityText;
+        }
+
+        function showFeedback(message, isSuccess) {
+            const feedback = document.getElementById('settingsFeedback');
+            feedback.innerText = message;
+            feedback.style.display = 'block';
+            if (isSuccess) {
+                feedback.style.backgroundColor = 'var(--success-bg)';
+                feedback.style.color = 'var(--success-color)';
+                feedback.style.border = '1px solid rgba(16, 185, 129, 0.2)';
+            } else {
+                feedback.style.backgroundColor = 'var(--failed-bg)';
+                feedback.style.color = 'var(--failed-color)';
+                feedback.style.border = '1px solid rgba(239, 68, 68, 0.2)';
+            }
+        }
+
+        function showProfileFeedback(message, isSuccess) {
+            const feedback = document.getElementById('profileFeedback');
+            feedback.innerText = message;
+            feedback.style.display = 'block';
+            if (isSuccess) {
+                feedback.style.backgroundColor = 'var(--success-bg)';
+                feedback.style.color = 'var(--success-color)';
+                feedback.style.border = '1px solid rgba(16, 185, 129, 0.2)';
+            } else {
+                feedback.style.backgroundColor = 'var(--failed-bg)';
+                feedback.style.color = 'var(--failed-color)';
+                feedback.style.border = '1px solid rgba(239, 68, 68, 0.2)';
+            }
+        }
+
+        async function saveScoringConfigForm(event) {
+            if (event) event.preventDefault();
+            
+            const feedback = document.getElementById('settingsFeedback');
+            feedback.style.display = 'none';
+            
+            const emd = parseFloat(document.getElementById('weight_emd').value);
+            const startup = parseFloat(document.getElementById('weight_startup_exemption').value);
+            const mse = parseFloat(document.getElementById('weight_mse_exemption').value);
+            const prebid = parseFloat(document.getElementById('weight_prebid').value);
+            const dateWindow = parseFloat(document.getElementById('weight_date_window').value);
+            const epbg = parseFloat(document.getElementById('weight_epbg').value);
+            
+            const unknown = parseFloat(document.getElementById('unknown_subscore').value);
+            const shortlistMin = parseFloat(document.getElementById('shortlist_min').value);
+            const rejectMax = parseFloat(document.getElementById('reject_max').value);
+            
+            const fitRelevance = parseFloat(document.getElementById('weight_fit_relevance').value);
+            const fitServiceability = parseFloat(document.getElementById('weight_fit_serviceability').value);
+            const fitValue = parseFloat(document.getElementById('weight_fit_value').value);
+            const fitBuyer = parseFloat(document.getElementById('weight_fit_buyer').value);
+            const fitEligibility = parseFloat(document.getElementById('weight_fit_eligibility').value);
+            const fitMin = parseFloat(document.getElementById('fit_min_threshold').value);
+
+            if (isNaN(emd) || emd < 0 ||
+                isNaN(startup) || startup < 0 ||
+                isNaN(mse) || mse < 0 ||
+                isNaN(prebid) || prebid < 0 ||
+                isNaN(dateWindow) || dateWindow < 0 ||
+                isNaN(epbg) || epbg < 0) {
+                showFeedback("All weights must be numeric and >= 0.", false);
+                return;
+            }
+            
+            if (emd + startup + mse + prebid + dateWindow + epbg <= 0) {
+                showFeedback("At least one weight must be > 0.", false);
+                return;
+            }
+            
+            if (isNaN(unknown) || unknown < 0 || unknown > 1) {
+                showFeedback("unknown_subscore must be in [0, 1].", false);
+                return;
+            }
+            
+            if (isNaN(shortlistMin) || isNaN(rejectMax) || rejectMax < 0 || shortlistMin > 100 || rejectMax >= shortlistMin) {
+                showFeedback("Require 0 <= Reject Max < Shortlist Min <= 100.", false);
+                return;
+            }
+            
+            if (isNaN(fitRelevance) || fitRelevance < 0 ||
+                isNaN(fitServiceability) || fitServiceability < 0 ||
+                isNaN(fitValue) || fitValue < 0 ||
+                isNaN(fitBuyer) || fitBuyer < 0 ||
+                isNaN(fitEligibility) || fitEligibility < 0) {
+                showFeedback("All fit weights must be numeric and >= 0.", false);
+                return;
+            }
+            if (fitRelevance + fitServiceability + fitValue + fitBuyer + fitEligibility <= 0) {
+                showFeedback("At least one fit weight must be > 0.", false);
+                return;
+            }
+            if (isNaN(fitMin) || fitMin < 0 || fitMin > 100) {
+                showFeedback("Fit Minimum threshold must be between 0 and 100.", false);
+                return;
+            }
+
+            const baseConfig = scoringConfig || DEFAULT_SCORING_CONFIG;
+            const payload = {
+                version: baseConfig.version || 1,
+                weights: {
+                    emd: emd,
+                    startup_exemption: startup,
+                    mse_exemption: mse,
+                    prebid: prebid,
+                    date_window: dateWindow,
+                    epbg: epbg
+                },
+                emd: baseConfig.emd || DEFAULT_SCORING_CONFIG.emd,
+                date_window: baseConfig.date_window || DEFAULT_SCORING_CONFIG.date_window,
+                epbg: baseConfig.epbg || DEFAULT_SCORING_CONFIG.epbg,
+                unknown_subscore: unknown,
+                status_thresholds: {
+                    shortlist_min: shortlistMin,
+                    reject_max: rejectMax
+                },
+                fit: {
+                    weights: {
+                        relevance: fitRelevance,
+                        serviceability: fitServiceability,
+                        value_fit: fitValue,
+                        buyer_affinity: fitBuyer,
+                        eligibility_factor: fitEligibility
+                    },
+                    fit_min: fitMin,
+                    unknown_buyer_subscore: baseConfig.fit ? (baseConfig.fit.unknown_buyer_subscore || 0.4) : 0.4,
+                    turnover_gap_subscore: baseConfig.fit ? (baseConfig.fit.turnover_gap_subscore || 0.3) : 0.3,
+                    weak_relevance_subscore: baseConfig.fit ? (baseConfig.fit.weak_relevance_subscore || 0.5) : 0.5
+                }
+            };
+            
+            try {
+                const response = await fetch('/api/scoring-config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    showFeedback("Configuration saved successfully. Applies on next scrape.", true);
+                    scoringConfig = payload;
+                    if (tenders && tenders.length > 0) {
+                        updateBadges();
+                        filterData();
+                    }
+                    setTimeout(closeSettingsModal, 1500);
+                } else {
+                    showFeedback(data.error || "Failed to save configuration.", false);
+                }
+            } catch (err) {
+                console.error("Failed to save scoring config:", err);
+                showFeedback("Server communication failed.", false);
+            }
+        }
+
+        async function saveCompanyProfileForm(event) {
+            if (event) event.preventDefault();
+            
+            const feedback = document.getElementById('profileFeedback');
+            feedback.style.display = 'none';
+
+            const turnover = parseFloat(document.getElementById('profile_turnover').value);
+            const experience = parseInt(document.getElementById('profile_experience').value);
+            const mse = document.getElementById('profile_mse_udyam').checked;
+            const startup = document.getElementById('profile_startup_dpiit').checked;
+            const certifications = document.getElementById('profile_certifications').value.split(',').map(s => s.trim()).filter(Boolean);
+            const mii = document.getElementById('profile_mii').checked;
+            const turnoverExempt = document.getElementById('profile_turnover_exempt').checked;
+
+            const softAvoidStates = document.getElementById('profile_soft_avoid_states').value.split(',').map(s => s.trim()).filter(Boolean);
+            const softAvoidPenalty = parseFloat(document.getElementById('profile_soft_avoid_penalty').value);
+            const softAvoidReason = document.getElementById('profile_soft_avoid_reason').value.trim();
+
+            const sweetMin = parseFloat(document.getElementById('profile_sweet_min').value);
+            const sweetMax = parseFloat(document.getElementById('profile_sweet_max').value);
+
+            const kwsDrone = document.getElementById('profile_kws_drone').value.split(',').map(s => s.trim()).filter(Boolean);
+            const kwsPower = document.getElementById('profile_kws_power_supply').value.split(',').map(s => s.trim()).filter(Boolean);
+            const kwsAi = document.getElementById('profile_kws_ai_it').value.split(',').map(s => s.trim()).filter(Boolean);
+
+            if (isNaN(turnover) || turnover < 0) {
+                showProfileFeedback("Annual turnover must be a non-negative number.", false);
+                return;
+            }
+            if (isNaN(experience) || experience < 0) {
+                showProfileFeedback("Years of experience must be a non-negative integer.", false);
+                return;
+            }
+            if (isNaN(softAvoidPenalty) || softAvoidPenalty < 0 || softAvoidPenalty > 1) {
+                showProfileFeedback("Soft avoid penalty must be between 0.0 and 1.0.", false);
+                return;
+            }
+            if (isNaN(sweetMin) || sweetMin < 0 || isNaN(sweetMax) || sweetMax < 0 || sweetMin > sweetMax) {
+                showProfileFeedback("Value band sweet spot must satisfy: 0 <= sweet min <= sweet max.", false);
+                return;
+            }
+            if (kwsDrone.length === 0 || kwsPower.length === 0 || kwsAi.length === 0) {
+                showProfileFeedback("Keywords for each business line must be non-empty.", false);
+                return;
+            }
+
+            const buyerAffinity = {};
+            const lines = document.getElementById('profile_buyer_affinity').value.split('\n');
+            for (let line of lines) {
+                if (!line.trim()) continue;
+                const parts = line.split(':');
+                if (parts.length < 2) {
+                    showProfileFeedback(`Invalid buyer affinity format: '${line}'. Must be 'BUYER: VALUE'.`, false);
+                    return;
+                }
+                const k = parts[0].trim();
+                const v = parseFloat(parts.slice(1).join(':').trim());
+                if (!k) {
+                    showProfileFeedback(`Buyer name cannot be empty.`, false);
+                    return;
+                }
+                if (isNaN(v) || v < 0 || v > 1) {
+                    showProfileFeedback(`Buyer affinity value for '${k}' must be between 0.0 and 1.0.`, false);
+                    return;
+                }
+                buyerAffinity[k] = v;
+            }
+
+            const payload = {
+                version: companyProfile ? (companyProfile.version || 1) : 1,
+                company: companyProfile ? companyProfile.company : {
+                    legal_name: "Earnest Tactical Solutions Pvt. Ltd.",
+                    short_name: "ETSPL",
+                    incorporation_ym: "2020-03",
+                    hq_state: "Haryana",
+                    hq_city: "Gurgaon"
+                },
+                eligibility: {
+                    annual_turnover_inr: turnover,
+                    years_experience: experience,
+                    registrations: {
+                        mse_udyam: mse,
+                        startup_dpiit: startup
+                    },
+                    certifications: certifications,
+                    can_meet_make_in_india: mii,
+                    max_order_value_inr: companyProfile ? companyProfile.eligibility.max_order_value_inr : null,
+                    turnover_waivable_by_exemption: turnoverExempt
+                },
+                serviceability: {
+                    all_india: companyProfile ? companyProfile.serviceability.all_india : true,
+                    soft_avoid_states: softAvoidStates,
+                    soft_avoid_penalty: softAvoidPenalty,
+                    soft_avoid_reason: softAvoidReason
+                },
+                business_lines: [
+                    { id: "drone", label: "Drone / UAV", priority: 1.0, keywords: kwsDrone },
+                    { id: "power_supply", label: "Power Supply / Electrical", priority: 1.0, keywords: kwsPower },
+                    { id: "ai_it", label: "AI / IT / Electronics", priority: 1.0, keywords: kwsAi }
+                ],
+                buyer_affinity: buyerAffinity,
+                value_preference: {
+                    sweet_min_inr: sweetMin,
+                    sweet_max_inr: sweetMax
+                },
+                avoid_rules: companyProfile ? companyProfile.avoid_rules : {
+                    gem_q2_category: true,
+                    prefer_custom_bids: true
+                }
+            };
+
+            try {
+                const response = await fetch('/api/company-profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    showProfileFeedback("Company profile updated successfully. Applies on next scrape.", true);
+                    companyProfile = payload;
+                    if (tenders && tenders.length > 0) {
+                        updateBadges();
+                        filterData();
+                    }
+                    setTimeout(closeProfileModal, 1500);
+                } else {
+                    showProfileFeedback(data.error || "Failed to update profile.", false);
+                }
+            } catch (err) {
+                console.error("Failed to save company profile:", err);
+                showProfileFeedback("Server communication failed.", false);
+            }
+        }
+
+        async function resetConfigToDefaults() {
+            if (!confirm("Are you sure you want to reset all weights and thresholds to default values?")) {
+                return;
+            }
+            
+            const feedback = document.getElementById('settingsFeedback');
+            feedback.style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/scoring-config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(DEFAULT_SCORING_CONFIG)
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    showFeedback("Configuration reset to defaults successfully.", true);
+                    scoringConfig = DEFAULT_SCORING_CONFIG;
+                    populateSettingsForm();
+                    if (tenders && tenders.length > 0) {
+                        updateBadges();
+                        filterData();
+                    }
+                    setTimeout(closeSettingsModal, 1500);
+                } else {
+                    showFeedback(data.error || "Failed to reset configuration.", false);
+                }
+            } catch (err) {
+                console.error("Failed to reset scoring config:", err);
+                showFeedback("Server communication failed.", false);
+            }
+        }
+
+        async function reanalyzeBid(bidId) {
+            try {
+                const response = await fetch('/api/scrape/id', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bid_id: bidId })
+                });
+                const resData = await response.json();
+                if (resData.error) {
+                    alert(resData.error);
+                } else {
+                    openScraperModal();
+                    document.getElementById('consoleLogs').innerText = `Re-analyzing Bid: ${bidId}...`;
+                }
+            } catch (err) {
+                console.error("Failed to re-analyze bid:", err);
+                alert("Failed to trigger re-analysis.");
+            }
+        }
 
         // Check theme cookie/setting
         if (localStorage.getItem('theme') === 'light') {
@@ -1111,6 +2148,8 @@
 
         // Fetch data from local Flask API on load
         window.addEventListener('DOMContentLoaded', () => {
+            loadScoringConfig();
+            loadCompanyProfile();
             refreshData();
             loadKeywordsForModal();
         });
@@ -1381,6 +2420,31 @@
             document.getElementById('stat-cnt-short').innerText = tenders.filter(t => t.status === 'Shortlisted').length;
             document.getElementById('stat-cnt-pending').innerText = tenders.filter(t => t.status === 'Pending Review' || !t.status).length;
             document.getElementById('stat-cnt-rejected').innerText = tenders.filter(t => t.status === 'Rejected').length;
+
+            // Recommendation counts
+            if (document.getElementById('rec-cnt-all')) {
+                document.getElementById('rec-cnt-all').innerText = tenders.length;
+                document.getElementById('rec-cnt-pursue').innerText = tenders.filter(t => t.analysis && t.analysis.recommendation === 'Pursue').length;
+                document.getElementById('rec-cnt-review').innerText = tenders.filter(t => t.analysis && t.analysis.recommendation === 'Review').length;
+                document.getElementById('rec-cnt-watch').innerText = tenders.filter(t => t.analysis && t.analysis.recommendation === 'Watch').length;
+                document.getElementById('rec-cnt-drop').innerText = tenders.filter(t => t.analysis && t.analysis.recommendation === 'Drop').length;
+            }
+
+            // Business line counts
+            if (document.getElementById('bl-cnt-all')) {
+                document.getElementById('bl-cnt-all').innerText = tenders.length;
+                document.getElementById('bl-cnt-drone').innerText = tenders.filter(t => t.analysis && t.analysis.business_line && t.analysis.business_line.id === 'drone').length;
+                document.getElementById('bl-cnt-power_supply').innerText = tenders.filter(t => t.analysis && t.analysis.business_line && t.analysis.business_line.id === 'power_supply').length;
+                document.getElementById('bl-cnt-ai_it').innerText = tenders.filter(t => t.analysis && t.analysis.business_line && t.analysis.business_line.id === 'ai_it').length;
+            }
+
+            // Value band counts
+            if (document.getElementById('vb-cnt-all')) {
+                document.getElementById('vb-cnt-all').innerText = tenders.length;
+                document.getElementById('vb-cnt-under-5l').innerText = tenders.filter(t => t.analysis && t.analysis.est_value_inr < 500000 && t.analysis.est_value_inr > 0).length;
+                document.getElementById('vb-cnt-sweet').innerText = tenders.filter(t => t.analysis && t.analysis.est_value_inr >= 500000 && t.analysis.est_value_inr <= 30000000).length;
+                document.getElementById('vb-cnt-over-3cr').innerText = tenders.filter(t => t.analysis && t.analysis.est_value_inr > 30000000).length;
+            }
         }
 
         function setKeywordFilter(kw) {
@@ -1402,10 +2466,50 @@
             filterData();
         }
 
+        function setRecFilter(rec) {
+            const btns = document.querySelectorAll('#recFilters .filter-btn');
+            btns.forEach(b => b.classList.remove('active'));
+
+            if (rec === 'all') document.getElementById('rec-all').classList.add('active');
+            else if (rec === 'Pursue') document.getElementById('rec-pursue').classList.add('active');
+            else if (rec === 'Review') document.getElementById('rec-review').classList.add('active');
+            else if (rec === 'Watch') document.getElementById('rec-watch').classList.add('active');
+            else if (rec === 'Drop') document.getElementById('rec-drop').classList.add('active');
+
+            currentRec = rec;
+            filterData();
+        }
+
+        function setBusinessLineFilter(bl) {
+            const btns = document.querySelectorAll('#businessLineFilters .filter-btn');
+            btns.forEach(b => b.classList.remove('active'));
+
+            if (bl === 'all') document.getElementById('bl-all').classList.add('active');
+            else if (bl === 'drone') document.getElementById('bl-drone').classList.add('active');
+            else if (bl === 'power_supply') document.getElementById('bl-power_supply').classList.add('active');
+            else if (bl === 'ai_it') document.getElementById('bl-ai_it').classList.add('active');
+
+            currentBusinessLine = bl;
+            filterData();
+        }
+
+        function setValueBandFilter(vb) {
+            const btns = document.querySelectorAll('#valueBandFilters .filter-btn');
+            btns.forEach(b => b.classList.remove('active'));
+
+            if (vb === 'all') document.getElementById('vb-all').classList.add('active');
+            else if (vb === 'under-5l') document.getElementById('vb-under-5l').classList.add('active');
+            else if (vb === 'sweet') document.getElementById('vb-sweet').classList.add('active');
+            else if (vb === 'over-3cr') document.getElementById('vb-over-3cr').classList.add('active');
+
+            currentValueBand = vb;
+            filterData();
+        }
+
         function filterData() {
             searchStr = document.getElementById('searchInput').value.toLowerCase().trim();
 
-            const filtered = tenders.filter(t => {
+            let filtered = tenders.filter(t => {
                 const matchKeyword = currentKeyword === 'all' || t.keyword.toLowerCase().includes(currentKeyword);
                 
                 const tStatus = t.status || 'Pending Review';
@@ -1416,8 +2520,79 @@
                                     t.bid_no.toLowerCase().includes(searchStr) ||
                                     t.department.toLowerCase().includes(searchStr);
 
-                return matchKeyword && matchStatus && matchSearch;
+                // Phase 2 Filters
+                const analysis = t.analysis || {};
+                
+                const matchRec = currentRec === 'all' || (analysis.recommendation && analysis.recommendation === currentRec);
+                const matchBL = currentBusinessLine === 'all' || (analysis.business_line && analysis.business_line.id === currentBusinessLine);
+                
+                let matchVal = true;
+                if (currentValueBand !== 'all') {
+                    const estVal = analysis.est_value_inr || 0;
+                    if (currentValueBand === 'under-5l') {
+                        matchVal = estVal < 500000 && estVal > 0;
+                    } else if (currentValueBand === 'sweet') {
+                        matchVal = estVal >= 500000 && estVal <= 30000000;
+                    } else if (currentValueBand === 'over-3cr') {
+                        matchVal = estVal > 30000000;
+                    }
+                }
+
+                return matchKeyword && matchStatus && matchSearch && matchRec && matchBL && matchVal;
             });
+
+            // Sort logic
+            const sortVal = document.getElementById('tendersSortSelect') ? document.getElementById('tendersSortSelect').value : 'none';
+            if (sortVal !== 'none') {
+                filtered.sort((a, b) => {
+                    if (sortVal === 'deadline-soonest') {
+                        const parseGemDate = (dateStr) => {
+                            if (!dateStr) return new Date(8640000000000000);
+                            try {
+                                const parts = dateStr.trim().split(' ');
+                                if (parts.length < 2) return new Date(8640000000000000);
+                                const dateParts = parts[0].split('-');
+                                const timeParts = parts[1].split(':');
+                                if (dateParts.length < 3) return new Date(8640000000000000);
+                                
+                                const day = parseInt(dateParts[0]);
+                                const month = parseInt(dateParts[1]) - 1;
+                                const year = parseInt(dateParts[2]);
+                                
+                                let hours = parseInt(timeParts[0]);
+                                const minutes = parseInt(timeParts[1]);
+                                
+                                if (parts[2] && parts[2].toUpperCase() === 'PM' && hours < 12) hours += 12;
+                                if (parts[2] && parts[2].toUpperCase() === 'AM' && hours === 12) hours = 0;
+                                
+                                return new Date(year, month, day, hours, minutes);
+                            } catch (e) {
+                                return new Date(8640000000000000);
+                            }
+                        };
+                        const dateA = parseGemDate(a.end_date);
+                        const dateB = parseGemDate(b.end_date);
+                        return dateA - dateB;
+                    } else if (sortVal === 'score-desc') {
+                        const scoreA = (a.analysis && a.analysis.score !== null) ? a.analysis.score : -1;
+                        const scoreB = (b.analysis && b.analysis.score !== null) ? b.analysis.score : -1;
+                        return scoreB - scoreA;
+                    } else if (sortVal === 'score-asc') {
+                        const scoreA = (a.analysis && a.analysis.score !== null) ? a.analysis.score : 999;
+                        const scoreB = (b.analysis && b.analysis.score !== null) ? b.analysis.score : 999;
+                        return scoreA - scoreB;
+                    } else if (sortVal === 'fit-desc') {
+                        const fitA = (a.analysis && a.analysis.fit_score !== undefined && a.analysis.fit_score !== null) ? a.analysis.fit_score : -1;
+                        const fitB = (b.analysis && b.analysis.fit_score !== undefined && b.analysis.fit_score !== null) ? b.analysis.fit_score : -1;
+                        return fitB - fitA;
+                    } else if (sortVal === 'fit-asc') {
+                        const fitA = (a.analysis && a.analysis.fit_score !== undefined && a.analysis.fit_score !== null) ? a.analysis.fit_score : 999;
+                        const fitB = (b.analysis && b.analysis.fit_score !== undefined && b.analysis.fit_score !== null) ? b.analysis.fit_score : 999;
+                        return fitA - fitB;
+                    }
+                    return 0;
+                });
+            }
 
             renderTenders(filtered);
         }
@@ -1439,8 +2614,6 @@
             }
 
             listContainer.innerHTML = items.map(tender => {
-                const keywordsList = tender.keyword.split(',').map(kw => `<span class="tag tag-keyword">${kw.trim()}</span>`).join(' ');
-                
                 // Score Badge and Classification Badge
                 let statusClass = 'status-pending';
                 let statusText = tender.status || 'Pending Review';
@@ -1449,40 +2622,239 @@
 
                 let scoreBadge = '';
                 let detailsAccordion = '';
+                let confidenceHtml = '';
+                let reanalyzeBtn = '';
+                let businessLineTag = '';
+                let eligibilityTag = '';
+                let recommendationChip = '';
+                
                 const analysis = tender.analysis;
                 
                 if (analysis) {
-                    let scoreClass = 'score-medium';
-                    if (analysis.score >= 7) scoreClass = 'score-high';
-                    if (analysis.score <= 4) scoreClass = 'score-low';
-                    
-                    scoreBadge = `<span class="score-badge ${scoreClass}">Score: ${analysis.score}/10</span>`;
-                    
-                    // Render details accordion
-                    const reasonsHtml = (analysis.reasons || []).map(r => `<li>${r}</li>`).join('');
-                    const epbgVal = analysis.epbg_required === 'Yes' ? (analysis.epbg_percentage || 'Yes') : 'No';
-                    const prebidVal = analysis.pre_bid_required === 'Yes' ? (analysis.pre_bid_date || 'Yes') : 'No';
-                    
-                    detailsAccordion = `
-                        <details class="tender-analysis-details">
-                            <summary>View Automated RFP Score Details</summary>
-                            <div class="analysis-content">
-                                <div class="analysis-grid">
-                                    <div><strong>EMD Amount:</strong> ${analysis.emd_status || 'N/A'}</div>
-                                    <div><strong>Startup Relaxation:</strong> ${analysis.startup_exemption || 'No'}</div>
-                                    <div><strong>MSE Relaxation:</strong> ${analysis.mse_exemption || 'No'}</div>
-                                    <div><strong>Pre-Bid Meeting:</strong> ${prebidVal}</div>
-                                    <div><strong>ePBG Guarantee:</strong> ${epbgVal}</div>
+                    // Recommendation Chip (Phase 2)
+                    if (analysis.recommendation) {
+                        let recClass = '';
+                        if (analysis.recommendation === 'Pursue') recClass = 'recommendation-pursue';
+                        else if (analysis.recommendation === 'Review') recClass = 'recommendation-review';
+                        else if (analysis.recommendation === 'Watch') recClass = 'recommendation-watch';
+                        else if (analysis.recommendation === 'Drop') recClass = 'recommendation-drop';
+                        
+                        recommendationChip = `<span class="rec-chip ${recClass}">${analysis.recommendation}</span>`;
+                    }
+
+                    // Business line tag (Phase 2)
+                    if (analysis.business_line) {
+                        businessLineTag = `<span class="tag tag-business-line">${analysis.business_line.label}</span>`;
+                    }
+
+                    // Eligibility tag (Phase 2)
+                    if (analysis.eligibility) {
+                        const verdict = analysis.eligibility.verdict;
+                        if (verdict === 'turnover_gap') {
+                            eligibilityTag = `<span class="tag tag-eligibility-warning" title="${analysis.eligibility.detail || 'Turnover requirement gap'}">⚠️ Turnover Gap</span>`;
+                        } else if (verdict === 'eligible') {
+                            eligibilityTag = `<span class="tag tag-eligibility-ok">✓ Eligible</span>`;
+                        }
+                    }
+
+                    if (analysis.analysis_status === 'failed') {
+                        scoreBadge = `<span class="score-badge" style="background: rgba(156, 163, 175, 0.15); color: #9ca3af; border-color: rgba(156, 163, 175, 0.3);">Analysis Failed</span>`;
+                        
+                        const reasonsHtml = (analysis.reasons || []).map(r => `<li>${r}</li>`).join('');
+                        detailsAccordion = `
+                            <details class="tender-analysis-details">
+                                <summary>View Automated RFP Score Details</summary>
+                                <div class="analysis-content">
+                                    <div class="analysis-reasons">
+                                        <strong>Analysis Error:</strong>
+                                        <ul style="color: var(--failed-color);">
+                                            ${reasonsHtml}
+                                        </ul>
+                                    </div>
                                 </div>
+                            </details>
+                        `;
+                        
+                        reanalyzeBtn = `
+                            <button class="btn btn-secondary" onclick="reanalyzeBid('${tender.bid_no}')" style="padding: 0.45rem 1rem; font-size: 0.8rem; border-color: var(--primary-accent);">
+                                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17" />
+                                </svg>
+                                Re-analyze
+                            </button>
+                        `;
+                    } else {
+                        // Score Badge (Risk / Phase 1)
+                        let riskClass = 'score-medium';
+                        let scoreText = '';
+                        if (analysis.score_scale === 100) {
+                            const shortlistMin = (scoringConfig && scoringConfig.status_thresholds) ? scoringConfig.status_thresholds.shortlist_min : 70;
+                            const rejectMax = (scoringConfig && scoringConfig.status_thresholds) ? scoringConfig.status_thresholds.reject_max : 40;
+                            if (analysis.score >= shortlistMin) riskClass = 'score-high';
+                            else if (analysis.score <= rejectMax) riskClass = 'score-low';
+                            scoreText = `Risk: ${analysis.score}/100`;
+                        } else {
+                            if (analysis.score >= 7) riskClass = 'score-high';
+                            else if (analysis.score <= 4) riskClass = 'score-low';
+                            scoreText = `Score: ${analysis.score}/10`;
+                        }
+                        
+                        let fitBadge = '';
+                        if (analysis.fit_score !== undefined && analysis.fit_score !== null) {
+                            let fitClass = 'score-medium';
+                            if (analysis.fit_score >= 70) fitClass = 'score-high';
+                            else if (analysis.fit_score <= 40) fitClass = 'score-low';
+                            fitBadge = `<span class="score-badge ${fitClass}">Fit: ${analysis.fit_score}/100</span>`;
+                        }
+                        
+                        scoreBadge = `
+                            <div style="display: flex; gap: 0.35rem; align-items: center;">
+                                ${fitBadge}
+                                <span class="score-badge ${riskClass}">${scoreText}</span>
+                            </div>
+                        `;
+                        
+                        if (analysis.confidence !== undefined && analysis.confidence !== null) {
+                            const parsed = analysis.parsed_fields || 0;
+                            const total = analysis.total_fields || 8;
+                            const pct = Math.round(analysis.confidence * 100);
+                            const isMuted = analysis.confidence === 1.0 ? 'confidence-muted' : '';
+                            confidenceHtml = `<div class="confidence-indicator ${isMuted}">Parsed ${parsed}/${total} fields · ${pct}%</div>`;
+                        }
+                        
+                        const epbgVal = analysis.epbg_required === 'Yes' ? (analysis.epbg_percentage || 'Yes') : 'No';
+                        const prebidVal = analysis.pre_bid_required === 'Yes' ? (analysis.pre_bid_date || 'Yes') : 'No';
+                        
+                        let breakdownHtml = '';
+                        if (analysis.breakdown && analysis.breakdown.length > 0) {
+                            const totalWeight = analysis.breakdown.reduce((sum, item) => sum + item.weight, 0);
+                            breakdownHtml = `
+                                <div class="breakdown-container">
+                                    <strong>Risk Score Breakdown:</strong>
+                                    ${analysis.breakdown.map(item => {
+                                        const maxPoints = totalWeight > 0 ? (100 * item.weight / totalWeight) : 0;
+                                        const maxPointsFormatted = maxPoints.toFixed(1);
+                                        const pct = maxPoints > 0 ? Math.min(100, Math.max(0, (item.points / maxPoints) * 100)) : 0;
+                                        
+                                        let barColor = 'var(--primary-accent)';
+                                        if (item.subscore >= 0.7) {
+                                            barColor = 'var(--success-color)';
+                                        } else if (item.subscore <= 0.4) {
+                                            barColor = 'var(--failed-color)';
+                                        } else {
+                                            barColor = '#f59e0b';
+                                        }
+                                        
+                                        return `
+                                            <div class="breakdown-row">
+                                                <div class="breakdown-header">
+                                                    <span class="breakdown-name">${item.criterion} (Weight: ${item.weight})</span>
+                                                    <span class="breakdown-values">${item.points.toFixed(1)} / ${maxPointsFormatted} pts</span>
+                                                </div>
+                                                <div class="breakdown-bar-bg">
+                                                    <div class="breakdown-bar-fill" style="width: ${pct}%; background-color: ${barColor};"></div>
+                                                </div>
+                                                ${item.detail ? `<div class="breakdown-detail">${item.detail}</div>` : ''}
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            `;
+                        } else {
+                            const reasonsHtml = (analysis.reasons || []).map(r => `<li>${r}</li>`).join('');
+                            breakdownHtml = `
                                 <div class="analysis-reasons">
                                     <strong>Evaluation Analysis:</strong>
                                     <ul>
                                         ${reasonsHtml}
                                     </ul>
                                 </div>
-                            </div>
-                        </details>
-                    `;
+                            `;
+                        }
+
+                        let fitBreakdownHtml = '';
+                        if (analysis.fit_breakdown && analysis.fit_breakdown.length > 0) {
+                            const totalFitWeight = analysis.fit_breakdown.reduce((sum, item) => sum + item.weight, 0);
+                            fitBreakdownHtml = `
+                                <div class="breakdown-container">
+                                    <strong>Company Fit Breakdown:</strong>
+                                    ${analysis.fit_breakdown.map(item => {
+                                        const maxPoints = totalFitWeight > 0 ? (100 * item.weight / totalFitWeight) : 0;
+                                        const maxPointsFormatted = maxPoints.toFixed(1);
+                                        const pct = maxPoints > 0 ? Math.min(100, Math.max(0, (item.points / maxPoints) * 100)) : 0;
+                                        
+                                        let barColor = 'var(--primary-accent)';
+                                        if (item.subscore >= 0.7) {
+                                            barColor = 'var(--success-color)';
+                                        } else if (item.subscore <= 0.4) {
+                                            barColor = 'var(--failed-color)';
+                                        } else {
+                                            barColor = '#f59e0b';
+                                        }
+                                        
+                                        return `
+                                            <div class="breakdown-row">
+                                                <div class="breakdown-header">
+                                                    <span class="breakdown-name">${item.criterion} (Weight: ${item.weight})</span>
+                                                    <span class="breakdown-values">${item.points.toFixed(1)} / ${maxPointsFormatted} pts</span>
+                                                </div>
+                                                <div class="breakdown-bar-bg">
+                                                    <div class="breakdown-bar-fill" style="width: ${pct}%; background-color: ${barColor};"></div>
+                                                </div>
+                                                ${item.detail ? `<div class="breakdown-detail">${item.detail}</div>` : ''}
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            `;
+                        }
+
+                        let breakdownsWrapperHtml = '';
+                        if (fitBreakdownHtml) {
+                            breakdownsWrapperHtml = `
+                                <div class="breakdowns-row">
+                                    ${breakdownHtml}
+                                    ${fitBreakdownHtml}
+                                </div>
+                            `;
+                        } else {
+                            breakdownsWrapperHtml = breakdownHtml;
+                        }
+
+                        let eligibilityDetailsHtml = '';
+                        if (analysis.eligibility && analysis.eligibility.detail) {
+                            const eligibilityClass = analysis.eligibility.verdict === 'turnover_gap' ? 'text-failed' : 'text-success';
+                            const eligibilityColor = analysis.eligibility.verdict === 'turnover_gap' ? 'var(--failed-color)' : 'var(--success-color)';
+                            const eligibilityVerdictLabel = analysis.eligibility.verdict === 'turnover_gap' ? 'Turnover Gap' : 'Eligible';
+                            
+                            const flagsHtml = (analysis.eligibility.flags || []).map(f => `<span class="tag tag-keyword" style="font-size: 0.7rem; padding: 0.1rem 0.4rem;">${f}</span>`).join(' ');
+                            
+                            eligibilityDetailsHtml = `
+                                <div class="analysis-reasons" style="border-top: 1px solid var(--border-color); padding-top: 0.75rem; margin-top: 0.5rem; width: 100%;">
+                                    <strong>Eligibility Verdict:</strong> <span class="${eligibilityClass}" style="font-weight: 700; color: ${eligibilityColor};">${eligibilityVerdictLabel}</span>
+                                    <p style="font-size: 0.775rem; color: var(--text-secondary); margin-top: 0.25rem;">${analysis.eligibility.detail}</p>
+                                    ${flagsHtml ? `<div style="margin-top: 0.35rem; display: flex; gap: 0.35rem; flex-wrap: wrap;">${flagsHtml}</div>` : ''}
+                                </div>
+                            `;
+                        }
+
+                        detailsAccordion = `
+                            <details class="tender-analysis-details">
+                                <summary>View Automated RFP Score Details</summary>
+                                <div class="analysis-content">
+                                    <div class="analysis-grid">
+                                        <div><strong>EMD Amount:</strong> ${analysis.emd_status || 'N/A'}</div>
+                                        <div><strong>Startup Relaxation:</strong> ${analysis.startup_exemption || 'No'}</div>
+                                        <div><strong>MSE Relaxation:</strong> ${analysis.mse_exemption || 'No'}</div>
+                                        <div><strong>Pre-Bid Meeting:</strong> ${prebidVal}</div>
+                                        <div><strong>ePBG Guarantee:</strong> ${epbgVal}</div>
+                                    </div>
+                                    ${breakdownsWrapperHtml}
+                                    ${eligibilityDetailsHtml}
+                                </div>
+                            </details>
+                        `;
+                    }
                 } else {
                     scoreBadge = `<span class="score-badge score-low" style="background: rgba(255,255,255,0.02); color: var(--text-secondary); border-color: var(--border-color);">Score: --/10</span>`;
                 }
@@ -1500,6 +2872,47 @@
                        </a>`
                     : `<span class="state-message" style="font-size: 0.8rem; font-style: italic;">RFP download not available.</span>`;
 
+                // Keywords and tags
+                const keywordsList = tender.keyword.split(',').map(kw => `<span class="tag tag-keyword">${kw.trim()}</span>`).join(' ');
+
+                // Phase 2 extra grid fields
+                let extraDetailsHtml = '';
+                if (analysis && (analysis.est_value_inr !== undefined || analysis.buyer_org || analysis.primary_item || analysis.consignee_state)) {
+                    let valStr = 'N/A';
+                    if (analysis.est_value_inr) {
+                        if (analysis.est_value_inr >= 10000000) {
+                            valStr = `₹${(analysis.est_value_inr / 10000000).toFixed(2)} Cr`;
+                        } else if (analysis.est_value_inr >= 100000) {
+                            valStr = `₹${(analysis.est_value_inr / 100000).toFixed(2)} Lakh`;
+                        } else {
+                            valStr = `₹${analysis.est_value_inr.toLocaleString('en-IN')}`;
+                        }
+                    }
+                    
+                    const buyerStr = [analysis.buyer_org, analysis.buyer_dept].filter(Boolean).join(' | ') || 'N/A';
+                    const itemStr = analysis.primary_item ? `${analysis.primary_item}${analysis.item_category ? ` (${analysis.item_category})` : ''}` : 'N/A';
+                    const stateStr = analysis.consignee_state || 'N/A';
+                    
+                    extraDetailsHtml = `
+                        <div class="detail-item">
+                            <span class="detail-label">Est. Value</span>
+                            <span class="detail-value" style="color: var(--secondary-accent); font-weight: 700;">${valStr}</span>
+                        </div>
+                        <div class="detail-item" style="grid-column: span 2;" title="${buyerStr}">
+                            <span class="detail-label">Buyer Detail</span>
+                            <span class="detail-value" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">${buyerStr}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Consignee State</span>
+                            <span class="detail-value">${stateStr}</span>
+                        </div>
+                        <div class="detail-item" style="grid-column: span 4;" title="${itemStr}">
+                            <span class="detail-label">Primary Item / Category</span>
+                            <span class="detail-value" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">${itemStr}</span>
+                        </div>
+                    `;
+                }
+
                 return `
                     <div class="tender-card">
                         <div class="tender-header">
@@ -1507,12 +2920,18 @@
                                 <div class="tender-tags">
                                     <span class="tag tag-id">${tender.bid_no}</span>
                                     ${keywordsList}
+                                    ${businessLineTag}
+                                    ${eligibilityTag}
                                 </div>
                                 <h3 class="tender-title">${tender.title}</h3>
                             </div>
                             <div class="status-area">
-                                <div class="status-badge ${statusClass}"><span class="status-dot"></span>${statusText}</div>
+                                <div style="display: flex; gap: 0.35rem; align-items: center;">
+                                    ${recommendationChip}
+                                    <div class="status-badge ${statusClass}"><span class="status-dot"></span>${statusText}</div>
+                                </div>
                                 ${scoreBadge}
+                                ${confidenceHtml}
                             </div>
                         </div>
 
@@ -1529,6 +2948,7 @@
                                 <span class="detail-label">End Date (Deadline)</span>
                                 <span class="detail-value">${tender.end_date || 'N/A'}</span>
                             </div>
+                            ${extraDetailsHtml}
                         </div>
 
                         ${detailsAccordion}
@@ -1542,6 +2962,7 @@
                                     </svg>
                                     GeM Link
                                 </a>
+                                ${reanalyzeBtn}
                             </div>
                             
                             <div class="override-controls">
