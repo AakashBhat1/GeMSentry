@@ -509,6 +509,30 @@ def parse_gem_date(date_str):
             pass
     return None
 
+def check_date_policy(start_date_str, end_date_str):
+    start_date_obj = parse_gem_date(start_date_str)
+    end_date_obj = parse_gem_date(end_date_str)
+    current_date = datetime.datetime.now()
+    
+    reasons = []
+    
+    if not start_date_obj or not end_date_obj:
+        return True, []
+        
+    # 1. Start date must be in current month & year
+    if start_date_obj.month != current_date.month or start_date_obj.year != current_date.year:
+        reasons.append(f"Start date ({start_date_str}) is not in the current month")
+    
+    # 2. End date must be at least 7 days (1 week) after start date
+    if (end_date_obj - start_date_obj).days < 7:
+        reasons.append(f"Bid duration is less than 7 days (Start: {start_date_str}, End: {end_date_str})")
+        
+    # 3. End date must be at least 7 days (1 week) after current date
+    if (end_date_obj - current_date).days < 7:
+        reasons.append(f"Remaining bid time is less than 7 days (End: {end_date_str}, Today: {current_date.strftime('%d-%m-%Y')})")
+        
+    return len(reasons) == 0, reasons
+
 def scrape(selected_keywords=None, max_pages=2, sort_order="Bid-End-Date-Latest", log_callback=None):
     class LogStream:
         def __init__(self, callback):
@@ -598,6 +622,11 @@ def scrape(selected_keywords=None, max_pages=2, sort_order="Bid-End-Date-Latest"
                     tenders = parse_cards(page.content(), keyword)
                     print(f"Page 1: Found {len(tenders)} tenders")
                     for t in tenders:
+                        date_ok, reasons = check_date_policy(t.get("start_date"), t.get("end_date"))
+                        if not date_ok:
+                            print(f"  [Skipped - Date Policy] {t['bid_no']}: {', '.join(reasons)}")
+                            continue
+
                         if t["bid_no"] not in all_tenders:
                             all_tenders[t["bid_no"]] = t
                             new_tenders_count += 1
@@ -624,6 +653,11 @@ def scrape(selected_keywords=None, max_pages=2, sort_order="Bid-End-Date-Latest"
                             break
                             
                         for t in page_tenders:
+                            date_ok, reasons = check_date_policy(t.get("start_date"), t.get("end_date"))
+                            if not date_ok:
+                                print(f"  [Skipped - Date Policy] {t['bid_no']}: {', '.join(reasons)}")
+                                continue
+
                             if t["bid_no"] not in all_tenders:
                                 all_tenders[t["bid_no"]] = t
                                 new_tenders_count += 1
@@ -647,6 +681,14 @@ def scrape(selected_keywords=None, max_pages=2, sort_order="Bid-End-Date-Latest"
             
             for idx, tender in enumerate(tenders_list):
                 bid_no = tender["bid_no"]
+                
+                # 1. Skip already rejected or successfully processed tenders
+                if tender.get("status") == "Rejected":
+                    continue
+                if tender.get("downloaded") and tender.get("analysis") and tender.get("local_pdf_path"):
+                    if os.path.exists(tender["local_pdf_path"]):
+                        continue
+                        
                 pdf_url = tender["pdf_url"]
                 keyword = tender["keyword"].split(",")[0].strip()
                 
@@ -654,30 +696,8 @@ def scrape(selected_keywords=None, max_pages=2, sort_order="Bid-End-Date-Latest"
                 sanitized_keyword = sanitize_folder_name(keyword)
                 date_folder = get_date_folder_name()
                 
-                # Date Validation Gate
-                start_date_obj = parse_gem_date(tender.get("start_date"))
-                end_date_obj = parse_gem_date(tender.get("end_date"))
-                current_date = datetime.datetime.now()
-                
-                date_ok = True
-                date_reasons = []
-                
-                if start_date_obj and end_date_obj:
-                    # 1. Start date must be in current month & year
-                    if start_date_obj.month != current_date.month or start_date_obj.year != current_date.year:
-                        date_ok = False
-                        date_reasons.append(f"Start date ({tender['start_date']}) is not in the current month.")
-                    
-                    # 2. End date must be at least 7 days (1 week) after start date
-                    if (end_date_obj - start_date_obj).days < 7:
-                        date_ok = False
-                        date_reasons.append(f"Bid duration is less than 7 days (Start: {tender['start_date']}, End: {tender['end_date']}).")
-                        
-                    # 3. End date must be at least 7 days (1 week) after current date
-                    if (end_date_obj - current_date).days < 7:
-                        date_ok = False
-                        date_reasons.append(f"Remaining bid time is less than 7 days (End: {tender['end_date']}, Today: {current_date.strftime('%d-%m-%Y')}).")
-                
+                # 2. Date Validation Gate (only for unprocessed tenders)
+                date_ok, date_reasons = check_date_policy(tender.get("start_date"), tender.get("end_date"))
                 if not date_ok and tender.get("status") != "Shortlisted":
                     reason_msg = " | ".join(date_reasons)
                     print(f"[{idx+1}/{len(tenders_list)}] Skipping Bid {bid_no} - Rejected by Date Policy: {reason_msg}")
