@@ -1033,6 +1033,17 @@
                 </div>
             </div>
 
+            <!-- Specific Bid Acquisition Section -->
+            <div style="padding: 1rem; border: 1px solid var(--border-color); background-color: rgba(255, 255, 255, 0.02); border-radius: 8px; display: flex; flex-direction: column; gap: 0.75rem; width: 100%;">
+                <span class="filter-title" style="margin-bottom: 0; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Acquire Specific Bid by ID / Number</span>
+                <div style="display: flex; gap: 0.75rem; width: 100%;">
+                    <input type="text" id="manualBidId" placeholder="e.g., 7610938 or GEM/2026/B/7610938" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.55rem; border-radius: 6px; font-size: 0.85rem; outline: none; flex-grow: 1;">
+                    <button class="btn btn-primary" onclick="triggerManualAcquisition()" style="padding: 0.55rem 1.2rem; font-size: 0.85rem; border-radius: 6px; white-space: nowrap;">
+                        Acquire Bid
+                    </button>
+                </div>
+            </div>
+
             <div style="display: flex; gap: 1rem; align-items: center; justify-content: space-between; width: 100%;">
                 <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                     <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">Page Limit (per keyword)</label>
@@ -1234,6 +1245,36 @@
             } catch (err) {
                 console.error("Failed to start scrape:", err);
                 alert("Failed to start scrape. Please try again.");
+            }
+        }
+
+        async function triggerManualAcquisition() {
+            const bidId = document.getElementById('manualBidId').value.trim();
+            if (!bidId) {
+                alert("Please enter a Bid ID or Bid Number.");
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/scrape/id', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bid_id: bidId })
+                });
+                const resData = await response.json();
+                if (resData.error) {
+                    alert(resData.error);
+                } else {
+                    document.getElementById('consoleLogs').innerText = `Triggering manual acquisition for Bid: ${bidId}...`;
+                    
+                    // Restart polling if stopped
+                    if (!pollingInterval) {
+                        pollingInterval = setInterval(checkScraperStatus, 1000);
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to start manual acquisition:", err);
+                alert("Failed to start manual acquisition. Please try again.");
             }
         }
 

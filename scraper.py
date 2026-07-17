@@ -350,10 +350,10 @@ def parse_cards(html, keyword):
                 continue
 
             pdf_href = bid_link.get("href", "")
-            if pdf_href.startswith("/"):
-                pdf_url = "https://bidplus.gem.gov.in" + pdf_href
-            elif pdf_href.startswith("http"):
+            if pdf_href.startswith("http"):
                 pdf_url = pdf_href
+            elif pdf_href:
+                pdf_url = urllib.parse.urljoin("https://bidplus.gem.gov.in/all-bids", pdf_href)
             else:
                 pdf_url = f"https://bidplus.gem.gov.in/showbidDocument/{bid_no}"
 
@@ -774,6 +774,184 @@ def scrape(selected_keywords=None, max_pages=2, sort_order="Bid-End-Date-Latest"
 
         save_metadata(tenders_list)
         return tenders_list, new_tenders_count
+    finally:
+        sys.stdout = original_stdout
+
+def scrape_single_bid(bid_id, log_callback=None):
+    class LogStream:
+        def __init__(self, callback):
+            self.callback = callback
+            self.buffer = ""
+            self.is_writing = False
+        def write(self, buf):
+            sys.__stdout__.write(buf)
+            if self.is_writing:
+                return
+            self.is_writing = True
+            try:
+                self.buffer += buf
+                while "\n" in self.buffer:
+                    line, self.buffer = self.buffer.split("\n", 1)
+                    self.callback(line)
+            finally:
+                self.is_writing = False
+        def flush(self):
+            sys.__stdout__.flush()
+            
+    original_stdout = sys.stdout
+    if log_callback:
+        sys.stdout = LogStream(log_callback)
+
+    try:
+        print("Initializing directories for manual ID acquisition...")
+        os.makedirs(DOWNLOADS_DIR, exist_ok=True)
+        
+        bid_id_clean = bid_id.strip()
+        print(f"Targeting Bid ID / Number: '{bid_id_clean}'")
+        
+        all_tenders = load_existing_metadata()
+        
+        # Build search url by querying GeM with general search parameter
+        encoded_term = urllib.parse.quote(bid_id_clean)
+        search_url = f"https://bidplus.gem.gov.in/all-bids?bid_number=&items_per_page=&search_under=&search={encoded_term}"
+        
+        target_tender = None
+        
+        with sync_playwright() as p:
+            print("Launching browser with stealth settings...")
+            browser = p.chromium.launch(
+                headless=True,
+                args=[
+                    "--disable-blink-features=AutomationControlled",
+                    "--no-sandbox",
+                    "--disable-dev-shm-usage",
+                ]
+            )
+            context = browser.new_context(
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                viewport={"width": 1366, "height": 768},
+                locale="en-IN",
+                timezone_id="Asia/Kolkata",
+                accept_downloads=True
+            )
+            context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+            
+            page = context.new_page()
+            
+            print("Navigating to base search page...")
+            page.goto("https://bidplus.gem.gov.in/all-bids", wait_until="domcontentloaded", timeout=60000)
+            page.wait_for_timeout(2000)
+            
+            # Fill the search input and click search button
+            print(f"Typing search query '{bid_id_clean}' in search box...")
+            page.fill("#searchBid", bid_id_clean)
+            page.wait_for_timeout(500)
+            
+            print("Clicking search button...")
+            page.click("#searchBidRA")
+            page.wait_for_timeout(3000) # Wait for AJAX refresh
+            
+            # Wait for card
+            try:
+                page.wait_for_selector("div.card, #bidCard", timeout=12000)
+                tenders = parse_cards(page.content(), "MANUAL_REQUEST")
+                
+                # Try to find matching card (partial or exact)
+                for t in tenders:
+                    if bid_id_clean.lower() in t["bid_no"].lower() or t["bid_no"].lower() in bid_id_clean.lower():
+                        target_tender = t
+                        break
+                
+                # Do not default to a random card if no match is found
+                pass
+                    
+            except Exception as e:
+                print(f"Failed to find or parse bid cards for ID '{bid_id_clean}': {e}")
+                
+            if not target_tender:
+                print(f"No tender found on GeM matching ID: '{bid_id_clean}'")
+                browser.close()
+                return None
+                
+            bid_no = target_tender["bid_no"]
+            pdf_url = target_tender["pdf_url"]
+            print(f"Tender found: {bid_no} - {target_tender['title']}")
+            
+            # Since this is a manual request, we BYPASS the Date Policy Gate check
+            print("Manual acquisition request: Bypassing Date Policy Gate check.")
+            
+            sanitized_bid = sanitize_filename(bid_no)
+            sanitized_keyword = "manual_downloads"
+            date_folder = get_date_folder_name()
+            
+            target_dir = os.path.join(DOWNLOADS_DIR, sanitized_keyword, date_folder, sanitized_bid)
+            save_path = os.path.join(target_dir, f"{sanitized_bid}.pdf")
+            
+            existing_path = find_existing_pdf_file(sanitized_bid)
+            pdf_location = None
+            
+            if existing_path:
+                print(f"RFP PDF already exists in local downloads cache: {existing_path}")
+                target_tender["downloaded"] = True
+                target_tender["local_pdf_path"] = existing_path
+                pdf_location = existing_path
+            else:
+                os.makedirs(target_dir, exist_ok=True)
+                print(f"Downloading RFP PDF from: {pdf_url}...")
+                success = download_rfp_pdf(context, pdf_url, save_path)
+                if success:
+                    target_tender["downloaded"] = True
+                    target_tender["local_pdf_path"] = save_path.replace("\\", "/")
+                    pdf_location = save_path
+                else:
+                    target_tender["downloaded"] = False
+                    print("Download failed for RFP PDF.")
+                    
+            # Scan and analyze RFP PDF
+            if target_tender["downloaded"] and pdf_location and os.path.exists(pdf_location):
+                print("Scanning and scoring RFP PDF contents...")
+                analysis = analyze_rfp_pdf(pdf_location)
+                if analysis:
+                    target_tender["analysis"] = analysis
+                    if analysis["score"] >= 7:
+                        target_tender["status"] = "Shortlisted"
+                    elif analysis["score"] <= 4:
+                        target_tender["status"] = "Rejected"
+                    else:
+                        target_tender["status"] = "Pending Review"
+            else:
+                target_tender["status"] = "Pending Review"
+                target_tender["analysis"] = {
+                    "emd_amount": None,
+                    "emd_status": "No PDF Available",
+                    "startup_exemption": "Unknown",
+                    "mse_exemption": "Unknown",
+                    "pre_bid_required": "Unknown",
+                    "pre_bid_date": None,
+                    "epbg_required": "Unknown",
+                    "epbg_percentage": None,
+                    "score": 5,
+                    "reasons": ["RFP PDF document is not available for analysis."]
+                }
+                
+            # If the user previously searched for it, update the keyword or preserve it
+            if bid_no in all_tenders:
+                existing = all_tenders[bid_no]
+                kw_list = [k.strip() for k in existing["keyword"].split(",")]
+                if "MANUAL_REQUEST" not in kw_list:
+                    kw_list.append("MANUAL_REQUEST")
+                target_tender["keyword"] = ", ".join(kw_list)
+            else:
+                target_tender["keyword"] = "MANUAL_REQUEST"
+                
+            # Save or update in database
+            all_tenders[bid_no] = target_tender
+            save_metadata(list(all_tenders.values()))
+            print(f"Successfully processed and updated metadata for Bid: {bid_no}")
+            
+            browser.close()
+            return target_tender
+            
     finally:
         sys.stdout = original_stdout
 

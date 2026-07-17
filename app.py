@@ -53,6 +53,35 @@ def run_scraper_thread(keywords, max_pages, sort_order):
         with status_lock:
             scrape_status["status"] = "idle"
 
+def run_scraper_id_thread(bid_id):
+    global scrape_status, scrape_logs
+    try:
+        add_log(f"Starting background single bid acquisition for ID: '{bid_id}'...")
+        
+        def scraper_log_callback(msg):
+            add_log(msg)
+            
+        tender = scraper.scrape_single_bid(
+            bid_id=bid_id,
+            log_callback=scraper_log_callback
+        )
+        
+        if tender:
+            add_log(f"Acquisition completed. Tender {tender['bid_no']} successfully imported.")
+            with status_lock:
+                scrape_status["new_count"] = 1
+        else:
+            add_log(f"Acquisition failed. No tender was imported for ID: '{bid_id}'.")
+            with status_lock:
+                scrape_status["new_count"] = 0
+                
+        with status_lock:
+            scrape_status["status"] = "idle"
+    except Exception as e:
+        add_log(f"Single bid scraping thread crashed: {e}")
+        with status_lock:
+            scrape_status["status"] = "idle"
+
 @app.route("/")
 def serve_dashboard():
     # Serve the dashboard page at the root URL
@@ -114,6 +143,33 @@ def trigger_scrape():
     thread.start()
     
     return jsonify({"message": "Scraper started successfully."})
+
+@app.route("/api/scrape/id", methods=["POST"])
+def trigger_scrape_id():
+    global scrape_status, scrape_logs
+    with status_lock:
+        if scrape_status["status"] == "running":
+            return jsonify({"error": "Scraper is already running."}), 400
+            
+        data = request.json or {}
+        bid_id = data.get("bid_id")
+        
+        if not bid_id:
+            return jsonify({"error": "No Bid ID provided."}), 400
+            
+        scrape_status["status"] = "running"
+        scrape_status["new_count"] = 0
+        scrape_status["start_time"] = datetime.datetime.now().isoformat()
+        scrape_logs.clear()
+        
+    thread = threading.Thread(
+        target=run_scraper_id_thread,
+        args=(bid_id,),
+        daemon=True
+    )
+    thread.start()
+    
+    return jsonify({"message": "Single bid scraper started successfully."})
 
 @app.route("/api/tenders/status", methods=["POST"])
 def update_tender_status():
