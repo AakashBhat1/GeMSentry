@@ -1,13 +1,20 @@
 import os
-import sys
-import json
 import threading
 import datetime
 import webbrowser
+import logging
 from flask import Flask, jsonify, request, send_from_directory
 
-# Import the scraper module
-import scraper
+import paths
+import logging_setup
+
+# Ensure dirs + logging before scraper import side-effects matter
+paths.ensure_dirs()
+logging_setup.setup_logging()
+
+import scraper  # noqa: E402
+
+logger = logging.getLogger("gemsentry")
 
 app = Flask(__name__, static_folder=".", static_url_path="")
 
@@ -17,55 +24,71 @@ scrape_status = {
     "status": "idle",
     "current_keyword": "",
     "new_count": 0,
-    "start_time": None
+    "start_time": None,
+    "log_session_path": None,
 }
-scrape_logs = []
+
+# Bounded live buffer (also mirrored via logging_setup.log_buffer)
+LOG_BUFFER_MAX = logging_setup.LOG_BUFFER_MAX
+scrape_logs = logging_setup.log_buffer  # deque, maxlen=500
+
 
 def add_log(message):
-    timestamp = datetime.datetime.now().strftime("%H:%M:%S")
-    log_line = f"[{timestamp}] {message}"
-    with status_lock:
-        scrape_logs.append(log_line)
-    print(log_line)  # Also echo to python console
+    """Log to gemsentry logger (console + file + bounded buffer + session)."""
+    # Strip leading timestamps if callers already formatted; logger formats again
+    logger.info("%s", message)
+
 
 def run_scraper_thread(keywords, max_pages, sort_order):
-    global scrape_status, scrape_logs
+    global scrape_status
     try:
         add_log(f"Starting background scrape for {len(keywords)} keyword(s)...")
-        
-        # Scraper callback to push logs from scraper.py to Flask status log
+
+        # Scraper logs via logger; BufferHandler fills live buffer.
+        # Optional callback reserved for future UI hooks (no re-log).
         def scraper_log_callback(msg):
-            add_log(msg)
-            
+            pass
+
         tenders_list, new_count = scraper.scrape(
             selected_keywords=keywords,
             max_pages=max_pages,
             sort_order=sort_order,
-            log_callback=scraper_log_callback
+            log_callback=scraper_log_callback,
         )
-        
+
+        with status_lock:
+            # Capture session path before scraper's finally clears handler
+            # (scrape ends session in finally after return — path still set)
+            sess = logging_setup.get_session_path()
+            if sess:
+                scrape_status["log_session_path"] = paths.repo_relative(sess)
+
         add_log(f"Scraping completed. Discovered {new_count} new tenders.")
         with status_lock:
             scrape_status["status"] = "idle"
             scrape_status["new_count"] = new_count
+            sess = logging_setup.get_session_path()
+            if sess:
+                scrape_status["log_session_path"] = paths.repo_relative(sess)
     except Exception as e:
         add_log(f"Scraping thread crashed: {e}")
         with status_lock:
             scrape_status["status"] = "idle"
 
+
 def run_scraper_id_thread(bid_id):
-    global scrape_status, scrape_logs
+    global scrape_status
     try:
         add_log(f"Starting background single bid acquisition for ID: '{bid_id}'...")
-        
+
         def scraper_log_callback(msg):
-            add_log(msg)
-            
+            pass
+
         tender = scraper.scrape_single_bid(
             bid_id=bid_id,
-            log_callback=scraper_log_callback
+            log_callback=scraper_log_callback,
         )
-        
+
         if tender:
             add_log(f"Acquisition completed. Tender {tender['bid_no']} successfully imported.")
             with status_lock:
@@ -74,18 +97,22 @@ def run_scraper_id_thread(bid_id):
             add_log(f"Acquisition failed. No tender was imported for ID: '{bid_id}'.")
             with status_lock:
                 scrape_status["new_count"] = 0
-                
+
         with status_lock:
             scrape_status["status"] = "idle"
+            sess = logging_setup.get_session_path()
+            if sess:
+                scrape_status["log_session_path"] = paths.repo_relative(sess)
     except Exception as e:
         add_log(f"Single bid scraping thread crashed: {e}")
         with status_lock:
             scrape_status["status"] = "idle"
 
+
 @app.route("/")
 def serve_dashboard():
-    # Serve the dashboard page at the root URL
-    return send_from_directory(".", "dashboard.html")
+    return send_from_directory(paths.ROOT, "dashboard.html")
+
 
 @app.route("/api/keywords", methods=["GET"])
 def get_keywords():
@@ -95,6 +122,7 @@ def get_keywords():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
 @app.route("/api/tenders", methods=["GET"])
 def get_tenders():
     try:
@@ -103,73 +131,86 @@ def get_tenders():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
 @app.route("/api/status", methods=["GET"])
 def get_status():
     with status_lock:
+        logs = list(logging_setup.log_buffer)
+        sess = logging_setup.get_session_path()
+        session_rel = (
+            paths.repo_relative(sess)
+            if sess
+            else scrape_status.get("log_session_path")
+        )
         return jsonify({
             "status": scrape_status["status"],
             "current_keyword": scrape_status["current_keyword"],
             "new_count": scrape_status["new_count"],
-            "logs": scrape_logs
+            "logs": logs,
+            "log_session_path": session_rel,
+            "log_count": len(logs),
         })
+
 
 @app.route("/api/scrape", methods=["POST"])
 def trigger_scrape():
-    global scrape_status, scrape_logs
+    global scrape_status
     with status_lock:
         if scrape_status["status"] == "running":
             return jsonify({"error": "Scraper is already running."}), 400
-            
+
         data = request.json or {}
         selected_keywords = data.get("keywords", [])
         max_pages = data.get("max_pages", 2)
         sort_order = data.get("sort_order", "Bid-End-Date-Latest")
-        
+
         if not selected_keywords:
             return jsonify({"error": "No keywords selected."}), 400
-            
-        # Initialize status and log list
+
         scrape_status["status"] = "running"
         scrape_status["new_count"] = 0
         scrape_status["start_time"] = datetime.datetime.now().isoformat()
-        scrape_logs.clear()
-        
-    # Start thread
+        scrape_status["log_session_path"] = None
+        logging_setup.clear_log_buffer()
+
     thread = threading.Thread(
         target=run_scraper_thread,
         args=(selected_keywords, max_pages, sort_order),
-        daemon=True
+        daemon=True,
     )
     thread.start()
-    
+
     return jsonify({"message": "Scraper started successfully."})
+
 
 @app.route("/api/scrape/id", methods=["POST"])
 def trigger_scrape_id():
-    global scrape_status, scrape_logs
+    global scrape_status
     with status_lock:
         if scrape_status["status"] == "running":
             return jsonify({"error": "Scraper is already running."}), 400
-            
+
         data = request.json or {}
         bid_id = data.get("bid_id")
-        
+
         if not bid_id:
             return jsonify({"error": "No Bid ID provided."}), 400
-            
+
         scrape_status["status"] = "running"
         scrape_status["new_count"] = 0
         scrape_status["start_time"] = datetime.datetime.now().isoformat()
-        scrape_logs.clear()
-        
+        scrape_status["log_session_path"] = None
+        logging_setup.clear_log_buffer()
+
     thread = threading.Thread(
         target=run_scraper_id_thread,
         args=(bid_id,),
-        daemon=True
+        daemon=True,
     )
     thread.start()
-    
+
     return jsonify({"message": "Single bid scraper started successfully."})
+
 
 @app.route("/api/tenders/status", methods=["POST"])
 def update_tender_status():
@@ -177,13 +218,13 @@ def update_tender_status():
         data = request.json or {}
         bid_no = data.get("bid_no")
         new_status = data.get("status")
-        
+
         if not bid_no or not new_status:
             return jsonify({"error": "Missing bid_no or status in request."}), 400
-            
+
         if new_status not in ["Shortlisted", "Rejected", "Pending Review"]:
             return jsonify({"error": "Invalid status value."}), 400
-            
+
         tenders_dict = scraper.load_existing_metadata()
         if bid_no in tenders_dict:
             tenders_dict[bid_no]["status"] = new_status
@@ -194,6 +235,7 @@ def update_tender_status():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
 @app.route("/api/scoring-config", methods=["GET"])
 def get_scoring_config():
     """Return current scoring config (defaults if file absent)."""
@@ -202,6 +244,7 @@ def get_scoring_config():
         return jsonify(cfg)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route("/api/scoring-config", methods=["POST"])
 def update_scoring_config():
@@ -218,10 +261,11 @@ def update_scoring_config():
         scraper.save_scoring_config(data)
         return jsonify({
             "message": "Scoring config updated successfully. Applies on next scrape.",
-            "config": data
+            "config": data,
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route("/api/company-profile", methods=["GET"])
 def get_company_profile():
@@ -231,6 +275,7 @@ def get_company_profile():
         return jsonify(profile)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route("/api/company-profile", methods=["POST"])
 def update_company_profile():
@@ -247,32 +292,56 @@ def update_company_profile():
         scraper.save_company_profile(data)
         return jsonify({
             "message": "Company profile updated successfully. Applies on next scrape.",
-            "profile": data
+            "profile": data,
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+@app.route("/api/logs", methods=["GET"])
+def get_logs():
+    """List app log + recent scrape sessions and return a tail (BE-24)."""
+    try:
+        sessions = logging_setup.list_session_logs(limit=20)
+        latest = sessions[0] if sessions else None
+        # Prefer latest session tail; else app log
+        if latest:
+            abs_latest = os.path.join(paths.SCRAPE_LOGS_DIR, latest["name"])
+            safe = logging_setup.safe_logs_path(abs_latest)
+            tail = logging_setup.tail_file(safe, lines=100) if safe else []
+        else:
+            safe = logging_setup.safe_logs_path(paths.APP_LOG_PATH)
+            tail = logging_setup.tail_file(safe, lines=100) if safe else []
+
+        return jsonify({
+            "app_log": paths.repo_relative(paths.APP_LOG_PATH),
+            "sessions": sessions,
+            "latest_session": latest,
+            "tail": tail,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/tenders/downloads/<path:filename>")
 def serve_pdf(filename):
     # Serve PDF files securely from the downloads directory
-    # On Windows, path separators can be converted
     safe_path = filename.replace("\\", "/")
-    directory = os.path.join("tenders", "downloads")
-    return send_from_directory(directory, safe_path)
+    return send_from_directory(paths.DOWNLOADS_DIR, safe_path)
+
 
 if __name__ == "__main__":
     port = 5000
-    print(f"\n==========================================================")
-    print(f"      GeMSentry RFP Acquisition Dashboard Running on Local Server")
-    print(f"      Access dashboard at: http://localhost:{port}")
-    print(f"==========================================================\n")
-    
-    # Automatically open the dashboard in browser after a short delay
+    logger.info("=" * 58)
+    logger.info("GeMSentry RFP Acquisition Dashboard Running on Local Server")
+    logger.info("Access dashboard at: http://localhost:%s", port)
+    logger.info("=" * 58)
+
     def open_browser():
         time.sleep(1.5)
         webbrowser.open(f"http://localhost:{port}")
-        
+
     import time
     threading.Thread(target=open_browser, daemon=True).start()
-    
+
     app.run(host="127.0.0.1", port=port, debug=False)

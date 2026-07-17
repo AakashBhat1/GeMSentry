@@ -50,7 +50,7 @@ graph TD
 ## ✨ Features
 
 - **🛡️ Stealth Automation:** Uses Playwright with custom user agents, locale configurations, and anti-detection evasion scripts to bypass aggressive web application firewalls (WAF).
-- **📋 Keyword Scouting:** Automatically queries keywords defined dynamically in your `keywords.csv` file.
+- **📋 Keyword Scouting:** Automatically queries keywords defined dynamically in your `config/keywords.csv` file.
 - **📅 Dynamic Date Gates:** Automatically rejects tenders that are old or don't match the current month, ensuring you only focus on active bids.
 - **🧠 Automated RFP Analyzer:** Automatically parses downloaded PDFs for critical details:
   - **EMD Amount:** Detects EMD presence and triggers warnings if it exceeds 10 Lakhs.
@@ -101,10 +101,23 @@ powershell -ExecutionPolicy Bypass -File .\run_search.ps1
 
 ---
 
+## 📁 Project layout
+
+| Path | Purpose |
+|------|---------|
+| `config/` | Tunable knobs: `keywords.csv`, `scoring_config.json`, `company_profile.json` |
+| `data/` | Runtime / imported state (`history.json`, optional `source/` inputs) |
+| `logs/` | App log (`gemsentry.log`) + per-scrape session files under `logs/scrapes/` |
+| `tenders/` | Tender metadata + downloaded RFP PDFs (`tenders/downloads/`) |
+| `paths.py` | Single path map used by app, scraper, and tools |
+| `run.py` | Primary entrypoint |
+
+---
+
 ## ⚙️ Configuration
 
 ### 🔍 Keywords Setup
-Modify `keywords.csv` in the root folder to add or remove search terms. GeMSentry will automatically pick these up on the next scrape.
+Modify `config/keywords.csv` to add or remove search terms. GeMSentry will automatically pick these up on the next scrape.
 ```csv
 POWER SUPPLY
 RADAR

@@ -1305,8 +1305,23 @@
             </div>
 
             <div class="console-container">
-                <div class="console-title">Live Scraper Console Output</div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div class="console-title">Live Scraper Console Output</div>
+                    <button class="btn btn-secondary" id="refreshLogTailBtn" onclick="refreshLogTail()" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; border-radius: 6px; display: flex; align-items: center; gap: 0.25rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 2px;"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                        Refresh Log Tail
+                    </button>
+                </div>
                 <div class="console-logs" id="consoleLogs">Waiting to start...</div>
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--text-secondary); margin-top: -0.15rem; padding: 0 0.25rem;">
+                    <span id="logSessionHint">App log: logs/gemsentry.log</span>
+                </div>
+                
+                <!-- Secondary Tail Block -->
+                <div id="secondaryTailContainer" style="display: none; flex-direction: column; gap: 0.4rem; margin-top: 0.5rem;">
+                    <div class="console-title" style="font-size: 0.75rem;">Historical / Disk Log Tail</div>
+                    <div class="console-logs" id="secondaryTailLogs" style="height: 120px; color: #60a5fa; border-color: rgba(96, 165, 250, 0.15);"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -1561,6 +1576,8 @@
         let searchStr = '';
         let tenders = [];
         let pollingInterval = null;
+        let previousStatus = null;
+        let activeSessionLogPath = null;
         let knownKeywords = [];
         let scoringConfig = null;
         let companyProfile = null;
@@ -2218,6 +2235,15 @@
                 const consoleLogs = document.getElementById('consoleLogs');
                 const startBtn = document.getElementById('startScrapeBtn');
                 
+                // Update log session hint if present, else fallback
+                if (data && data.hasOwnProperty('log_session_path') && data.log_session_path) {
+                    activeSessionLogPath = data.log_session_path;
+                    document.getElementById('logSessionHint').innerText = 'Session log: ' + activeSessionLogPath;
+                } else {
+                    activeSessionLogPath = null;
+                    document.getElementById('logSessionHint').innerText = 'App log: logs/gemsentry.log';
+                }
+
                 if (data.status === 'running') {
                     startBtn.disabled = true;
                     startBtn.innerText = 'Scraping...';
@@ -2244,8 +2270,46 @@
                         refreshData();
                     }
                 }
+
+                // Check for transition from running -> idle
+                const currentStatus = (data && data.status) || 'idle';
+                if (previousStatus === 'running' && currentStatus === 'idle') {
+                    refreshLogTail(true);
+                }
+                previousStatus = currentStatus;
             } catch (err) {
                 console.error("Error checking status:", err);
+            }
+        }
+
+        async function refreshLogTail(isTransition = false) {
+            try {
+                const response = await fetch('/api/logs');
+                if (!response.ok) throw new Error("Failed to fetch logs");
+                const data = await response.json();
+                
+                // Guard missing keys
+                const appLog = (data && data.app_log) || 'logs/gemsentry.log';
+                const tail = (data && data.tail) || [];
+                
+                // Update log hint only if we don't have a specific active session path from /api/status
+                if (!activeSessionLogPath) {
+                    document.getElementById('logSessionHint').innerText = 'App log: ' + appLog;
+                }
+                
+                const secondaryTailLogs = document.getElementById('secondaryTailLogs');
+                const secondaryTailContainer = document.getElementById('secondaryTailContainer');
+                
+                if (secondaryTailLogs) {
+                    secondaryTailLogs.innerText = tail.length > 0 ? tail.join('\n') : '(No log entries found)';
+                    secondaryTailLogs.scrollTop = secondaryTailLogs.scrollHeight;
+                }
+                
+                if (secondaryTailContainer) {
+                    secondaryTailContainer.style.display = 'flex';
+                }
+            } catch (err) {
+                console.error("Error refreshing log tail:", err);
             }
         }
 

@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "company": {
+    "legal_name": "Earnest Tactical Solutions Pvt. Ltd.",
+    "short_name": "ETSPL",
+    "incorporation_ym": "2020-03",
+    "hq_state": "Haryana",
+    "hq_city": "Gurgaon"
+  },
+  "eligibility": {
+    "annual_turnover_inr": 1800000,
+    "years_experience": 6,
+    "registrations": {
+      "mse_udyam": true,
+      "startup_dpiit": true
+    },
+    "certifications": [
+      "ISO 9001:2015"
+    ],
+    "can_meet_make_in_india": true,
+    "max_order_value_inr": null,
+    "turnover_waivable_by_exemption": true
+  },
+  "serviceability": {
+    "all_india": true,
+    "soft_avoid_states": [
+      "Tamil Nadu",
+      "Kerala",
+      "Karnataka",
+      "Andhra Pradesh",
+      "Telangana",
+      "Puducherry"
+    ],
+    "soft_avoid_reason": "Local monopoly on these product categories in South India",
+    "soft_avoid_penalty": 0.5
+  },
+  "business_lines": [
+    {
+      "id": "drone",
+      "label": "Drone / UAV",
+      "priority": 1.0,
+      "keywords": [
+        "drone",
+        "drones",
+        "uav",
+        "unmanned aerial",
+        "multirotor",
+        "quadcopter",
+        "aerostat",
+        "gis",
+        "mapping",
+        "surveillance",
+        "reconnaissance"
+      ]
+    },
+    {
+      "id": "power_supply",
+      "label": "Power Supply / Electrical",
+      "priority": 1.0,
+      "keywords": [
+        "power supply",
+        "ac-dc",
+        "ac dc",
+        "rectifier",
+        "alternator",
+        "amplifier",
+        "ups",
+        "voltage regulator",
+        "lvpsu",
+        "hvpsu",
+        "power unit",
+        "static convertor",
+        "power conversion",
+        "battery charger",
+        "solid state power amplifier",
+        "power system",
+        "psu"
+      ]
+    },
+    {
+      "id": "ai_it",
+      "label": "AI / IT / Electronics",
+      "priority": 1.0,
+      "keywords": [
+        "artificial intelligence",
+        "ai based",
+        "ai-based",
+        "software",
+        "server",
+        "radar",
+        "cctv",
+        "camera",
+        "connectors",
+        "harness",
+        "rugged laptop",
+        "military grade",
+        "repairing",
+        "electronics",
+        "data acquisition",
+        "network switch",
+        "router",
+        "display",
+        "laptop",
+        "notebook"
+      ]
+    }
+  ],
+  "buyer_affinity": {
+    "INDIAN AIR FORCE": 1.0,
+    "INDIAN ARMY": 0.85,
+    "INDIAN NAVY": 0.75,
+    "HAL": 0.75,
+    "DRDO": 0.65,
+    "BHARAT PETROLEUM": 0.5,
+    "DEFENCE": 0.6
+  },
+  "value_preference": {
+    "sweet_min_inr": 500000,
+    "sweet_max_inr": 30000000
+  },
+  "avoid_rules": {
+    "gem_q2_category": true,
+    "prefer_custom_bids": true
+  }
+}

@@ -26,10 +26,13 @@ except ImportError:
     print("ERROR: openpyxl is required. Install with: pip install openpyxl")
     sys.exit(1)
 
-# Repo root = parent of tools/
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Repo root via shared path map (Phase 4)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import paths  # noqa: E402
+
+ROOT = paths.ROOT
 DEFAULT_XLSX = os.path.join(ROOT, "TENDER MASTER SHEET(ETSPL) 2025- 26.xlsx")
-DEFAULT_OUT = os.path.join(ROOT, "history.json")
+DEFAULT_OUT = paths.HISTORY_PATH
 SHEET_NAME = "(TENDER DETAILS (PARTICIPATED)"
 
 # Keyword → business_line id (mirrors company profile seeds)

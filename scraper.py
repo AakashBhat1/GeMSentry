@@ -8,16 +8,24 @@ import random
 import datetime
 import copy
 import tempfile
+import logging
 import urllib.parse
 from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
 from pypdf import PdfReader
 
-# Configurations
-TENDERS_DIR = "tenders"
-DOWNLOADS_DIR = os.path.join(TENDERS_DIR, "downloads")
-SCORING_CONFIG_PATH = "scoring_config.json"
-COMPANY_PROFILE_PATH = "company_profile.json"
+import paths
+import logging_setup
+
+# Path constants — single source of truth is paths.py (re-exported for callers)
+TENDERS_DIR = paths.TENDERS_DIR
+DOWNLOADS_DIR = paths.DOWNLOADS_DIR
+SCORING_CONFIG_PATH = paths.SCORING_CONFIG_PATH
+COMPANY_PROFILE_PATH = paths.COMPANY_PROFILE_PATH
+KEYWORDS_PATH = paths.KEYWORDS_PATH
+
+logger = logging.getLogger("gemsentry")
+
 TOTAL_ANALYSIS_FIELDS = 8
 TOTAL_SIGNAL_FIELDS = 8  # est_value, primary_item, item_category, buyer_org, buyer_dept, consignee_state, mii_required, mse_pref
 MAX_PDF_PAGES = 12
@@ -169,10 +177,22 @@ def get_date_folder_name():
     now = datetime.datetime.now()
     return f"{now.strftime('%d')} {now.strftime('%b').lower()}{now.strftime('%y')}"
 
+def _resolve_config_path(primary: str, legacy: str, label: str) -> str | None:
+    """Prefer new path; fall back to legacy root with a one-time warning."""
+    if os.path.exists(primary):
+        return primary
+    if os.path.exists(legacy):
+        logger.warning("legacy path used: %s; please use %s", legacy, primary)
+        return legacy
+    return None
+
+
 def load_keywords():
     keywords = []
-    csv_path = "keywords.csv"
-    if os.path.exists(csv_path):
+    csv_path = _resolve_config_path(
+        KEYWORDS_PATH, paths.LEGACY_KEYWORDS_PATH, "keywords.csv"
+    )
+    if csv_path:
         try:
             with open(csv_path, mode="r", encoding="utf-8") as f:
                 for line in f:
@@ -182,18 +202,18 @@ def load_keywords():
                     if clean and not clean.lower().startswith("keyword") and clean not in keywords:
                         keywords.append(clean)
         except Exception as e:
-            print(f"Error reading keywords.csv: {e}")
-            
+            logger.error("Error reading keywords.csv: %s", e)
+
     cleaned_keywords = []
     for kw in keywords:
         kw_clean = kw.strip()
         if kw_clean and kw_clean.lower() not in [k.lower() for k in cleaned_keywords]:
             cleaned_keywords.append(kw_clean)
-            
+
     if not cleaned_keywords:
         cleaned_keywords = ["artificial intelligence", "indigenous", "power supply"]
-        
-    print(f"Loaded {len(cleaned_keywords)} unique keywords from keywords.csv")
+
+    logger.info("Loaded %d unique keywords from keywords.csv", len(cleaned_keywords))
     return cleaned_keywords
 
 def find_existing_pdf_file(sanitized_bid):
@@ -203,18 +223,20 @@ def find_existing_pdf_file(sanitized_bid):
             if expected_filename in files:
                 full_path = os.path.join(root, expected_filename)
                 if os.path.getsize(full_path) > 0:
-                    rel_path = os.path.relpath(full_path, start=".").replace("\\", "/")
-                    return rel_path
+                    return paths.repo_relative(full_path)
     return None
 
 def load_scoring_config():
     """Load scoring_config.json; on missing/corrupt file log and return defaults."""
     defaults = copy.deepcopy(DEFAULT_SCORING_CONFIG)
-    if not os.path.exists(SCORING_CONFIG_PATH):
-        print(f"Warning: {SCORING_CONFIG_PATH} not found; using default scoring config.")
+    cfg_path = _resolve_config_path(
+        SCORING_CONFIG_PATH, paths.LEGACY_SCORING_CONFIG_PATH, "scoring_config.json"
+    )
+    if not cfg_path:
+        logger.warning("%s not found; using default scoring config.", SCORING_CONFIG_PATH)
         return defaults
     try:
-        with open(SCORING_CONFIG_PATH, "r", encoding="utf-8") as f:
+        with open(cfg_path, "r", encoding="utf-8") as f:
             cfg = json.load(f)
         if not isinstance(cfg, dict):
             raise ValueError("config root must be an object")
@@ -233,7 +255,7 @@ def load_scoring_config():
                     merged[key] = cfg[key]
         return merged
     except Exception as e:
-        print(f"Warning: failed to load {SCORING_CONFIG_PATH} ({e}); using default scoring config.")
+        logger.warning("failed to load %s (%s); using default scoring config.", cfg_path, e)
         return defaults
 
 def validate_scoring_config(payload):
@@ -312,6 +334,7 @@ def validate_scoring_config(payload):
 
 def save_scoring_config(payload):
     """Atomically write scoring_config.json (temp file then replace)."""
+    paths.ensure_dirs()
     dir_name = os.path.dirname(os.path.abspath(SCORING_CONFIG_PATH)) or "."
     fd, tmp_path = tempfile.mkstemp(prefix="scoring_config_", suffix=".json", dir=dir_name)
     try:
@@ -330,11 +353,14 @@ def save_scoring_config(payload):
 def load_company_profile():
     """Load company_profile.json; missing/corrupt → defaults + warning (BE-07)."""
     defaults = copy.deepcopy(DEFAULT_COMPANY_PROFILE)
-    if not os.path.exists(COMPANY_PROFILE_PATH):
-        print(f"Warning: {COMPANY_PROFILE_PATH} not found; using default company profile.")
+    cfg_path = _resolve_config_path(
+        COMPANY_PROFILE_PATH, paths.LEGACY_COMPANY_PROFILE_PATH, "company_profile.json"
+    )
+    if not cfg_path:
+        logger.warning("%s not found; using default company profile.", COMPANY_PROFILE_PATH)
         return defaults
     try:
-        with open(COMPANY_PROFILE_PATH, "r", encoding="utf-8") as f:
+        with open(cfg_path, "r", encoding="utf-8") as f:
             cfg = json.load(f)
         if not isinstance(cfg, dict):
             raise ValueError("profile root must be an object")
@@ -353,13 +379,29 @@ def load_company_profile():
             merged["buyer_affinity"] = cfg["buyer_affinity"]
         return merged
     except Exception as e:
-        print(f"Warning: failed to load {COMPANY_PROFILE_PATH} ({e}); using default company profile.")
+        logger.warning("failed to load %s (%s); using default company profile.", cfg_path, e)
         return defaults
 
 def validate_company_profile(payload):
-    """Return error message if invalid, else None (BE-13)."""
+    """
+    Return error message if invalid, else None (BE-13 + BE-18).
+    Rejects destructive partial profiles that omit required top-level keys
+    or business_line labels (the corruption vector fixed in BE-18).
+    """
     if not isinstance(payload, dict):
         return "Profile payload must be a JSON object."
+
+    # BE-18: require top-level keys the Fit engine relies on
+    required_top = (
+        "business_lines",
+        "eligibility",
+        "serviceability",
+        "buyer_affinity",
+        "value_preference",
+    )
+    for key in required_top:
+        if key not in payload:
+            return f"Missing required top-level key: {key}"
 
     elig = payload.get("eligibility")
     if not isinstance(elig, dict):
@@ -379,12 +421,17 @@ def validate_company_profile(payload):
             return f"business_lines[{i}] must be an object."
         if not line.get("id"):
             return f"business_lines[{i}].id is required."
+        label = line.get("label")
+        if not isinstance(label, str) or not label.strip():
+            return f"business_lines[{i}].label is required (non-empty string)."
         kws = line.get("keywords")
         if not isinstance(kws, list) or len(kws) == 0:
             return f"business_lines[{i}].keywords must be a non-empty list."
 
-    svc = payload.get("serviceability") or {}
-    if isinstance(svc, dict) and "soft_avoid_penalty" in svc and svc["soft_avoid_penalty"] is not None:
+    svc = payload.get("serviceability")
+    if not isinstance(svc, dict):
+        return "serviceability must be an object."
+    if "soft_avoid_penalty" in svc and svc["soft_avoid_penalty"] is not None:
         try:
             p = float(svc["soft_avoid_penalty"])
         except (TypeError, ValueError):
@@ -392,20 +439,38 @@ def validate_company_profile(payload):
         if not (0.0 <= p <= 1.0):
             return "serviceability.soft_avoid_penalty must be in [0, 1]."
 
-    affinity = payload.get("buyer_affinity") or {}
-    if isinstance(affinity, dict):
-        for k, v in affinity.items():
-            try:
-                av = float(v)
-            except (TypeError, ValueError):
-                return f"buyer_affinity.{k} must be numeric."
-            if not (0.0 <= av <= 1.0):
-                return f"buyer_affinity.{k} must be in [0, 1]."
+    affinity = payload.get("buyer_affinity")
+    if not isinstance(affinity, dict):
+        return "buyer_affinity must be an object."
+    if len(affinity) == 0:
+        return "buyer_affinity must not be empty."
+    for k, v in affinity.items():
+        try:
+            av = float(v)
+        except (TypeError, ValueError):
+            return f"buyer_affinity.{k} must be numeric."
+        if not (0.0 <= av <= 1.0):
+            return f"buyer_affinity.{k} must be in [0, 1]."
+
+    vp = payload.get("value_preference")
+    if not isinstance(vp, dict):
+        return "value_preference must be an object."
+    for nk in ("sweet_min_inr", "sweet_max_inr"):
+        if nk not in vp:
+            return f"value_preference.{nk} is required."
+        try:
+            float(vp[nk])
+        except (TypeError, ValueError):
+            return f"value_preference.{nk} must be numeric."
 
     return None
 
 def save_company_profile(payload):
-    """Atomically write company_profile.json."""
+    """Atomically write company_profile.json. Rejects invalid payloads (BE-18)."""
+    err = validate_company_profile(payload)
+    if err:
+        raise ValueError(f"Invalid company profile: {err}")
+    paths.ensure_dirs()
     dir_name = os.path.dirname(os.path.abspath(COMPANY_PROFILE_PATH)) or "."
     fd, tmp_path = tempfile.mkstemp(prefix="company_profile_", suffix=".json", dir=dir_name)
     try:
@@ -436,6 +501,7 @@ def get_failed_analysis(reason):
         "score_scale": 100,
         "analysis_status": "failed",
         "parsed_fields": 0,
+        "na_fields": 0,
         "total_fields": TOTAL_ANALYSIS_FIELDS,
         "confidence": 0.0,
         "breakdown": [],
@@ -658,10 +724,212 @@ def _match_indian_state(text):
             return st
     return None
 
+# ---------------------------------------------------------------------------
+# BE-15 helpers: bilingual GeM layout — English label then value, no colon.
+# Patterns use bounded .{0,N} windows only (no nested quantifiers / backtracking).
+# ---------------------------------------------------------------------------
+
+def _window_after(text, label_pat, window=160, flags=re.IGNORECASE):
+    """Return text slice starting at first match of label_pat (or None)."""
+    m = re.search(label_pat, text, flags)
+    if not m:
+        return None, None
+    start = m.end()
+    return text[start:start + window], m
+
+def _first_yes_no(snippet):
+    if not snippet:
+        return None
+    m = re.search(r'\b(Yes|No)\b', snippet, re.IGNORECASE)
+    return m.group(1).lower() if m else None
+
+def _first_ascii_phrase(snippet, max_len=100, stop_words=None):
+    """First run of ASCII letters/digits after optional Devanagari noise."""
+    if not snippet:
+        return None
+    stop_words = stop_words or ()
+    # Drop leading non-ASCII / punctuation
+    s = re.sub(r'^[\s/]*(?:[^\x00-\x7F]+[\s/]*)*', '', snippet)
+    if not s:
+        return None
+    # Capture continuous ASCII phrase
+    m = re.match(r'([A-Za-z0-9][A-Za-z0-9 ,\-\(\)/&\.]{1,' + str(max_len) + r'})', s)
+    if not m:
+        return None
+    phrase = m.group(1).strip(" ,-/\t")
+    # Truncate at any stop word (next English field label)
+    low = phrase
+    for sw in stop_words:
+        idx = re.search(re.escape(sw), low, re.IGNORECASE)
+        if idx and idx.start() > 0:
+            phrase = phrase[:idx.start()].strip(" ,-/\t")
+            break
+    return phrase if phrase else None
+
+def _first_number(snippet):
+    if not snippet:
+        return None
+    m = re.search(r'([\d,]{1,15}(?:\.\d+)?)', snippet)
+    return m.group(1) if m else None
+
+def detect_doc_has_exemption_table(text_clean):
+    """
+    BE-17: True only when exemption-table labels are clearly present.
+    Conservative — if unsure, return False so fields stay 'unknown' not N/A.
+    Requires the actual Startup/MSE exemption field labels (not prose 'exemption').
+    """
+    if not text_clean:
+        return False
+    # Specific GeM form labels only — do not treat ATC prose as a table
+    if re.search(
+        r'(?:Startup|MSE)\s+Exemption\s+for\s+Years\s+[Oo]f\s+Experience',
+        text_clean, re.IGNORECASE
+    ):
+        return True
+    if re.search(r'Startup\s+Exemption\s+for\s+Turnover', text_clean, re.IGNORECASE):
+        return True
+    if re.search(r'MSE\s+Exemption\s+for\s+Turnover', text_clean, re.IGNORECASE):
+        return True
+    return False
+
+def parse_yes_no_field(text_clean, label_patterns, window=120):
+    """
+    Find Yes/No after an English label (BE-15 bilingual-tolerant).
+    Also accepts Yes/No immediately BEFORE the label (common GeM layout).
+    Returns 'yes'|'no'|None (None = miss → caller maps to unknown).
+    """
+    for label in label_patterns:
+        # Value after label
+        snip, m = _window_after(text_clean, label, window=window)
+        if m is not None:
+            yn = _first_yes_no(snip)
+            if yn:
+                return yn
+            # Value immediately before label (within 12 chars)
+            pre = text_clean[max(0, m.start() - 12):m.start()]
+            yn = _first_yes_no(pre)
+            if yn:
+                return yn
+    return None
+
+def parse_emd_required(text_clean):
+    """EMD Required Yes/No — handles 'EMD Detail ... Required No' bilingual form."""
+    # Prefer scoped EMD Detail block
+    m = re.search(r'EMD\s+Detail', text_clean, re.IGNORECASE)
+    if m:
+        block = text_clean[m.start():m.start() + 200]
+        # Stop before ePBG Detail if present
+        stop = re.search(r'ePBG\s+Detail', block, re.IGNORECASE)
+        if stop:
+            block = block[:stop.start()]
+        yn = _first_yes_no(block)
+        # Prefer the Yes/No that follows 'Required' if present
+        req = re.search(r'Required.{0,40}?(Yes|No)\b', block, re.IGNORECASE)
+        if req:
+            return req.group(1).lower()
+        if yn:
+            return yn
+    return parse_yes_no_field(text_clean, [r'EMD\s+Required'], window=40)
+
+def parse_epbg_required(text_clean):
+    m = re.search(r'ePBG\s+Detail', text_clean, re.IGNORECASE)
+    if m:
+        block = text_clean[m.start():m.start() + 220]
+        # Stop at next major section
+        for stopper in (r'MII\s+Purchase', r'MSE\s+Purchase', r'Bid\s+splitting', r'Split'):
+            stop = re.search(stopper, block, re.IGNORECASE)
+            if stop:
+                block = block[:stop.start()]
+                break
+        req = re.search(r'Required.{0,40}?(Yes|No)\b', block, re.IGNORECASE)
+        if req:
+            return req.group(1).lower()
+        yn = _first_yes_no(block)
+        if yn:
+            return yn
+    return parse_yes_no_field(text_clean, [r'ePBG\s+Required'], window=40)
+
+def parse_emd_amount(text_clean):
+    snip, _ = _window_after(text_clean, r'EMD\s+Amount(?:\s*\(INR\))?', window=60)
+    if snip:
+        num = _first_number(snip)
+        if num:
+            return _parse_inr_amount(num)
+    # Alternate: "EMD value"
+    snip, _ = _window_after(text_clean, r'EMD\s+value', window=60)
+    if snip:
+        num = _first_number(snip)
+        if num:
+            return _parse_inr_amount(num)
+    return None
+
+def parse_epbg_percentage(text_clean):
+    snip, _ = _window_after(text_clean, r'ePBG\s+Percentage\s*(?:\(%\))?', window=40)
+    if snip:
+        num = _first_number(snip)
+        if num:
+            try:
+                return float(num.replace(",", ""))
+            except ValueError:
+                return None
+    return None
+
+def parse_exemption_pair(text_clean, kind):
+    """
+    Parse Startup or MSE exemption pair → (exp, turn) each yes|no|unknown.
+    kind: 'startup' or 'mse'
+    """
+    if kind == "startup":
+        unified = r'Startup\s+Exemption\s+for\s+Years\s+of\s+Experience\s+and\s+Turnover'
+        exp_only = r'Startup\s+Exemption\s+for\s+(?:Years\s+of\s+)?Experience'
+        turn_only = r'Startup\s+Exemption\s+for\s+Turnover'
+    else:
+        unified = r'MSE\s+Exemption\s+for\s+Years\s+[Oo]f\s+Experience\s+and\s+Turnover'
+        exp_only = r'MSE\s+Exemption\s+for\s+(?:Years\s+[Oo]f\s+)?Experience'
+        turn_only = r'MSE\s+Exemption\s+for\s+Turnover'
+
+    # Unified label
+    snip, m = _window_after(text_clean, unified, window=180)
+    if m is not None:
+        yn = _first_yes_no(snip)
+        if not yn:
+            pre = text_clean[max(0, m.start() - 12):m.start()]
+            yn = _first_yes_no(pre)
+        if yn:
+            return yn, yn, True, True
+
+    exp, turn = "unknown", "unknown"
+    exp_parsed = turn_parsed = False
+
+    snip, m = _window_after(text_clean, exp_only, window=160)
+    if m is not None:
+        # Avoid matching the unified label twice — if "and Turnover" follows Experience immediately, skip
+        after_label = text_clean[m.end():m.end() + 20]
+        if not re.match(r'\s+and\s+Turnover', after_label, re.IGNORECASE):
+            yn = _first_yes_no(snip) or _first_yes_no(text_clean[max(0, m.start() - 12):m.start()])
+            if yn:
+                exp, exp_parsed = yn, True
+
+    snip, m = _window_after(text_clean, turn_only, window=120)
+    if m is not None:
+        yn = _first_yes_no(snip) or _first_yes_no(text_clean[max(0, m.start() - 12):m.start()])
+        if yn:
+            turn, turn_parsed = yn, True
+
+    return exp, turn, exp_parsed, turn_parsed
+
+def parse_prebid_required(text_clean):
+    return parse_yes_no_field(
+        text_clean,
+        [r'Pre-Bid\s+Meeting\s+Required', r'Pre\s*Bid\s+Meeting\s+Required'],
+        window=60
+    )
+
 def extract_bid_signals(text_clean, card_meta=None):
     """
     Extract Phase-2 bid signals from full PDF text (+ optional card meta).
     Returns (signals_dict, signal_parsed_flags).
+    BE-16: prefer card_meta est_value_inr; do not scrape disclaimer prose.
     """
     card_meta = card_meta or {}
     flags = {
@@ -685,155 +953,164 @@ def extract_bid_signals(text_clean, card_meta=None):
         "mse_pref": "unknown",
         "rfp_min_turnover_inr": None,
         "rfp_min_experience_years": None,
+        "total_quantity": None,
     }
 
-    # Estimated bid value
-    val_match = (
-        re.search(
-            r'Estimated\s+Bid\s+Value(?:\s+in\s+INR[^0-9]{0,40})?\s*([\d,]+(?:\.\d+)?)',
-            text_clean, re.IGNORECASE
-        )
-        or re.search(
-            r'Estimated\s+Bid\s+Value\s*/\s*([\d,]+)',
-            text_clean, re.IGNORECASE
-        )
-    )
-    if val_match:
-        amount = _parse_inr_amount(val_match.group(1))
+    # --- BE-16: estimated value from card first ---
+    card_val = card_meta.get("est_value_inr")
+    if card_val is not None:
+        amount = _parse_inr_amount(card_val)
         if amount is not None and amount > 0:
             signals["est_value_inr"] = amount
             flags["est_value_inr"] = True
+    if signals["est_value_inr"] is None:
+        # Fallback: only accept a number that sits RIGHT AFTER the label
+        # (not the disclaimer "Estimated Bid Value indicated above…")
+        snip, m = _window_after(
+            text_clean,
+            r'Estimated\s+Bid\s+Value(?:\s+in\s+INR(?:\s*\([^)]*\))?)?',
+            window=30
+        )
+        if m is not None and snip:
+            # Reject disclaimer continuation words
+            if not re.match(r'\s*(indicated|is\s+being|declared|solely|above)', snip, re.IGNORECASE):
+                num = _first_number(snip)
+                if num:
+                    amount = _parse_inr_amount(num)
+                    # Sanity: GeM bid values are typically >= 1000 INR
+                    if amount is not None and amount >= 1000:
+                        signals["est_value_inr"] = amount
+                        flags["est_value_inr"] = True
 
-    # Item category / primary item
-    item_match = re.search(
-        r'Item\s+Category\s*/?\s*(?:[^\x00-\x7F]+\s*)*'
-        r'([A-Za-z0-9][A-Za-z0-9 ,\-\(\)/&]{2,120}?)'
-        r'(?=\s+GeMARPTS|\s+Bidder|\s+बडर|\s+Total\s+Quantity|\s+Bid\s|$)',
-        text_clean, re.IGNORECASE
+    # Item category / primary item (BE-15)
+    stop_item = (
+        "GeMARPTS", "MSE Exemption", "Startup Exemption", "Minimum Average",
+        "Bidder", "Total Quantity", "Bid Number", "EMD Detail", "ePBG Detail",
+        "EMD Amount", "Bid End", "Ministry/State"
     )
-    if item_match:
-        cat = _clean_english_phrase(item_match.group(1), 120)
-        if cat:
+    snip, _ = _window_after(text_clean, r'Item\s+Category', window=200)
+    if snip:
+        cat = _first_ascii_phrase(snip, max_len=120, stop_words=stop_item)
+        # Reject bare numbers / single-char noise (e.g. "1 , 2 , 3" category lists)
+        if cat and len(cat) >= 3 and not re.match(r'^[\d\s,]+$', cat):
             signals["item_category"] = cat
             signals["primary_item"] = cat.split(",")[0].strip()[:100]
             flags["item_category"] = True
             flags["primary_item"] = True
-    elif card_meta.get("title"):
+    if not signals["primary_item"] and card_meta.get("title"):
         signals["primary_item"] = str(card_meta["title"])[:120]
         flags["primary_item"] = True
 
-    # Ministry / Department / Organisation
-    ministry_match = re.search(
-        r'Ministry/State\s+Name\s*(?:[^\x00-\x7F]+\s*)*'
-        r'([A-Za-z][A-Za-z0-9 &\-\.]{2,80}?)'
-        r'(?=\s+Department|\s+वभाग|\s+Organisation|\s+Organization|$)',
-        text_clean, re.IGNORECASE
-    )
-    dept_match = re.search(
-        r'Department\s+Name\s*(?:[^\x00-\x7F]+\s*)*'
-        r'([A-Za-z][A-Za-z0-9 &\-\.]{2,80}?)'
-        r'(?=\s+Organisation|\s+Organization|\s+Office|\s+संगठन|$)',
-        text_clean, re.IGNORECASE
-    )
-    org_match = re.search(
-        r'Organisation\s+Name\s*(?:[^\x00-\x7F]+\s*)*'
-        r'([A-Za-z][A-Za-z0-9 &\-\.]{2,80}?)'
-        r'(?=\s+Office|\s+Total\s+Quantity|\s+Item\s+Category|\s+काया|$)',
-        text_clean, re.IGNORECASE
-    )
+    # Total quantity
+    snip, _ = _window_after(text_clean, r'Total\s+Quantity', window=40)
+    if snip:
+        num = _first_number(snip)
+        if num:
+            try:
+                signals["total_quantity"] = int(float(num.replace(",", "")))
+            except ValueError:
+                pass
 
-    if org_match:
-        org = _clean_english_phrase(org_match.group(1), 80)
-        if org:
-            signals["buyer_org"] = org.upper()
-            flags["buyer_org"] = True
-    elif card_meta.get("department"):
-        signals["buyer_org"] = str(card_meta["department"]).strip().upper()
+    # Ministry / Department / Organisation (BE-15)
+    stop_min = ("Department", "Organisation", "Organization", "Office")
+    snip, _ = _window_after(text_clean, r'Ministry/State\s+Name', window=120)
+    ministry = _first_ascii_phrase(snip, max_len=90, stop_words=stop_min) if snip else None
+
+    snip, _ = _window_after(text_clean, r'Department\s+Name', window=120)
+    dept = _first_ascii_phrase(snip, max_len=90, stop_words=("Organisation", "Organization", "Office")) if snip else None
+
+    snip, _ = _window_after(text_clean, r'Organisation\s+Name', window=120)
+    org = _first_ascii_phrase(snip, max_len=90, stop_words=("Office", "Total Quantity", "Item Category")) if snip else None
+
+    if org and org.upper() not in ("N/A", "NA", "NIL", "***", "****"):
+        signals["buyer_org"] = org.upper()
         flags["buyer_org"] = True
-
-    if dept_match:
-        dept = _clean_english_phrase(dept_match.group(1), 80)
-        if dept:
-            signals["buyer_dept"] = dept.upper()
+    elif card_meta.get("department") and str(card_meta["department"]).strip() not in ("", "N/A"):
+        # Card department often is "Ministry | Department | Org" — take last segment
+        raw = str(card_meta["department"]).strip()
+        parts = [p.strip() for p in re.split(r'\s*\|\s*', raw) if p.strip()]
+        signals["buyer_org"] = (parts[-1] if parts else raw).upper()
+        flags["buyer_org"] = True
+        if len(parts) >= 2:
+            signals["buyer_dept"] = parts[1].upper() if len(parts) > 1 else parts[0].upper()
             flags["buyer_dept"] = True
-    if not signals["buyer_dept"] and ministry_match:
-        ministry = _clean_english_phrase(ministry_match.group(1), 80)
-        if ministry:
-            signals["buyer_dept"] = ministry.upper()
-            flags["buyer_dept"] = True
-            if not signals["buyer_org"]:
-                signals["buyer_org"] = ministry.upper()
-                flags["buyer_org"] = True
 
-    # Consignee state — scan address / known state names near Consignee
-    cons_match = re.search(
-        r'Consignee.{0,400}',
-        text_clean, re.IGNORECASE
-    )
+    if dept:
+        signals["buyer_dept"] = dept.upper()
+        flags["buyer_dept"] = True
+    if not signals["buyer_dept"] and ministry:
+        signals["buyer_dept"] = ministry.upper()
+        flags["buyer_dept"] = True
+        if not signals["buyer_org"]:
+            signals["buyer_org"] = ministry.upper()
+            flags["buyer_org"] = True
+
+    # Consignee state
+    cons_match = re.search(r'Consignee.{0,400}', text_clean, re.IGNORECASE)
     state = None
     if cons_match:
         state = _match_indian_state(cons_match.group(0))
-    if not state:
-        # Ministry/State Name sometimes is a state
-        if ministry_match:
-            state = _match_indian_state(ministry_match.group(1))
+    if not state and ministry:
+        state = _match_indian_state(ministry)
     if not state:
         state = _match_indian_state(text_clean[:3000])
     if state:
         signals["consignee_state"] = state
         flags["consignee_state"] = True
 
-    # MII / MSE purchase preference (tri-state)
-    mii_match = re.search(
-        r'MII\s+Purchase\s+Preference\s*(?:[^\x00-\x7F/]*/*\s*)*(Yes|No)',
-        text_clean, re.IGNORECASE
-    )
-    if mii_match:
-        signals["mii_required"] = mii_match.group(1).lower()
+    # MII / MSE purchase preference
+    mii = parse_yes_no_field(text_clean, [r'MII\s+Purchase\s+Preference'], window=80)
+    if mii:
+        signals["mii_required"] = mii
         flags["mii_required"] = True
-
-    mse_pref_match = re.search(
-        r'MSE\s+Purchase\s+Preference\s*(?:[^\x00-\x7F/]*/*\s*)*(Yes|No)',
-        text_clean, re.IGNORECASE
-    )
-    if mse_pref_match:
-        signals["mse_pref"] = mse_pref_match.group(1).lower()
+    mse_pref = parse_yes_no_field(text_clean, [r'MSE\s+Purchase\s+Preference'], window=80)
+    if mse_pref:
+        signals["mse_pref"] = mse_pref
         flags["mse_pref"] = True
 
-    # Min turnover / experience (for eligibility, not signal-field count)
-    turn_match = (
-        re.search(
-            r'(?:Minimum|Min\.?)\s+(?:Average\s+)?(?:Annual\s+)?Turnover[^\d]{0,60}([\d,]+(?:\.\d+)?)',
-            text_clean, re.IGNORECASE
-        )
-        or re.search(
-            r'Average\s+Annual\s+Turnover(?:\s+of\s+the\s+bidder)?[^\d]{0,60}([\d,]+(?:\.\d+)?)',
-            text_clean, re.IGNORECASE
-        )
-        or re.search(
-            r'Turnover\s+Criteria[^\d]{0,40}([\d,]+(?:\.\d+)?)',
-            text_clean, re.IGNORECASE
-        )
+    # Min turnover / experience (eligibility inputs only)
+    # Prefer explicit "Minimum Average Annual Turnover of the bidder (For 3 Years)  X"
+    snip, m = _window_after(
+        text_clean,
+        r'Minimum\s+Average\s+Annual\s+Turnover(?:\s+of\s+the\s+bidder)?',
+        window=80
     )
-    if turn_match:
-        signals["rfp_min_turnover_inr"] = _parse_inr_amount(turn_match.group(1))
+    if not m:
+        snip, m = _window_after(
+            text_clean,
+            r'Average\s+Annual\s+Turnover(?:\s+of\s+the\s+bidder)?',
+            window=80
+        )
+    if snip:
+        num = _first_number(snip)
+        if num:
+            amount = _parse_inr_amount(num)
+            # Turnover criteria on GeM are usually >= 10,000 INR (ignore year counts)
+            if amount is not None and amount >= 10000:
+                signals["rfp_min_turnover_inr"] = amount
 
-    exp_match = re.search(
-        r'(?:Years?\s+of\s+)?(?:Past\s+)?Experience[^\d]{0,40}(\d{1,2})\s*(?:Years?|Yrs?)?',
-        text_clean, re.IGNORECASE
+    snip, m = _window_after(
+        text_clean,
+        r'Minimum\s+(?:Years?\s+of\s+)?(?:Past\s+)?Experience|Years\s+of\s+Past\s+Experience',
+        window=40
     )
-    if exp_match:
-        try:
-            signals["rfp_min_experience_years"] = int(exp_match.group(1))
-        except ValueError:
-            pass
+    if snip:
+        num = _first_number(snip)
+        if num:
+            try:
+                yrs = int(float(num.replace(",", "")))
+                if 1 <= yrs <= 50:
+                    signals["rfp_min_experience_years"] = yrs
+            except ValueError:
+                pass
 
     return signals, flags
 
-def compute_eligibility(signals, st_turn, mse_turn, profile):
+def compute_eligibility(signals, st_turn, mse_turn, profile, exemptions_na=False):
     """
     Soft eligibility gate (BE-09). Credits MSE/Startup turnover exemptions.
     Returns {verdict, flags, detail}.
+    BE-17: when exemption table absent-by-design (exemptions_na), do not imply denial.
     """
     elig = profile.get("eligibility", {})
     company_turn = float(elig.get("annual_turnover_inr", 0) or 0)
@@ -844,6 +1121,33 @@ def compute_eligibility(signals, st_turn, mse_turn, profile):
     # Turnover exemption granted if either MSE or Startup turnover exemption is yes
     turn_exempt = (st_turn == "yes") or (mse_turn == "yes")
     turn_exempt_unknown = (st_turn == "unknown" and mse_turn == "unknown")
+
+    if exemptions_na:
+        # Bid-type doc without exemption tables — neutral, not a denial
+        flags.append("no_exemption_data_in_doc_type")
+        if rfp_turn is None:
+            verdict = "eligible"
+            detail_parts.append(
+                "No exemption data in this doc type (Bid/simple PDF); "
+                "no RFP min-turnover found → treated as eligible."
+            )
+        elif rfp_turn <= company_turn:
+            verdict = "eligible"
+            detail_parts.append(
+                f"RFP min turnover ₹{rfp_turn:,} ≤ company ₹{int(company_turn):,}. "
+                "No exemption data in this doc type (not a denial)."
+            )
+        else:
+            verdict = "unknown"
+            detail_parts.append(
+                f"RFP min turnover ₹{rfp_turn:,} > company ₹{int(company_turn):,}; "
+                "no exemption data in this doc type — cannot confirm waiver (not a denial)."
+            )
+        return {
+            "verdict": verdict,
+            "flags": flags,
+            "detail": " ".join(detail_parts) if detail_parts else "Eligibility evaluated."
+        }
 
     if rfp_turn is None:
         if turn_exempt:
@@ -924,20 +1228,28 @@ def compute_fit_score(analysis, signals, eligibility, profile, cfg, card_meta=No
     gap_sub = float(fit_cfg.get("turnover_gap_subscore", 0.3))
 
     # --- relevance ---
+    # BE-20: match against bid CONTENT only (title + primary_item + item_category).
+    # Do NOT include card_meta["keyword"] — that is the fuzzy GeM SEARCH TERM and
+    # causes circular false matches (e.g. Manpower bid found under "POWER SUPPLY").
     title = str(card_meta.get("title") or "")
-    keyword = str(card_meta.get("keyword") or "")
     haystack = " ".join([
         title,
         str(signals.get("primary_item") or ""),
         str(signals.get("item_category") or ""),
-        keyword,
     ]).lower()
+
+    def _kw_hit(kw: str, text: str) -> bool:
+        """Whole-word / phrase match so short tokens (ups, psu) don't match inside words."""
+        if not kw:
+            return False
+        pattern = r"\b" + re.escape(kw.lower().strip()) + r"\b"
+        return re.search(pattern, text) is not None
 
     best_score = 0.0
     best_line = None
     for line in profile.get("business_lines") or []:
         kws = line.get("keywords") or []
-        hits = sum(1 for kw in kws if kw and kw.lower() in haystack)
+        hits = sum(1 for kw in kws if _kw_hit(kw, haystack))
         if hits >= 2:
             s = 1.0
         elif hits == 1:
@@ -1117,6 +1429,7 @@ def analyze_rfp_pdf(pdf_path, start_date_str=None, end_date_str=None,
         "score_scale": 100,
         "analysis_status": "ok",
         "parsed_fields": 0,
+        "na_fields": 0,
         "total_fields": TOTAL_ANALYSIS_FIELDS,
         "confidence": 0.0,
         "breakdown": [],
@@ -1151,54 +1464,37 @@ def analyze_rfp_pdf(pdf_path, start_date_str=None, end_date_str=None,
 
         text_clean = re.sub(r'\s+', ' ', text)
 
-        # Track which of the 8 fields specifically matched
+        # Track field status: "parsed" | "miss" | "na" (BE-17 not_applicable)
         # 1 emd_required, 2 emd_amount, 3 st_exp, 4 st_turn, 5 mse_exp, 6 mse_turn,
         # 7 prebid_required, 8 epbg_required
-        field_parsed = {
-            "emd_required": False,
-            "emd_amount": False,
-            "st_exp": False,
-            "st_turn": False,
-            "mse_exp": False,
-            "mse_turn": False,
-            "prebid_required": False,
-            "epbg_required": False,
+        field_status = {
+            "emd_required": "miss",
+            "emd_amount": "miss",
+            "st_exp": "miss",
+            "st_turn": "miss",
+            "mse_exp": "miss",
+            "mse_turn": "miss",
+            "prebid_required": "miss",
+            "epbg_required": "miss",
         }
 
-        # --- 1. EMD (tri-state) ---
-        # Colon form and GeM bilingual "EMD Detail/ ... Required/ ... Yes|No"
-        emd_req_match = (
-            re.search(r'EMD\s+Required\s*[:/]\s*(Yes|No)', text_clean, re.IGNORECASE)
-            or re.search(
-                r'EMD\s+Detail\s*/.*?Required\s*/\s*(?:\S+\s+)?(Yes|No)',
-                text_clean, re.IGNORECASE
-            )
-        )
-        emd_amount_match = re.search(
-            r'(?:EMD\s+Amount\s*(?:\(INR\))?|EMD\s*value)\s*[:/]\s*([\d,]+)',
-            text_clean, re.IGNORECASE
-        )
+        # --- 1. EMD (BE-15 bilingual parsers) ---
+        emd_req = parse_emd_required(text_clean) or "unknown"
+        if emd_req != "unknown":
+            field_status["emd_required"] = "parsed"
 
-        if emd_req_match:
-            field_parsed["emd_required"] = True
-            emd_req = emd_req_match.group(1).lower()
-        else:
-            emd_req = "unknown"
-
-        emd_amount = None
-        if emd_amount_match:
-            field_parsed["emd_amount"] = True
-            amount_str = emd_amount_match.group(1).replace(",", "")
-            try:
-                emd_amount = int(amount_str)
-            except ValueError:
-                emd_amount = None
-                field_parsed["emd_amount"] = False
+        emd_amount = parse_emd_amount(text_clean)
+        if emd_amount is not None:
+            field_status["emd_amount"] = "parsed"
 
         # If amount found but required flag unknown, treat as required for scoring
         if emd_req == "unknown" and emd_amount is not None:
             emd_req = "yes"
-            field_parsed["emd_required"] = True
+            field_status["emd_required"] = "parsed"
+
+        # BE-17: amount not applicable when EMD is explicitly not required
+        if emd_req == "no" and emd_amount is None:
+            field_status["emd_amount"] = "na"
 
         analysis["emd_amount"] = emd_amount
         free_th = float(emd_cfg.get("free_threshold_inr", 200000))
@@ -1241,122 +1537,81 @@ def analyze_rfp_pdf(pdf_path, start_date_str=None, end_date_str=None,
                 emd_sub = unknown_sub
                 emd_detail = f"EMD required, amount unknown; subscore={unknown_sub}."
 
-        # --- 2. Startup exemptions (field-anchored only; no document-wide .*?Yes fallbacks) ---
-        # GeM bilingual PDFs put Yes/No after the label + Hindi text (delimiter : or /)
-        st_exp = "unknown"
-        st_turn = "unknown"
-        startup_match = re.search(
-            r'Startup\s+Exemption\s+for\s+Years\s+of\s+Experience\s+and\s+Turnover\s*[:/]\s*'
-            r'[^YN]{0,200}?(Yes|No)(?=\s|$)',
-            text_clean, re.IGNORECASE
-        )
-        if startup_match:
-            val = startup_match.group(1).lower()
-            st_exp = val
-            st_turn = val
-            field_parsed["st_exp"] = True
-            field_parsed["st_turn"] = True
-        else:
-            st_exp_match = re.search(
-                r'Startup\s+Exemption\s+for\s+(?:Years\s+of\s+)?Experience\s*[:/]\s*'
-                r'[^YN]{0,200}?(Yes|No)(?=\s|$)',
-                text_clean, re.IGNORECASE
-            )
-            st_turn_match = re.search(
-                r'Startup\s+Exemption\s+for\s+Turnover\s*[:/]\s*'
-                r'[^YN]{0,200}?(Yes|No)(?=\s|$)',
-                text_clean, re.IGNORECASE
-            )
-            if st_exp_match:
-                st_exp = st_exp_match.group(1).lower()
-                field_parsed["st_exp"] = True
-            if st_turn_match:
-                st_turn = st_turn_match.group(1).lower()
-                field_parsed["st_turn"] = True
+        # --- 2–3. Startup / MSE exemptions (BE-15 parsers + BE-17 N/A) ---
+        has_exemption_table = detect_doc_has_exemption_table(text_clean)
+        st_exp, st_turn, st_exp_p, st_turn_p = parse_exemption_pair(text_clean, "startup")
+        mse_exp, mse_turn, mse_exp_p, mse_turn_p = parse_exemption_pair(text_clean, "mse")
 
-        # --- 3. MSE exemptions (field-anchored only; no document-wide .*?Yes fallbacks) ---
-        mse_exp = "unknown"
-        mse_turn = "unknown"
-        mse_match = re.search(
-            r'MSE\s+Exemption\s+for\s+Years\s+of\s+Experience\s+and\s+Turnover\s*[:/]\s*'
-            r'[^YN]{0,200}?(Yes|No)(?=\s|$)',
-            text_clean, re.IGNORECASE
-        )
-        if mse_match:
-            val = mse_match.group(1).lower()
-            mse_exp = val
-            mse_turn = val
-            field_parsed["mse_exp"] = True
-            field_parsed["mse_turn"] = True
-        else:
-            mse_exp_match = re.search(
-                r'MSE\s+Exemption\s+for\s+(?:Years\s+[Oo]f\s+)?Experience\s*[:/]\s*'
-                r'[^YN]{0,200}?(Yes|No)(?=\s|$)',
-                text_clean, re.IGNORECASE
-            )
-            mse_turn_match = re.search(
-                r'MSE\s+Exemption\s+for\s+Turnover\s*[:/]\s*'
-                r'[^YN]{0,200}?(Yes|No)(?=\s|$)',
-                text_clean, re.IGNORECASE
-            )
-            if mse_exp_match:
-                mse_exp = mse_exp_match.group(1).lower()
-                field_parsed["mse_exp"] = True
-            if mse_turn_match:
-                mse_turn = mse_turn_match.group(1).lower()
-                field_parsed["mse_turn"] = True
+        if st_exp_p:
+            field_status["st_exp"] = "parsed"
+        if st_turn_p:
+            field_status["st_turn"] = "parsed"
+        if mse_exp_p:
+            field_status["mse_exp"] = "parsed"
+        if mse_turn_p:
+            field_status["mse_turn"] = "parsed"
 
-        analysis["startup_exemption"] = get_exemption_label(st_exp, st_turn)
-        analysis["mse_exemption"] = get_exemption_label(mse_exp, mse_turn)
+        exemptions_na = False
+        if not has_exemption_table:
+            # Absent-by-design on simpler Bid PDFs — not a failed parse
+            exemptions_na = True
+            for k in ("st_exp", "st_turn", "mse_exp", "mse_turn"):
+                if field_status[k] != "parsed":
+                    field_status[k] = "na"
+            analysis["startup_exemption"] = "Not Applicable"
+            analysis["mse_exemption"] = "Not Applicable"
+            analysis["reasons"].append(
+                "Exemption Check: no exemption table in this doc type (not a denial)."
+            )
+            # Scoring formulas unchanged: N/A → treat as unknown subscore contribution
+            st_exp = st_turn = mse_exp = mse_turn = "unknown"
+        else:
+            analysis["startup_exemption"] = get_exemption_label(st_exp, st_turn)
+            analysis["mse_exemption"] = get_exemption_label(mse_exp, mse_turn)
+
+            st_yes = (1 if st_exp == "yes" else 0) + (1 if st_turn == "yes" else 0)
+            mse_yes = (1 if mse_exp == "yes" else 0) + (1 if mse_turn == "yes" else 0)
+            if st_exp == "unknown" and st_turn == "unknown":
+                analysis["reasons"].append("Exemption Check: Startup exemption fields could not be parsed.")
+            elif st_yes == 2:
+                analysis["reasons"].append("Exemption Check: Full Startup exemptions (Experience + Turnover).")
+            elif st_yes == 0 and st_exp != "unknown" and st_turn != "unknown":
+                analysis["reasons"].append("Exemption Check: Startup Experience/Turnover criteria NOT relaxed.")
+            else:
+                analysis["reasons"].append(
+                    f"Exemption Check: Partial/unknown Startup exemptions (parsed relaxed={st_yes}/2)."
+                )
+
+            if mse_exp == "unknown" and mse_turn == "unknown":
+                analysis["reasons"].append("Exemption Check: MSE exemption fields could not be parsed.")
+            elif mse_yes == 2:
+                analysis["reasons"].append("Exemption Check: Full MSE exemptions (Experience + Turnover).")
+            elif mse_yes == 0 and mse_exp != "unknown" and mse_turn != "unknown":
+                analysis["reasons"].append("Exemption Check: MSE Experience/Turnover criteria NOT relaxed.")
+            else:
+                analysis["reasons"].append(
+                    f"Exemption Check: Partial/unknown MSE exemptions (parsed relaxed={mse_yes}/2)."
+                )
 
         st_sub = _exemption_pair_subscore(st_exp, st_turn, unknown_sub)
         mse_sub = _exemption_pair_subscore(mse_exp, mse_turn, unknown_sub)
-
-        st_yes = (1 if st_exp == "yes" else 0) + (1 if st_turn == "yes" else 0)
-        mse_yes = (1 if mse_exp == "yes" else 0) + (1 if mse_turn == "yes" else 0)
-        if st_exp == "unknown" and st_turn == "unknown":
-            analysis["reasons"].append("Exemption Check: Startup exemption fields could not be parsed.")
-        elif st_yes == 2:
-            analysis["reasons"].append("Exemption Check: Full Startup exemptions (Experience + Turnover).")
-        elif st_yes == 0 and st_exp != "unknown" and st_turn != "unknown":
-            analysis["reasons"].append("Exemption Check: Startup Experience/Turnover criteria NOT relaxed.")
-        else:
-            analysis["reasons"].append(
-                f"Exemption Check: Partial/unknown Startup exemptions (parsed relaxed={st_yes}/2)."
-            )
-
-        if mse_exp == "unknown" and mse_turn == "unknown":
-            analysis["reasons"].append("Exemption Check: MSE exemption fields could not be parsed.")
-        elif mse_yes == 2:
-            analysis["reasons"].append("Exemption Check: Full MSE exemptions (Experience + Turnover).")
-        elif mse_yes == 0 and mse_exp != "unknown" and mse_turn != "unknown":
-            analysis["reasons"].append("Exemption Check: MSE Experience/Turnover criteria NOT relaxed.")
-        else:
-            analysis["reasons"].append(
-                f"Exemption Check: Partial/unknown MSE exemptions (parsed relaxed={mse_yes}/2)."
-            )
-
         st_detail = f"Startup pair subscore={st_sub:.3f} (exp={st_exp}, turn={st_turn})."
         mse_detail = f"MSE pair subscore={mse_sub:.3f} (exp={mse_exp}, turn={mse_turn})."
 
-        # --- 4. Pre-bid ---
-        prebid_req_match = re.search(
-            r'Pre-Bid\s+Meeting\s+Required\s*[:/]\s*(?:\S+\s+)?(Yes|No)',
-            text_clean, re.IGNORECASE
-        )
-        prebid_date_match = re.search(
-            r'(?:Pre-Bid\s+Date\s+and\s+Time|Pre-Bid\s+Meeting\s+Date)\s*[:/]\s*'
-            r'([\d\-\s\:\w\,]+?(?:AM|PM|hrs|GMT))',
-            text_clean, re.IGNORECASE
-        )
-
-        if prebid_req_match:
-            field_parsed["prebid_required"] = True
-            prebid_req = prebid_req_match.group(1).lower()
-            analysis["pre_bid_required"] = prebid_req_match.group(1).capitalize()
+        # --- 4. Pre-bid (BE-15 + BE-19: miss ≠ na; only parse success is "parsed") ---
+        prebid_req = parse_prebid_required(text_clean) or "unknown"
+        if prebid_req != "unknown":
+            field_status["prebid_required"] = "parsed"
+            analysis["pre_bid_required"] = prebid_req.capitalize()
         else:
-            prebid_req = "unknown"
+            # Unparsed stays miss/unknown — counts against confidence (BE-19)
             analysis["pre_bid_required"] = "Unknown"
+
+        prebid_date_match = re.search(
+            r'(?:Pre-Bid\s+Date\s+and\s+Time|Pre-Bid\s+Meeting\s+Date).{0,40}?'
+            r'([\d]{1,2}[-/]\d{1,2}[-/]\d{2,4}[^\d]{0,20}[\d:\s]*(?:AM|PM|hrs|GMT)?)',
+            text_clean, re.IGNORECASE
+        )
 
         if prebid_req == "yes":
             if prebid_date_match:
@@ -1380,39 +1635,21 @@ def analyze_rfp_pdf(pdf_path, start_date_str=None, end_date_str=None,
             prebid_sub = unknown_sub
             prebid_detail = f"Pre-bid unknown; subscore={unknown_sub}."
 
-        # --- 5. ePBG (field-anchored only; no loose whole-document force-yes) ---
-        epbg_req_match = (
-            re.search(r'ePBG\s+Required\s*[:/]\s*(Yes|No)', text_clean, re.IGNORECASE)
-            or re.search(
-                r'ePBG\s+Detail\s*/.*?Required\s*/\s*(?:\S+\s+)?(Yes|No)',
-                text_clean, re.IGNORECASE
-            )
-        )
-        epbg_pct_match = re.search(
-            r'ePBG\s+Percentage\s*(?:\(%\))?\s*[:/]\s*([\d\.]+)', text_clean, re.IGNORECASE
-        )
-
-        if epbg_req_match:
-            field_parsed["epbg_required"] = True
-            epbg_req = epbg_req_match.group(1).lower()
-            analysis["epbg_required"] = epbg_req_match.group(1).capitalize()
+        # --- 5. ePBG (BE-15) ---
+        epbg_req = parse_epbg_required(text_clean) or "unknown"
+        if epbg_req != "unknown":
+            field_status["epbg_required"] = "parsed"
+            analysis["epbg_required"] = epbg_req.capitalize()
         else:
-            epbg_req = "unknown"
             analysis["epbg_required"] = "Unknown"
 
-        epbg_pct_val = None
-        if epbg_pct_match:
-            try:
-                epbg_pct_val = float(epbg_pct_match.group(1))
-                analysis["epbg_percentage"] = f"{epbg_pct_match.group(1)}%"
-            except ValueError:
-                epbg_pct_val = None
-
-        # If percentage found but required unknown, treat as required
-        if epbg_req == "unknown" and epbg_pct_val is not None:
-            epbg_req = "yes"
-            analysis["epbg_required"] = "Yes"
-            field_parsed["epbg_required"] = True
+        epbg_pct_val = parse_epbg_percentage(text_clean)
+        if epbg_pct_val is not None:
+            analysis["epbg_percentage"] = f"{epbg_pct_val}%"
+            if epbg_req == "unknown":
+                epbg_req = "yes"
+                analysis["epbg_required"] = "Yes"
+                field_status["epbg_required"] = "parsed"
 
         free_pct = float(epbg_cfg.get("free_threshold_pct", 3.0))
         max_pct = float(epbg_cfg.get("max_penalty_pct", 10.0))
@@ -1437,18 +1674,25 @@ def analyze_rfp_pdf(pdf_path, start_date_str=None, end_date_str=None,
                 epbg_sub = unknown_sub
                 epbg_detail = f"ePBG required, pct unknown; subscore={unknown_sub}."
 
-        # --- 6. Date window (BE-03) ---
+        # --- 6. Date window (BE-03) — formulas unchanged ---
         date_info = evaluate_date_window(start_date_str, end_date_str, cfg)
         date_sub = date_info["subscore"]
         date_detail = date_info["detail"]
         for r in date_info["reasons"]:
             analysis["reasons"].append(r)
 
-        # --- Confidence (8 fields) ---
-        parsed_count = sum(1 for v in field_parsed.values() if v)
+        # --- Confidence (BE-19: meaningful signal)
+        # total_fields stays fixed at 8; na only for evidence-based absences;
+        # confidence = parsed / (total − na). Unparsed misses count against conf.
+        total_fields = TOTAL_ANALYSIS_FIELDS
+        na_count = sum(1 for v in field_status.values() if v == "na")
+        parsed_count = sum(1 for v in field_status.values() if v == "parsed")
+        denom = max(1, total_fields - na_count)
         analysis["parsed_fields"] = parsed_count
-        analysis["total_fields"] = TOTAL_ANALYSIS_FIELDS
-        analysis["confidence"] = round(parsed_count / TOTAL_ANALYSIS_FIELDS, 4)
+        analysis["na_fields"] = na_count
+        analysis["total_fields"] = total_fields
+        analysis["confidence"] = round(parsed_count / denom, 4)
+        analysis["field_status"] = field_status
 
         # --- Weighted final Risk score + breakdown (Phase-1, unchanged 6 criteria) ---
         criteria = [
@@ -1482,7 +1726,9 @@ def analyze_rfp_pdf(pdf_path, start_date_str=None, end_date_str=None,
         analysis["signal_fields"] = TOTAL_SIGNAL_FIELDS
 
         # --- BE-09: soft eligibility gate ---
-        eligibility = compute_eligibility(signals, st_turn, mse_turn, profile)
+        eligibility = compute_eligibility(
+            signals, st_turn, mse_turn, profile, exemptions_na=exemptions_na
+        )
         analysis["eligibility"] = eligibility
         if eligibility.get("verdict") == "turnover_gap":
             analysis["reasons"].append(f"Eligibility: {eligibility.get('detail')}")
@@ -1505,7 +1751,7 @@ def analyze_rfp_pdf(pdf_path, start_date_str=None, end_date_str=None,
         )
 
     except Exception as e:
-        print(f"Error parsing PDF metadata: {e}")
+        logger.error(f"Error parsing PDF metadata: {e}")
         failed = get_failed_analysis(f"PDF parsing error: {e}")
         return failed
 
@@ -1544,9 +1790,9 @@ def load_existing_metadata():
                             "status": row.get("Status", "Pending Review"),
                             "analysis": analysis
                         }
-            print(f"Loaded {len(existing_tenders)} existing records from metadata.csv")
+            logger.info(f"Loaded {len(existing_tenders)} existing records from metadata.csv")
         except Exception as e:
-            print(f"Error reading existing CSV metadata: {e}")
+            logger.error(f"Error reading existing CSV metadata: {e}")
     return existing_tenders
 
 def save_metadata(tenders_list):
@@ -1583,9 +1829,9 @@ def save_metadata(tenders_list):
                     "Status": t.get("status", "Pending Review"),
                     "Analysis": json.dumps(t.get("analysis")) if t.get("analysis") else ""
                 })
-        print(f"Saved metadata CSV: {csv_path}")
+        logger.info(f"Saved metadata CSV: {csv_path}")
     except Exception as e:
-        print(f"Error saving CSV metadata: {e}")
+        logger.error(f"Error saving CSV metadata: {e}")
 
 def parse_cards(html, keyword):
     soup = BeautifulSoup(html, "html.parser")
@@ -1625,13 +1871,34 @@ def parse_cards(html, keyword):
                 continue
 
             quantity = "N/A"
+            est_value_inr = None
             if col4:
                 rows = col4.select("div.row")
                 for r in rows:
-                    txt = r.get_text(strip=True)
-                    if "Quantity:" in txt:
-                        quantity = txt.replace("Quantity:", "").strip()
-                        break
+                    txt = r.get_text(" ", strip=True)
+                    if "Quantity:" in txt or "Quantity" in txt:
+                        quantity = re.sub(r'(?i)Quantity\s*:', "", txt).strip()
+                    # BE-16: estimated / contract / bid value on the card
+                    if est_value_inr is None and re.search(
+                        r'(?i)(?:Estimated\s*(?:Value|Bid\s*Value)|Bid\s*Value|Contract\s*Value|Value\s*:)',
+                        txt
+                    ):
+                        amt = _parse_inr_amount(txt)
+                        if amt is not None and amt >= 1000:
+                            est_value_inr = amt
+
+            # Also scan whole card text for value labels if not found in col4 rows
+            if est_value_inr is None:
+                card_text = card.get_text(" ", strip=True)
+                vm = re.search(
+                    r'(?i)(?:Estimated\s*(?:Bid\s*)?Value|Bid\s*Value|Contract\s*Value)\s*:?\s*'
+                    r'(?:INR|Rs\.?|₹)?\s*([\d,]+(?:\.\d+)?)',
+                    card_text
+                )
+                if vm:
+                    amt = _parse_inr_amount(vm.group(1))
+                    if amt is not None and amt >= 1000:
+                        est_value_inr = amt
 
             department = "N/A"
             col5 = card.select_one("div.col-md-5")
@@ -1655,6 +1922,7 @@ def parse_cards(html, keyword):
                 "title": title,
                 "quantity": quantity,
                 "department": department,
+                "est_value_inr": est_value_inr,
                 "start_date": start_date,
                 "end_date": end_date,
                 "pdf_url": pdf_url,
@@ -1665,7 +1933,7 @@ def parse_cards(html, keyword):
                 "analysis": None
             })
         except Exception as e:
-            print(f"Error parsing card: {e}")
+            logger.error(f"Error parsing card: {e}")
             continue
 
     return results
@@ -1679,7 +1947,7 @@ def select_sort_order(page, sort_order="Bid-End-Date-Latest"):
     }
     
     label, selector_id = sort_map.get(sort_order, ("Bid End Date: Latest First", "#Bid-End-Date-Latest"))
-    print(f"Setting sorting to '{label}'...")
+    logger.info(f"Setting sorting to '{label}'...")
     try:
         sort_button = page.locator("#currentSort")
         if sort_button.count() > 0:
@@ -1690,11 +1958,11 @@ def select_sort_order(page, sort_order="Bid-End-Date-Latest"):
             if option.count() > 0:
                 option.click()
                 page.wait_for_timeout(3000)  # Wait for AJAX refresh
-                print(f"Successfully set sort order to '{label}'")
+                logger.info(f"Successfully set sort order to '{label}'")
                 return True
-        print(f"Could not find the sort button (#currentSort) or target option ({selector_id}) on the page.")
+        logger.warning(f"Could not find the sort button (#currentSort) or target option ({selector_id}) on the page.")
     except Exception as e:
-        print(f"Failed to set sorting option: {e}")
+        logger.error(f"Failed to set sorting option: {e}")
     return False
 
 def download_rfp_pdf(context, pdf_url, save_path):
@@ -1721,7 +1989,7 @@ def download_rfp_pdf(context, pdf_url, save_path):
         if download_container:
             download = download_container[0]
             download.save_as(save_path)
-            print(f"Successfully saved PDF via page download event: {os.path.basename(save_path)}")
+            logger.info(f"Successfully saved PDF via page download event: {os.path.basename(save_path)}")
             return True
             
         # Scenario B: Loaded inline
@@ -1730,13 +1998,13 @@ def download_rfp_pdf(context, pdf_url, save_path):
             if body.startswith(b"%PDF") or "pdf" in response.headers.get("content-type", "").lower():
                 with open(save_path, "wb") as f:
                     f.write(body)
-                print(f"Successfully saved PDF via page response body: {os.path.basename(save_path)}")
+                logger.info(f"Successfully saved PDF via page response body: {os.path.basename(save_path)}")
                 return True
             else:
-                print(f"Response was not a PDF (Content-Type: {response.headers.get('content-type')}).")
+                logger.warning(f"Response was not a PDF (Content-Type: {response.headers.get('content-type')}).")
                 
     except Exception as e:
-        print(f"Download failed for {pdf_url}: {e}")
+        logger.error(f"Download failed for {pdf_url}: {e}")
     finally:
         if page:
             try:
@@ -1787,38 +2055,18 @@ def check_date_policy(start_date_str, end_date_str):
     return len(reasons) == 0, reasons
 
 def scrape(selected_keywords=None, max_pages=2, sort_order="Bid-End-Date-Latest", log_callback=None):
-    class LogStream:
-        def __init__(self, callback):
-            self.callback = callback
-            self.buffer = ""
-            self.is_writing = False
-        def write(self, buf):
-            sys.__stdout__.write(buf)
-            if self.is_writing:
-                return
-            self.is_writing = True
-            try:
-                self.buffer += buf
-                while "\n" in self.buffer:
-                    line, self.buffer = self.buffer.split("\n", 1)
-                    self.callback(line)
-            finally:
-                self.is_writing = False
-        def flush(self):
-            sys.__stdout__.flush()
-            
-    original_stdout = sys.stdout
-    if log_callback:
-        sys.stdout = LogStream(log_callback)
-
+    logging_setup.setup_logging()
+    cb_handler = logging_setup.attach_callback(log_callback) if log_callback else None
+    logging_setup.start_scrape_session()
     try:
-        print("Initializing directories...")
+        logger.info("Initializing directories...")
+        paths.ensure_dirs()
         os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 
         # 1. Load dynamic keywords
         if selected_keywords:
             KEYWORDS = selected_keywords
-            print(f"Scraping {len(KEYWORDS)} selected keyword(s) for search.")
+            logger.info(f"Scraping {len(KEYWORDS)} selected keyword(s) for search.")
         else:
             KEYWORDS = load_keywords()
         
@@ -1828,7 +2076,7 @@ def scrape(selected_keywords=None, max_pages=2, sort_order="Bid-End-Date-Latest"
         new_tenders_count = 0
         
         with sync_playwright() as p:
-            print("Launching browser with stealth settings...")
+            logger.info("Launching browser with stealth settings...")
             browser = p.chromium.launch(
                 headless=True,
                 args=[
@@ -1850,7 +2098,7 @@ def scrape(selected_keywords=None, max_pages=2, sort_order="Bid-End-Date-Latest"
 
             # Scrape keyword listings
             for keyword in KEYWORDS:
-                print(f"\n--- Searching for keyword: '{keyword}' ---")
+                logger.info(f"\n--- Searching for keyword: '{keyword}' ---")
                 encoded_term = urllib.parse.quote(keyword)
                 search_url = f"https://bidplus.gem.gov.in/all-bids?bid_number=&items_per_page=&search_under=&search={encoded_term}"
                 
@@ -1862,7 +2110,7 @@ def scrape(selected_keywords=None, max_pages=2, sort_order="Bid-End-Date-Latest"
                     try:
                         page.wait_for_selector("div.card, #bidCard", timeout=10000)
                     except Exception:
-                        print(f"No bid cards displayed for '{keyword}' on page 1.")
+                        logger.warning(f"No bid cards displayed for '{keyword}' on page 1.")
                         has_cards = False
                     
                     if not has_cards:
@@ -1873,17 +2121,17 @@ def scrape(selected_keywords=None, max_pages=2, sort_order="Bid-End-Date-Latest"
 
                     # Page 1 parsing
                     tenders = parse_cards(page.content(), keyword)
-                    print(f"Page 1: Found {len(tenders)} tenders")
+                    logger.info(f"Page 1: Found {len(tenders)} tenders")
                     for t in tenders:
                         # Log date policy checks but do not skip discovery
                         date_ok, reasons = check_date_policy(t.get("start_date"), t.get("end_date"))
                         if not date_ok:
-                            print(f"  [Date Policy Alert] {t['bid_no']}: {', '.join(reasons)}")
+                            logger.warning(f"  [Date Policy Alert] {t['bid_no']}: {', '.join(reasons)}")
 
                         if t["bid_no"] not in all_tenders:
                             all_tenders[t["bid_no"]] = t
                             new_tenders_count += 1
-                            print(f"  [New Tender Discovered] {t['bid_no']}")
+                            logger.info(f"  [New Tender Discovered] {t['bid_no']}")
                         else:
                             existing = all_tenders[t["bid_no"]]
                             if keyword not in existing["keyword"]:
@@ -1896,12 +2144,12 @@ def scrape(selected_keywords=None, max_pages=2, sort_order="Bid-End-Date-Latest"
                         if not next_btn:
                             break
                         
-                        print(f"Navigating to page {page_num}...")
+                        logger.info(f"Navigating to page {page_num}...")
                         next_btn.click()
                         page.wait_for_timeout(2500)
                         
                         page_tenders = parse_cards(page.content(), keyword)
-                        print(f"Page {page_num}: Found {len(page_tenders)} tenders")
+                        logger.info(f"Page {page_num}: Found {len(page_tenders)} tenders")
                         if not page_tenders:
                             break
                             
@@ -1909,27 +2157,27 @@ def scrape(selected_keywords=None, max_pages=2, sort_order="Bid-End-Date-Latest"
                             # Log date policy checks but do not skip discovery
                             date_ok, reasons = check_date_policy(t.get("start_date"), t.get("end_date"))
                             if not date_ok:
-                                print(f"  [Date Policy Alert] {t['bid_no']}: {', '.join(reasons)}")
+                                logger.warning(f"  [Date Policy Alert] {t['bid_no']}: {', '.join(reasons)}")
 
                             if t["bid_no"] not in all_tenders:
                                 all_tenders[t["bid_no"]] = t
                                 new_tenders_count += 1
-                                print(f"  [New Tender Discovered] {t['bid_no']}")
+                                logger.info(f"  [New Tender Discovered] {t['bid_no']}")
                             else:
                                 existing = all_tenders[t["bid_no"]]
                                 if keyword not in existing["keyword"]:
                                     existing["keyword"] += f", {keyword}"
 
                 except Exception as e:
-                    print(f"Error searching for '{keyword}': {e}")
+                    logger.error(f"Error searching for '{keyword}': {e}")
                 
                 time.sleep(random.uniform(2.0, 4.0))
 
             if new_tenders_count == 0:
-                print(f"\nFor today ({get_date_folder_name()}), no new tenders could be found.")
+                logger.warning(f"\nFor today ({get_date_folder_name()}), no new tenders could be found.")
 
             # Download RFP documents
-            print(f"\n--- Checking RFP Downloads for {len(all_tenders)} total tenders ---")
+            logger.info(f"\n--- Checking RFP Downloads for {len(all_tenders)} total tenders ---")
             tenders_list = list(all_tenders.values())
             # Load scoring config + company profile once per scrape run
             scoring_cfg = load_scoring_config()
@@ -1963,11 +2211,11 @@ def scrape(selected_keywords=None, max_pages=2, sort_order="Bid-End-Date-Latest"
                     pdf_location = existing_path
                 else:
                     os.makedirs(target_dir, exist_ok=True)
-                    print(f"[{idx+1}/{len(tenders_list)}] Downloading RFP for Bid: {bid_no}...")
+                    logger.info(f"[{idx+1}/{len(tenders_list)}] Downloading RFP for Bid: {bid_no}...")
                     success = download_rfp_pdf(context, pdf_url, save_path)
                     if success:
                         tender["downloaded"] = True
-                        tender["local_pdf_path"] = save_path.replace("\\", "/")
+                        tender["local_pdf_path"] = paths.repo_relative(save_path)
                         pdf_location = save_path
                     else:
                         tender["downloaded"] = False
@@ -1990,6 +2238,7 @@ def scrape(selected_keywords=None, max_pages=2, sort_order="Bid-End-Date-Latest"
                             "department": tender.get("department"),
                             "quantity": tender.get("quantity"),
                             "keyword": tender.get("keyword"),
+                            "est_value_inr": tender.get("est_value_inr"),
                         }
                     )
                     if analysis:
@@ -2032,39 +2281,20 @@ def scrape(selected_keywords=None, max_pages=2, sort_order="Bid-End-Date-Latest"
         save_metadata(tenders_list)
         return tenders_list, new_tenders_count
     finally:
-        sys.stdout = original_stdout
+        logging_setup.end_scrape_session()
+        logging_setup.detach_handler(cb_handler)
 
 def scrape_single_bid(bid_id, log_callback=None):
-    class LogStream:
-        def __init__(self, callback):
-            self.callback = callback
-            self.buffer = ""
-            self.is_writing = False
-        def write(self, buf):
-            sys.__stdout__.write(buf)
-            if self.is_writing:
-                return
-            self.is_writing = True
-            try:
-                self.buffer += buf
-                while "\n" in self.buffer:
-                    line, self.buffer = self.buffer.split("\n", 1)
-                    self.callback(line)
-            finally:
-                self.is_writing = False
-        def flush(self):
-            sys.__stdout__.flush()
-            
-    original_stdout = sys.stdout
-    if log_callback:
-        sys.stdout = LogStream(log_callback)
-
+    logging_setup.setup_logging()
+    cb_handler = logging_setup.attach_callback(log_callback) if log_callback else None
+    logging_setup.start_scrape_session()
     try:
-        print("Initializing directories for manual ID acquisition...")
+        logger.info("Initializing directories for manual ID acquisition...")
+        paths.ensure_dirs()
         os.makedirs(DOWNLOADS_DIR, exist_ok=True)
-        
+
         bid_id_clean = bid_id.strip()
-        print(f"Targeting Bid ID / Number: '{bid_id_clean}'")
+        logger.info(f"Targeting Bid ID / Number: '{bid_id_clean}'")
         
         all_tenders = load_existing_metadata()
         
@@ -2075,7 +2305,7 @@ def scrape_single_bid(bid_id, log_callback=None):
         target_tender = None
         
         with sync_playwright() as p:
-            print("Launching browser with stealth settings...")
+            logger.info("Launching browser with stealth settings...")
             browser = p.chromium.launch(
                 headless=True,
                 args=[
@@ -2095,16 +2325,16 @@ def scrape_single_bid(bid_id, log_callback=None):
             
             page = context.new_page()
             
-            print("Navigating to base search page...")
+            logger.info("Navigating to base search page...")
             page.goto("https://bidplus.gem.gov.in/all-bids", wait_until="domcontentloaded", timeout=60000)
             page.wait_for_timeout(2000)
             
             # Fill the search input and click search button
-            print(f"Typing search query '{bid_id_clean}' in search box...")
+            logger.info(f"Typing search query '{bid_id_clean}' in search box...")
             page.fill("#searchBid", bid_id_clean)
             page.wait_for_timeout(500)
             
-            print("Clicking search button...")
+            logger.info("Clicking search button...")
             page.click("#searchBidRA")
             page.wait_for_timeout(3000) # Wait for AJAX refresh
             
@@ -2123,19 +2353,19 @@ def scrape_single_bid(bid_id, log_callback=None):
                 pass
                     
             except Exception as e:
-                print(f"Failed to find or parse bid cards for ID '{bid_id_clean}': {e}")
+                logger.error(f"Failed to find or parse bid cards for ID '{bid_id_clean}': {e}")
                 
             if not target_tender:
-                print(f"No tender found on GeM matching ID: '{bid_id_clean}'")
+                logger.warning(f"No tender found on GeM matching ID: '{bid_id_clean}'")
                 browser.close()
                 return None
                 
             bid_no = target_tender["bid_no"]
             pdf_url = target_tender["pdf_url"]
-            print(f"Tender found: {bid_no} - {target_tender['title']}")
+            logger.info(f"Tender found: {bid_no} - {target_tender['title']}")
             
             # Since this is a manual request, we BYPASS the Date Policy Gate check
-            print("Manual acquisition request: Bypassing Date Policy Gate check.")
+            logger.info("Manual acquisition request: Bypassing Date Policy Gate check.")
             
             sanitized_bid = sanitize_filename(bid_no)
             sanitized_keyword = "manual_downloads"
@@ -2148,27 +2378,27 @@ def scrape_single_bid(bid_id, log_callback=None):
             pdf_location = None
             
             if existing_path:
-                print(f"RFP PDF already exists in local downloads cache: {existing_path}")
+                logger.info(f"RFP PDF already exists in local downloads cache: {existing_path}")
                 target_tender["downloaded"] = True
                 target_tender["local_pdf_path"] = existing_path
                 pdf_location = existing_path
             else:
                 os.makedirs(target_dir, exist_ok=True)
-                print(f"Downloading RFP PDF from: {pdf_url}...")
+                logger.info(f"Downloading RFP PDF from: {pdf_url}...")
                 success = download_rfp_pdf(context, pdf_url, save_path)
                 if success:
                     target_tender["downloaded"] = True
-                    target_tender["local_pdf_path"] = save_path.replace("\\", "/")
+                    target_tender["local_pdf_path"] = paths.repo_relative(save_path)
                     pdf_location = save_path
                 else:
                     target_tender["downloaded"] = False
-                    print("Download failed for RFP PDF.")
+                    logger.error("Download failed for RFP PDF.")
                     
             # Scan and analyze RFP PDF (manual path: still scores date_window from dates)
             scoring_cfg = load_scoring_config()
             company_profile = load_company_profile()
             if target_tender["downloaded"] and pdf_location and os.path.exists(pdf_location):
-                print("Scanning and scoring RFP PDF contents...")
+                logger.info("Scanning and scoring RFP PDF contents...")
                 analysis = analyze_rfp_pdf(
                     pdf_location,
                     start_date_str=target_tender.get("start_date"),
@@ -2180,6 +2410,7 @@ def scrape_single_bid(bid_id, log_callback=None):
                         "department": target_tender.get("department"),
                         "quantity": target_tender.get("quantity"),
                         "keyword": target_tender.get("keyword"),
+                        "est_value_inr": target_tender.get("est_value_inr"),
                     }
                 )
                 if analysis:
@@ -2215,13 +2446,14 @@ def scrape_single_bid(bid_id, log_callback=None):
             # Save or update in database
             all_tenders[bid_no] = target_tender
             save_metadata(list(all_tenders.values()))
-            print(f"Successfully processed and updated metadata for Bid: {bid_no}")
+            logger.info(f"Successfully processed and updated metadata for Bid: {bid_no}")
             
             browser.close()
             return target_tender
-            
+
     finally:
-        sys.stdout = original_stdout
+        logging_setup.end_scrape_session()
+        logging_setup.detach_handler(cb_handler)
 
 if __name__ == "__main__":
     import argparse

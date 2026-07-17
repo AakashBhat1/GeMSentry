@@ -28,8 +28,15 @@ Thumbs.db
 tenders/
 tenders_backup/
 
-# Sensitive source data (company profile + tender history) — do not commit
+# Sensitive source data (company profile PDF + tender history) — do not commit
 EtsplCompanyProfile_2026.pdf
 TENDER MASTER SHEET*.xlsx
 history.json
+data/history.json
 scratch/
+
+# Logs (keep directory structure via .gitkeep)
+logs/**
+!logs/.gitkeep
+!logs/scrapes/
+!logs/scrapes/.gitkeep

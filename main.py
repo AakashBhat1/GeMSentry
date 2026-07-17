@@ -1,5 +1,9 @@
+"""Thin alias entrypoint — prefer `python run.py`."""
+
+
 def main():
-    print("Hello from gem!")
+    from run import main as run_main
+    run_main()
 
 
 if __name__ == "__main__":
