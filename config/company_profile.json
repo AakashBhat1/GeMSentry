@@ -1,11 +1,11 @@
 {
   "version": 1,
   "company": {
-    "legal_name": "Earnest Tactical Solutions Pvt. Ltd.",
-    "short_name": "ETSPL",
-    "incorporation_ym": "2020-03",
+    "hq_city": "Gurgaon",
     "hq_state": "Haryana",
-    "hq_city": "Gurgaon"
+    "incorporation_ym": "2020-03",
+    "legal_name": "Earnest Tactical Solutions Pvt. Ltd.",
+    "short_name": "ETSPL"
   },
   "eligibility": {
     "annual_turnover_inr": 1800000,
@@ -31,14 +31,14 @@
       "Telangana",
       "Puducherry"
     ],
-    "soft_avoid_reason": "Local monopoly on these product categories in South India",
-    "soft_avoid_penalty": 0.5
+    "soft_avoid_penalty": 0.5,
+    "soft_avoid_reason": "Local monopoly on these product categories in South India"
   },
   "business_lines": [
     {
       "id": "drone",
       "label": "Drone / UAV",
-      "priority": 1.0,
+      "priority": 1,
       "keywords": [
         "drone",
         "drones",
@@ -51,12 +51,20 @@
         "mapping",
         "surveillance",
         "reconnaissance"
+      ],
+      "exclude_keywords": [
+        "manpower",
+        "housekeeping",
+        "deputation",
+        "security guard",
+        "sanitation",
+        "catering"
       ]
     },
     {
       "id": "power_supply",
       "label": "Power Supply / Electrical",
-      "priority": 1.0,
+      "priority": 1,
       "keywords": [
         "power supply",
         "ac-dc",
@@ -75,12 +83,20 @@
         "solid state power amplifier",
         "power system",
         "psu"
+      ],
+      "exclude_keywords": [
+        "manpower",
+        "housekeeping",
+        "deputation",
+        "security guard",
+        "sanitation",
+        "catering"
       ]
     },
     {
       "id": "ai_it",
       "label": "AI / IT / Electronics",
-      "priority": 1.0,
+      "priority": 1,
       "keywords": [
         "artificial intelligence",
         "ai based",
@@ -102,17 +118,25 @@
         "display",
         "laptop",
         "notebook"
+      ],
+      "exclude_keywords": [
+        "manpower",
+        "housekeeping",
+        "deputation",
+        "security guard",
+        "sanitation",
+        "catering"
       ]
     }
   ],
   "buyer_affinity": {
-    "INDIAN AIR FORCE": 1.0,
-    "INDIAN ARMY": 0.85,
-    "INDIAN NAVY": 0.75,
-    "HAL": 0.75,
-    "DRDO": 0.65,
     "BHARAT PETROLEUM": 0.5,
-    "DEFENCE": 0.6
+    "DEFENCE": 0.6,
+    "DRDO": 0.65,
+    "HAL": 0.75,
+    "INDIAN AIR FORCE": 1,
+    "INDIAN ARMY": 0.85,
+    "INDIAN NAVY": 0.75
   },
   "value_preference": {
     "sweet_min_inr": 500000,

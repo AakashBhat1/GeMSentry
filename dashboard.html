@@ -613,6 +613,24 @@
             border: 1px solid rgba(16, 185, 129, 0.3) !important;
         }
 
+        .tag-urgency-critical {
+            background-color: rgba(239, 68, 68, 0.15) !important;
+            color: #f87171 !important;
+            border: 1px solid rgba(239, 68, 68, 0.35) !important;
+        }
+
+        .tag-urgency-soon {
+            background-color: rgba(245, 158, 11, 0.15) !important;
+            color: #fbbf24 !important;
+            border: 1px solid rgba(245, 158, 11, 0.35) !important;
+        }
+
+        .tag-urgency-expired {
+            background-color: rgba(156, 163, 175, 0.15) !important;
+            color: #9ca3af !important;
+            border: 1px solid rgba(156, 163, 175, 0.3) !important;
+        }
+
         .breakdowns-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -1233,6 +1251,7 @@
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
                         <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Sort By</label>
                         <select id="tendersSortSelect" onchange="filterData()" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem 0.75rem; border-radius: 6px; font-size: 0.825rem; outline: none; cursor: pointer;">
+                            <option value="priority-desc" selected>⭐ Best Match (Priority)</option>
                             <option value="none">Default (Scrape Order)</option>
                             <option value="deadline-soonest">Deadline: Soonest First</option>
                             <option value="score-desc">Risk Score: High to Low</option>
@@ -1293,9 +1312,9 @@
                 <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                     <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">GeM Search Sorting</label>
                     <select id="modalSortOrder" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none; cursor: pointer; width: 220px;">
-                        <option value="Bid-End-Date-Latest" selected>Bid End Date: Latest First</option>
+                        <option value="Bid-End-Date-Latest">Bid End Date: Latest First</option>
                         <option value="Bid-End-Date-Oldest">Bid End Date: Oldest First</option>
-                        <option value="Bid-Start-Date-Latest">Bid Start Date: Latest First</option>
+                        <option value="Bid-Start-Date-Latest" selected>Bid Start Date: Latest First</option>
                         <option value="Bid-Start-Date-Oldest">Bid Start Date: Oldest First</option>
                     </select>
                 </div>
@@ -2018,6 +2037,13 @@
                 buyerAffinity[k] = v;
             }
 
+            // Preserve exclude_keywords (edited only via config file, not this form)
+            const existingExcludes = (lineId) => {
+                const lines = (companyProfile && companyProfile.business_lines) || [];
+                const found = lines.find(l => l && l.id === lineId);
+                return (found && found.exclude_keywords) || [];
+            };
+
             const payload = {
                 version: companyProfile ? (companyProfile.version || 1) : 1,
                 company: companyProfile ? companyProfile.company : {
@@ -2046,9 +2072,9 @@
                     soft_avoid_reason: softAvoidReason
                 },
                 business_lines: [
-                    { id: "drone", label: "Drone / UAV", priority: 1.0, keywords: kwsDrone },
-                    { id: "power_supply", label: "Power Supply / Electrical", priority: 1.0, keywords: kwsPower },
-                    { id: "ai_it", label: "AI / IT / Electronics", priority: 1.0, keywords: kwsAi }
+                    { id: "drone", label: "Drone / UAV", priority: 1.0, keywords: kwsDrone, exclude_keywords: existingExcludes("drone") },
+                    { id: "power_supply", label: "Power Supply / Electrical", priority: 1.0, keywords: kwsPower, exclude_keywords: existingExcludes("power_supply") },
+                    { id: "ai_it", label: "AI / IT / Electronics", priority: 1.0, keywords: kwsAi, exclude_keywords: existingExcludes("ai_it") }
                 ],
                 buyer_affinity: buyerAffinity,
                 value_preference: {
@@ -2570,6 +2596,32 @@
             filterData();
         }
 
+        // Feature C: parse GeM "DD-MM-YYYY HH:MM AM/PM" end date → whole days from now
+        // (negative = already closed). Returns null when the date is unparseable.
+        function gemDaysToDeadline(dateStr) {
+            if (!dateStr) return null;
+            try {
+                const parts = dateStr.trim().split(' ');
+                if (parts.length < 2) return null;
+                const dateParts = parts[0].split('-');
+                const timeParts = parts[1].split(':');
+                if (dateParts.length < 3 || timeParts.length < 2) return null;
+                const day = parseInt(dateParts[0]);
+                const month = parseInt(dateParts[1]) - 1;
+                const year = parseInt(dateParts[2]);
+                let hours = parseInt(timeParts[0]);
+                const minutes = parseInt(timeParts[1]);
+                if (parts[2] && parts[2].toUpperCase() === 'PM' && hours < 12) hours += 12;
+                if (parts[2] && parts[2].toUpperCase() === 'AM' && hours === 12) hours = 0;
+                if ([day, month, year, hours, minutes].some(isNaN)) return null;
+                const deadline = new Date(year, month, day, hours, minutes);
+                if (isNaN(deadline.getTime())) return null;
+                return Math.ceil((deadline - new Date()) / (1000 * 60 * 60 * 24));
+            } catch (e) {
+                return null;
+            }
+        }
+
         function filterData() {
             searchStr = document.getElementById('searchInput').value.toLowerCase().trim();
 
@@ -2609,7 +2661,11 @@
             const sortVal = document.getElementById('tendersSortSelect') ? document.getElementById('tendersSortSelect').value : 'none';
             if (sortVal !== 'none') {
                 filtered.sort((a, b) => {
-                    if (sortVal === 'deadline-soonest') {
+                    if (sortVal === 'priority-desc') {
+                        const prA = (a.analysis && a.analysis.priority_score !== undefined && a.analysis.priority_score !== null) ? a.analysis.priority_score : -1;
+                        const prB = (b.analysis && b.analysis.priority_score !== undefined && b.analysis.priority_score !== null) ? b.analysis.priority_score : -1;
+                        return prB - prA;
+                    } else if (sortVal === 'deadline-soonest') {
                         const parseGemDate = (dateStr) => {
                             if (!dateStr) return new Date(8640000000000000);
                             try {
@@ -2691,9 +2747,22 @@
                 let businessLineTag = '';
                 let eligibilityTag = '';
                 let recommendationChip = '';
-                
+                let urgencyTag = '';
+
+                // Feature C: deadline urgency chip (independent of PDF analysis)
+                const daysToDeadline = gemDaysToDeadline(tender.end_date);
+                if (daysToDeadline !== null) {
+                    if (daysToDeadline < 0) {
+                        urgencyTag = `<span class="tag tag-urgency-expired" title="Bid closing date has passed">⌛ Expired</span>`;
+                    } else if (daysToDeadline <= 3) {
+                        urgencyTag = `<span class="tag tag-urgency-critical" title="Closes in ${daysToDeadline} day(s)">🔥 Closing soon (${daysToDeadline}d)</span>`;
+                    } else if (daysToDeadline <= 7) {
+                        urgencyTag = `<span class="tag tag-urgency-soon" title="Closes in ${daysToDeadline} day(s)">⏳ Soon (${daysToDeadline}d)</span>`;
+                    }
+                }
+
                 const analysis = tender.analysis;
-                
+
                 if (analysis) {
                     // Recommendation Chip (Phase 2)
                     if (analysis.recommendation) {
@@ -2708,7 +2777,9 @@
 
                     // Business line tag (Phase 2)
                     if (analysis.business_line) {
-                        businessLineTag = `<span class="tag tag-business-line">${analysis.business_line.label}</span>`;
+                        const mk = analysis.business_line.matched_keywords;
+                        const mkTitle = (mk && mk.length) ? ` title="Matched: ${mk.join(', ')}"` : '';
+                        businessLineTag = `<span class="tag tag-business-line"${mkTitle}>${analysis.business_line.label}</span>`;
                     }
 
                     // Eligibility tag (Phase 2)
@@ -2770,9 +2841,18 @@
                             else if (analysis.fit_score <= 40) fitClass = 'score-low';
                             fitBadge = `<span class="score-badge ${fitClass}">Fit: ${analysis.fit_score}/100</span>`;
                         }
-                        
+
+                        let priorityBadge = '';
+                        if (analysis.priority_score !== undefined && analysis.priority_score !== null) {
+                            let prClass = 'score-medium';
+                            if (analysis.priority_score >= 70) prClass = 'score-high';
+                            else if (analysis.priority_score <= 40) prClass = 'score-low';
+                            priorityBadge = `<span class="score-badge ${prClass}" style="font-weight: 700;" title="Blended best-match ranking (Fit + Risk)">⭐ ${analysis.priority_score}</span>`;
+                        }
+
                         scoreBadge = `
                             <div style="display: flex; gap: 0.35rem; align-items: center;">
+                                ${priorityBadge}
                                 ${fitBadge}
                                 <span class="score-badge ${riskClass}">${scoreText}</span>
                             </div>
@@ -2986,6 +3066,7 @@
                                     ${keywordsList}
                                     ${businessLineTag}
                                     ${eligibilityTag}
+                                    ${urgencyTag}
                                 </div>
                                 <h3 class="tender-title">${tender.title}</h3>
                             </div>

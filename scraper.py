@@ -69,6 +69,10 @@ DEFAULT_SCORING_CONFIG = {
         "unknown_buyer_subscore": 0.4,
         "turnover_gap_subscore": 0.3,
         "weak_relevance_subscore": 0.5
+    },
+    "priority": {
+        "fit_weight": 0.6,
+        "risk_weight": 0.4
     }
 }
 
@@ -525,7 +529,8 @@ def get_failed_analysis(reason):
         "fit_score": None,
         "fit_breakdown": [],
         "business_line": None,
-        "recommendation": None
+        "recommendation": None,
+        "priority_score": None
     }
 
 def get_exemption_label(exp, turn):
@@ -597,8 +602,9 @@ def evaluate_date_window(start_date_str, end_date_str, cfg):
 
     # Old soft rules → reasons + 0.5 multipliers (no longer force score 1)
     if start_date_obj:
-        if start_date_obj.month != current_date.month or start_date_obj.year != current_date.year:
-            msg = f"Start date ({start_date_str}) is not in the current month"
+        days_since_start = (current_date - start_date_obj).days
+        if days_since_start > 30 and (start_date_obj.month != current_date.month or start_date_obj.year != current_date.year):
+            msg = f"Start date ({start_date_str}) is older than 30 days and not in the current month"
             reasons.append(msg)
             subscore *= 0.5
         duration_days = (end_date_obj - start_date_obj).days
@@ -1247,9 +1253,20 @@ def compute_fit_score(analysis, signals, eligibility, profile, cfg, card_meta=No
 
     best_score = 0.0
     best_line = None
+    best_matched = []
+    suppressed = None  # (label, [exclusion terms]) when a keyword match was vetoed
     for line in profile.get("business_lines") or []:
         kws = line.get("keywords") or []
-        hits = sum(1 for kw in kws if _kw_hit(kw, haystack))
+        matched = [kw for kw in kws if _kw_hit(kw, haystack)]
+        hits = len(matched)
+        # Negative/exclusion keywords: presence signals a non-fit context
+        # (e.g. "manpower supply for power plant" hitting a product line).
+        excludes = line.get("exclude_keywords") or []
+        excluded = [kw for kw in excludes if _kw_hit(kw, haystack)]
+        if excluded:
+            if hits and suppressed is None:
+                suppressed = (line.get("label"), excluded)
+            continue  # vetoed: this line cannot be the relevance match
         if hits >= 2:
             s = 1.0
         elif hits == 1:
@@ -1261,22 +1278,31 @@ def compute_fit_score(analysis, signals, eligibility, profile, cfg, card_meta=No
         if s > best_score:
             best_score = s
             best_line = line
+            best_matched = matched
+
+    matched_note = f" [matched: {', '.join(best_matched)}]" if best_matched else ""
+    suppressed_note = ""
+    if best_line is None and suppressed is not None:
+        suppressed_note = (
+            f" Match for {suppressed[0]} vetoed by exclusion terms: "
+            f"{', '.join(suppressed[1])}."
+        )
 
     # Q2 avoid soft penalty on relevance
     avoid = profile.get("avoid_rules") or {}
     if avoid.get("gem_q2_category") and re.search(r'\(Q2\)', haystack, re.IGNORECASE):
         best_score *= 0.7
         if best_score > 0:
-            rel_detail = f"Matched business line with Q2 soft penalty; subscore={best_score:.3f}."
+            rel_detail = f"Matched business line with Q2 soft penalty; subscore={best_score:.3f}.{matched_note}"
         else:
-            rel_detail = "No business-line match; Q2 category present."
+            rel_detail = f"No business-line match; Q2 category present.{suppressed_note}"
     else:
         if best_line and best_score >= 1.0:
-            rel_detail = f"Strong match: {best_line.get('label')}."
+            rel_detail = f"Strong match: {best_line.get('label')}.{matched_note}"
         elif best_line and best_score > 0:
-            rel_detail = f"Weak match: {best_line.get('label')}."
+            rel_detail = f"Weak match: {best_line.get('label')}.{matched_note}"
         else:
-            rel_detail = "No business-line keyword match."
+            rel_detail = f"No business-line keyword match.{suppressed_note}"
 
     # --- serviceability ---
     soft_states = [s.lower() for s in (profile.get("serviceability") or {}).get("soft_avoid_states") or []]
@@ -1357,7 +1383,8 @@ def compute_fit_score(analysis, signals, eligibility, profile, cfg, card_meta=No
     if best_line and best_score > 0:
         business_line = {
             "id": best_line.get("id"),
-            "label": best_line.get("label")
+            "label": best_line.get("label"),
+            "matched_keywords": best_matched
         }
 
     return fit_score, fit_breakdown, business_line
@@ -1401,6 +1428,39 @@ def compute_recommendation(fit_score, risk_score, eligibility, is_expired, cfg):
             rec = "Review"
 
     return rec
+
+def compute_priority_score(fit_score, risk_score, eligibility, is_expired, cfg):
+    """
+    Single blended 0-100 Priority score for best-first ranking (Feature B).
+    Combines Fit (company match) and Risk (tender friendliness). Advisory only —
+    never overwrites manual status. Expired bids are forced to 0.
+    """
+    if fit_score is None and risk_score is None:
+        return None
+    if is_expired:
+        return 0
+
+    pr_cfg = cfg.get("priority") or DEFAULT_SCORING_CONFIG.get("priority", {})
+    fw = float(pr_cfg.get("fit_weight", 0.6))
+    rw = float(pr_cfg.get("risk_weight", 0.4))
+
+    parts = []
+    if fit_score is not None:
+        parts.append((fw, float(fit_score)))
+    if risk_score is not None:
+        parts.append((rw, float(risk_score)))
+    total_w = sum(w for w, _ in parts)
+    if total_w <= 0:
+        return None
+
+    priority = sum(w * v for w, v in parts) / total_w
+
+    # Soft nudge down when eligibility is uncertain (mirrors recommendation rules).
+    verdict = (eligibility or {}).get("verdict")
+    if verdict == "turnover_gap":
+        priority *= 0.85
+
+    return round(max(0.0, min(100.0, priority)), 1)
 
 def analyze_rfp_pdf(pdf_path, start_date_str=None, end_date_str=None,
                     scoring_config=None, company_profile=None, card_meta=None):
@@ -1448,7 +1508,8 @@ def analyze_rfp_pdf(pdf_path, start_date_str=None, end_date_str=None,
         "fit_score": None,
         "fit_breakdown": [],
         "business_line": None,
-        "recommendation": None
+        "recommendation": None,
+        "priority_score": None
     }
 
     if not os.path.exists(pdf_path):
@@ -1750,6 +1811,15 @@ def analyze_rfp_pdf(pdf_path, start_date_str=None, end_date_str=None,
             cfg
         )
 
+        # --- Feature B: blended Priority score for best-first ranking ---
+        analysis["priority_score"] = compute_priority_score(
+            fit_score,
+            analysis.get("score"),
+            eligibility,
+            bool(analysis.get("is_expired")),
+            cfg
+        )
+
     except Exception as e:
         logger.error(f"Error parsing PDF metadata: {e}")
         failed = get_failed_analysis(f"PDF parsing error: {e}")
@@ -1938,7 +2008,7 @@ def parse_cards(html, keyword):
 
     return results
 
-def select_sort_order(page, sort_order="Bid-End-Date-Latest"):
+def select_sort_order(page, sort_order="Bid-Start-Date-Latest"):
     sort_map = {
         "Bid-Start-Date-Latest": ("Bid Start Date: Latest First", "#Bid-Start-Date-Latest"),
         "Bid-Start-Date-Oldest": ("Bid Start Date: Oldest First", "#Bid-Start-Date-Oldest"),
@@ -1946,7 +2016,7 @@ def select_sort_order(page, sort_order="Bid-End-Date-Latest"):
         "Bid-End-Date-Oldest": ("Bid End Date: Oldest First", "#Bid-End-Date-Oldest")
     }
     
-    label, selector_id = sort_map.get(sort_order, ("Bid End Date: Latest First", "#Bid-End-Date-Latest"))
+    label, selector_id = sort_map.get(sort_order, ("Bid Start Date: Latest First", "#Bid-Start-Date-Latest"))
     logger.info(f"Setting sorting to '{label}'...")
     try:
         sort_button = page.locator("#currentSort")
@@ -2040,9 +2110,10 @@ def check_date_policy(start_date_str, end_date_str):
     if not start_date_obj or not end_date_obj:
         return True, []
         
-    # 1. Start date must be in current month & year
-    if start_date_obj.month != current_date.month or start_date_obj.year != current_date.year:
-        reasons.append(f"Start date ({start_date_str}) is not in the current month")
+    # 1. Start date must be in the current month/year or within the last 30 days
+    days_since_start = (current_date - start_date_obj).days
+    if days_since_start > 30 and (start_date_obj.month != current_date.month or start_date_obj.year != current_date.year):
+        reasons.append(f"Start date ({start_date_str}) is older than 30 days and not in the current month")
     
     # 2. End date must be at least 7 days (1 week) after start date
     if (end_date_obj - start_date_obj).days < 7:
@@ -2054,7 +2125,7 @@ def check_date_policy(start_date_str, end_date_str):
         
     return len(reasons) == 0, reasons
 
-def scrape(selected_keywords=None, max_pages=2, sort_order="Bid-End-Date-Latest", log_callback=None):
+def scrape(selected_keywords=None, max_pages=2, sort_order="Bid-Start-Date-Latest", log_callback=None):
     logging_setup.setup_logging()
     cb_handler = logging_setup.attach_callback(log_callback) if log_callback else None
     logging_setup.start_scrape_session()
@@ -2245,6 +2316,7 @@ def scrape(selected_keywords=None, max_pages=2, sort_order="Bid-End-Date-Latest"
                         if analysis.get("is_expired") or date_info.get("is_expired"):
                             analysis["score"] = 0
                             analysis["recommendation"] = "Drop"
+                            analysis["priority_score"] = 0
                             if "Auto-Rejected: bid expired" not in analysis.get("reasons", []):
                                 analysis.setdefault("reasons", []).insert(0, "Auto-Rejected: bid expired")
                             if tender.get("status") != "Shortlisted":
@@ -2460,7 +2532,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="GeM RFP Acquisition CLI Scraper")
     parser.add_argument("--keywords", nargs="+", help="Keywords list to search")
     parser.add_argument("--pages", type=int, default=2, help="Max pages limit per keyword")
-    parser.add_argument("--sort", default="Bid-End-Date-Latest", 
+    parser.add_argument("--sort", default="Bid-Start-Date-Latest", 
                         choices=["Bid-End-Date-Latest", "Bid-End-Date-Oldest", "Bid-Start-Date-Latest", "Bid-Start-Date-Oldest"], 
                         help="Sort order option")
     

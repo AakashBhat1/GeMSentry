@@ -37,5 +37,9 @@
     "unknown_buyer_subscore": 0.4,
     "turnover_gap_subscore": 0.3,
     "weak_relevance_subscore": 0.5
+  },
+  "priority": {
+    "fit_weight": 0.6,
+    "risk_weight": 0.4
   }
 }

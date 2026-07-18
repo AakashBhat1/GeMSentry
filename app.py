@@ -162,7 +162,7 @@ def trigger_scrape():
         data = request.json or {}
         selected_keywords = data.get("keywords", [])
         max_pages = data.get("max_pages", 2)
-        sort_order = data.get("sort_order", "Bid-End-Date-Latest")
+        sort_order = data.get("sort_order", "Bid-Start-Date-Latest")
 
         if not selected_keywords:
             return jsonify({"error": "No keywords selected."}), 400
