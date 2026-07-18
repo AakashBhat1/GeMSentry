@@ -2166,29 +2166,41 @@ def scrape(selected_keywords=None, max_pages=2, sort_order="Bid-Start-Date-Lates
             context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
             
             page = context.new_page()
+            # GeM ignores the legacy `?search=` URL param — it returns the generic
+            # newest-bids list regardless of term. The live keyword search is the
+            # #searchBid box, which POSTs to /all-bids-data. Load the page once,
+            # then drive that box per keyword.
+            page.goto("https://bidplus.gem.gov.in/all-bids", wait_until="domcontentloaded", timeout=60000)
+            page.wait_for_timeout(2000)
 
             # Scrape keyword listings
             for keyword in KEYWORDS:
                 logger.info(f"\n--- Searching for keyword: '{keyword}' ---")
-                encoded_term = urllib.parse.quote(keyword)
-                search_url = f"https://bidplus.gem.gov.in/all-bids?bid_number=&items_per_page=&search_under=&search={encoded_term}"
-                
+
                 try:
-                    page.goto(search_url, wait_until="domcontentloaded", timeout=60000)
-                    page.wait_for_timeout(2000)
-                    
+                    # Submit the keyword through the real search box (URL param is dead).
+                    search_box = page.query_selector('#searchBid')
+                    if not search_box:
+                        page.goto("https://bidplus.gem.gov.in/all-bids", wait_until="domcontentloaded", timeout=60000)
+                        page.wait_for_timeout(1500)
+                        search_box = page.query_selector('#searchBid')
+                    if not search_box:
+                        logger.warning(f"Search box (#searchBid) not found for '{keyword}'.")
+                        continue
+
+                    search_box.fill(keyword)
+                    page.keyboard.press("Enter")
+                    page.wait_for_timeout(3000)  # wait for /all-bids-data AJAX refresh
+
                     has_cards = True
                     try:
                         page.wait_for_selector("div.card, #bidCard", timeout=10000)
                     except Exception:
                         logger.warning(f"No bid cards displayed for '{keyword}' on page 1.")
                         has_cards = False
-                    
+
                     if not has_cards:
                         continue
-
-                    # Set Sorting Order
-                    select_sort_order(page, sort_order)
 
                     # Page 1 parsing
                     tenders = parse_cards(page.content(), keyword)
