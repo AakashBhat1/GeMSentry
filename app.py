@@ -298,6 +298,54 @@ def update_company_profile():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/presets", methods=["GET"])
+def get_presets():
+    """List value-band presets and which one is active."""
+    try:
+        profile = scraper.load_company_profile()
+        return jsonify({
+            "active_preset": profile.get("active_preset"),
+            "value_presets": profile.get("value_presets") or {},
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/preset", methods=["POST"])
+def set_active_preset():
+    """Switch the active value-band preset and persist it. Returns the preset's
+    suggested keywords so the dashboard can auto-select them for the next scrape."""
+    try:
+        data = request.json or {}
+        preset_id = data.get("id")
+        profile = scraper.load_company_profile()
+        presets = profile.get("value_presets") or {}
+        if preset_id not in presets:
+            return jsonify({"error": f"Unknown preset: {preset_id}"}), 400
+
+        preset = presets[preset_id]
+        profile["active_preset"] = preset_id
+        vp = dict(profile.get("value_preference") or {})
+        if preset.get("sweet_min_inr") is not None:
+            vp["sweet_min_inr"] = preset["sweet_min_inr"]
+        if preset.get("sweet_max_inr") is not None:
+            vp["sweet_max_inr"] = preset["sweet_max_inr"]
+        profile["value_preference"] = vp
+
+        err = scraper.validate_company_profile(profile)
+        if err:
+            return jsonify({"error": err}), 400
+        scraper.save_company_profile(profile)
+        return jsonify({
+            "message": f"Active preset set to {preset.get('label', preset_id)}. Applies on next scrape/re-analysis.",
+            "active_preset": preset_id,
+            "keywords": preset.get("keywords", []),
+            "value_preference": vp,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/logs", methods=["GET"])
 def get_logs():
     """List app log + recent scrape sessions and return a tail (BE-24)."""
@@ -323,11 +371,12 @@ def get_logs():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/tenders/downloads/<path:filename>")
+@app.route("/tenders/<path:filename>")
 def serve_pdf(filename):
-    # Serve PDF files securely from the downloads directory
+    # Serve PDF files securely from the tenders root so per-workspace
+    # subfolders (e.g. tenders/personel/downloads/...) resolve too.
     safe_path = filename.replace("\\", "/")
-    return send_from_directory(paths.DOWNLOADS_DIR, safe_path)
+    return send_from_directory(paths.TENDERS_DIR, safe_path)
 
 
 if __name__ == "__main__":

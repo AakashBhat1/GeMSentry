@@ -36,17 +36,19 @@ DEFAULT_SCORING_CONFIG = {
         "emd": 2.0,
         "startup_exemption": 1.5,
         "mse_exemption": 1.5,
-        "prebid": 0.5,
+        "prebid": 0.0,
         "date_window": 1.0,
         "epbg": 0.5
     },
     "emd": {
         "free_threshold_inr": 200000,
-        "max_penalty_threshold_inr": 2000000
+        "max_penalty_threshold_inr": 2000000,
+        "value_multiplier": 20
     },
     "date_window": {
         "min_days": 7,
-        "full_credit_days": 14
+        "full_credit_days": 14,
+        "min_days_to_bid": 5
     },
     "epbg": {
         "free_threshold_pct": 3.0,
@@ -54,7 +56,7 @@ DEFAULT_SCORING_CONFIG = {
     },
     "unknown_subscore": 0.5,
     "status_thresholds": {
-        "shortlist_min": 70,
+        "shortlist_min": 90,
         "reject_max": 40
     },
     "fit": {
@@ -62,17 +64,18 @@ DEFAULT_SCORING_CONFIG = {
             "relevance": 3.0,
             "serviceability": 1.0,
             "value_fit": 1.0,
-            "buyer_affinity": 1.0,
+            "buyer_affinity": 0.0,
             "eligibility_factor": 2.0
         },
-        "fit_min": 60,
+        "fit_min": 65,
         "unknown_buyer_subscore": 0.4,
         "turnover_gap_subscore": 0.3,
         "weak_relevance_subscore": 0.5
     },
     "priority": {
         "fit_weight": 0.6,
-        "risk_weight": 0.4
+        "risk_weight": 0.4,
+        "exemption_boost": 1.1
     }
 }
 
@@ -112,6 +115,10 @@ DEFAULT_COMPANY_PROFILE = {
                 "drone", "drones", "uav", "unmanned aerial", "multirotor",
                 "quadcopter", "aerostat", "gis", "mapping", "surveillance",
                 "reconnaissance"
+            ],
+            "exclude_keywords": [
+                "manpower", "housekeeping", "deputation", "security guard",
+                "sanitation", "catering"
             ]
         },
         {
@@ -124,6 +131,10 @@ DEFAULT_COMPANY_PROFILE = {
                 "power unit", "static convertor", "power conversion",
                 "battery charger", "solid state power amplifier", "power system",
                 "psu"
+            ],
+            "exclude_keywords": [
+                "manpower", "housekeeping", "deputation", "security guard",
+                "sanitation", "catering"
             ]
         },
         {
@@ -135,7 +146,31 @@ DEFAULT_COMPANY_PROFILE = {
                 "server", "radar", "cctv", "camera", "connectors", "harness",
                 "rugged laptop", "military grade", "repairing", "electronics",
                 "data acquisition", "network switch", "router", "display",
-                "laptop", "notebook"
+                "laptop", "notebook", "machine learning", "deep learning",
+                "computer vision", "object detection", "video analytics", "anpr",
+                "number plate recognition", "software development",
+                "web application", "mobile app", "mobile application", "dashboard",
+                "portal", "saas", "api", "ip camera", "nvr", "vms",
+                "command and control", "perimeter security", "surveillance system"
+            ],
+            "exclude_keywords": [
+                "manpower", "housekeeping", "deputation", "security guard",
+                "sanitation", "catering"
+            ]
+        },
+        {
+            "id": "biometrics",
+            "label": "Biometrics & Facial Recognition",
+            "priority": 1.0,
+            "keywords": [
+                "facial recognition", "face recognition", "biometric",
+                "biometrics", "frs", "fingerprint", "iris scanner",
+                "iris recognition", "access control", "biometric attendance",
+                "e-kyc", "aadhaar authentication"
+            ],
+            "exclude_keywords": [
+                "manpower", "housekeeping", "deputation", "security guard",
+                "sanitation", "catering"
             ]
         }
     ],
@@ -150,7 +185,27 @@ DEFAULT_COMPANY_PROFILE = {
     },
     "value_preference": {
         "sweet_min_inr": 500000,
-        "sweet_max_inr": 30000000
+        "sweet_max_inr": 50000000
+    },
+    "active_preset": "main",
+    "value_presets": {
+        "main": {
+            "label": "Main (₹5L–₹5Cr)",
+            "sweet_min_inr": 500000,
+            "sweet_max_inr": 50000000,
+            "keywords": [],
+            "workspace": ""
+        },
+        "small_supply": {
+            "label": "Small Supply (₹60k–₹2L)",
+            "sweet_min_inr": 60000,
+            "sweet_max_inr": 200000,
+            "keywords": [
+                "resistors", "cables", "connectors", "relay", "rectifiers",
+                "harness", "amplifier", "psu", "power supply"
+            ],
+            "workspace": "personel"
+        }
     },
     "avoid_rules": {
         "gem_q2_category": True,
@@ -220,9 +275,10 @@ def load_keywords():
     logger.info("Loaded %d unique keywords from keywords.csv", len(cleaned_keywords))
     return cleaned_keywords
 
-def find_existing_pdf_file(sanitized_bid):
-    if os.path.exists(DOWNLOADS_DIR):
-        for root, dirs, files in os.walk(DOWNLOADS_DIR):
+def find_existing_pdf_file(sanitized_bid, downloads_dir=None):
+    downloads_dir = downloads_dir if downloads_dir is not None else workspace_paths()[1]
+    if os.path.exists(downloads_dir):
+        for root, dirs, files in os.walk(downloads_dir):
             expected_filename = f"{sanitized_bid}.pdf"
             if expected_filename in files:
                 full_path = os.path.join(root, expected_filename)
@@ -381,10 +437,44 @@ def load_company_profile():
                 merged[list_key] = cfg[list_key]
         if "buyer_affinity" in cfg and isinstance(cfg["buyer_affinity"], dict):
             merged["buyer_affinity"] = cfg["buyer_affinity"]
-        return merged
+        if "value_presets" in cfg and isinstance(cfg["value_presets"], dict):
+            merged["value_presets"] = cfg["value_presets"]
+        return _apply_active_preset(merged)
     except Exception as e:
         logger.warning("failed to load %s (%s); using default company profile.", cfg_path, e)
         return defaults
+
+def _apply_active_preset(profile):
+    """Overlay the active value-preset's band onto value_preference so all
+    downstream scoring reads the switched band with no other code changes.
+    Unknown/absent active_preset falls back to whatever value_preference holds."""
+    presets = profile.get("value_presets") or {}
+    active = profile.get("active_preset")
+    preset = presets.get(active) if active else None
+    if isinstance(preset, dict):
+        vp = dict(profile.get("value_preference") or {})
+        if preset.get("sweet_min_inr") is not None:
+            vp["sweet_min_inr"] = preset["sweet_min_inr"]
+        if preset.get("sweet_max_inr") is not None:
+            vp["sweet_max_inr"] = preset["sweet_max_inr"]
+        profile["value_preference"] = vp
+    return profile
+
+def get_active_workspace(profile=None):
+    """Folder name for the active preset's isolated workspace.
+    '' → default root (tenders/). Non-empty (e.g. 'personel') → tenders/<name>/."""
+    profile = profile if profile is not None else load_company_profile()
+    presets = profile.get("value_presets") or {}
+    preset = presets.get(profile.get("active_preset")) or {}
+    return (preset.get("workspace") or "").strip().strip("/\\")
+
+def workspace_paths(workspace=None):
+    """Return (tenders_dir, downloads_dir) for a workspace name.
+    None → resolve the active preset's workspace; '' → default root."""
+    if workspace is None:
+        workspace = get_active_workspace()
+    tdir = os.path.join(TENDERS_DIR, workspace) if workspace else TENDERS_DIR
+    return tdir, os.path.join(tdir, "downloads")
 
 def validate_company_profile(payload):
     """
@@ -512,6 +602,8 @@ def get_failed_analysis(reason):
         "reasons": [reason],
         # Phase-2 keys (null / empty so FE can render gracefully)
         "est_value_inr": None,
+        "est_value_estimated": False,
+        "est_value_source": None,
         "primary_item": None,
         "item_category": None,
         "buyer_org": None,
@@ -566,6 +658,7 @@ def evaluate_date_window(start_date_str, end_date_str, cfg):
     full_credit_days = float(date_cfg.get("full_credit_days", 14))
     if full_credit_days <= 0:
         full_credit_days = 14.0
+    min_days_to_bid = float(date_cfg.get("min_days_to_bid", 5))
 
     start_date_obj = parse_gem_date(start_date_str)
     end_date_obj = parse_gem_date(end_date_str)
@@ -576,6 +669,7 @@ def evaluate_date_window(start_date_str, end_date_str, cfg):
         # Unparseable dates: neutral full credit (legacy check_date_policy treated as ok)
         return {
             "is_expired": False,
+            "auto_reject": False,
             "subscore": 1.0,
             "reasons": [],
             "remaining_days": None,
@@ -590,6 +684,7 @@ def evaluate_date_window(start_date_str, end_date_str, cfg):
     if end_day <= today:
         return {
             "is_expired": True,
+            "auto_reject": True,
             "subscore": 0.0,
             "reasons": [f"Bid expired (End: {end_date_str}, Today: {today.strftime('%d-%m-%Y')})"],
             "remaining_days": remaining_days,
@@ -599,6 +694,20 @@ def evaluate_date_window(start_date_str, end_date_str, cfg):
     # Linear ramp: 0.0 at 0 remaining days → 1.0 at full_credit_days
     rem = max(0.0, (end_date_obj - current_date).total_seconds() / 86400.0)
     subscore = max(0.0, min(1.0, rem / full_credit_days))
+
+    # Hard reject when closing sooner than the minimum days needed to prepare a bid
+    if min_days_to_bid > 0 and rem < min_days_to_bid:
+        return {
+            "is_expired": False,
+            "auto_reject": True,
+            "subscore": 0.0,
+            "reasons": [
+                f"Bid closing in ~{rem:.1f} days (< {min_days_to_bid:g}-day minimum "
+                f"to prepare); auto-rejected."
+            ],
+            "remaining_days": rem,
+            "detail": f"Closing in <{min_days_to_bid:g} days; hard-reject score forced to 0.",
+        }
 
     # Old soft rules → reasons + 0.5 multipliers (no longer force score 1)
     if start_date_obj:
@@ -626,6 +735,7 @@ def evaluate_date_window(start_date_str, end_date_str, cfg):
     detail = f"Remaining ~{rem:.1f} days; date_window subscore={subscore:.3f}."
     return {
         "is_expired": False,
+        "auto_reject": False,
         "subscore": subscore,
         "reasons": reasons,
         "remaining_days": rem,
@@ -950,6 +1060,8 @@ def extract_bid_signals(text_clean, card_meta=None):
     }
     signals = {
         "est_value_inr": None,
+        "est_value_estimated": False,
+        "est_value_source": None,
         "primary_item": None,
         "item_category": None,
         "buyer_org": None,
@@ -1391,7 +1503,9 @@ def compute_fit_score(analysis, signals, eligibility, profile, cfg, card_meta=No
 
 def compute_recommendation(fit_score, risk_score, eligibility, is_expired, cfg):
     """
-    Two-axis recommendation (BE-11): Pursue / Review / Watch / Drop.
+    Fit-gated recommendation (BE-11): Pursue / Review / Drop.
+    Fit gates first — low-fit bids Drop regardless of Risk. Among relevant bids,
+    Risk splits Pursue (friendly) vs Review (has friction). Watch is retired.
     Never overwrites manual status — advisory only.
     """
     if risk_score is None and fit_score is None:
@@ -1408,14 +1522,15 @@ def compute_recommendation(fit_score, risk_score, eligibility, is_expired, cfg):
     high_fit = fs >= fit_min
     high_risk = rs >= shortlist_min  # high Risk-score = friendlier tender
 
-    if high_fit and high_risk:
-        rec = "Pursue"
-    elif high_fit and not high_risk:
-        rec = "Review"
-    elif (not high_fit) and high_risk:
-        rec = "Watch"
-    else:
+    # Fit is the gate: a bid that doesn't match our business lines is Dropped
+    # regardless of how clean (high-Risk) the tender is. Among relevant (high-fit)
+    # bids, Risk separates Pursue (friendly) from Review (has friction).
+    if not high_fit:
         rec = "Drop"
+    elif high_risk:
+        rec = "Pursue"
+    else:
+        rec = "Review"
 
     # Downgrades
     if is_expired:
@@ -1429,11 +1544,16 @@ def compute_recommendation(fit_score, risk_score, eligibility, is_expired, cfg):
 
     return rec
 
-def compute_priority_score(fit_score, risk_score, eligibility, is_expired, cfg):
+def compute_priority_score(fit_score, risk_score, eligibility, is_expired, cfg,
+                           exemptions_favorable=False):
     """
     Single blended 0-100 Priority score for best-first ranking (Feature B).
     Combines Fit (company match) and Risk (tender friendliness). Advisory only —
     never overwrites manual status. Expired bids are forced to 0.
+
+    exemptions_favorable: when the tender explicitly grants Startup/MSE
+    experience or turnover relaxations, apply a priority boost (config
+    priority.exemption_boost) since such tenders are easier for us to win.
     """
     if fit_score is None and risk_score is None:
         return None
@@ -1459,6 +1579,11 @@ def compute_priority_score(fit_score, risk_score, eligibility, is_expired, cfg):
     verdict = (eligibility or {}).get("verdict")
     if verdict == "turnover_gap":
         priority *= 0.85
+
+    # Boost tenders that explicitly relax Startup/MSE eligibility criteria.
+    if exemptions_favorable:
+        boost = float(pr_cfg.get("exemption_boost", 1.1))
+        priority *= boost
 
     return round(max(0.0, min(100.0, priority)), 1)
 
@@ -1495,6 +1620,8 @@ def analyze_rfp_pdf(pdf_path, start_date_str=None, end_date_str=None,
         "breakdown": [],
         "reasons": [],
         "est_value_inr": None,
+        "est_value_estimated": False,
+        "est_value_source": None,
         "primary_item": None,
         "item_category": None,
         "buyer_org": None,
@@ -1567,10 +1694,20 @@ def analyze_rfp_pdf(pdf_path, start_date_str=None, end_date_str=None,
             emd_sub = 1.0
             emd_detail = "EMD not required."
         elif emd_req == "unknown":
-            analysis["emd_status"] = "Unknown"
-            analysis["reasons"].append("EMD required status could not be parsed.")
-            emd_sub = unknown_sub
-            emd_detail = f"EMD required unknown; subscore={unknown_sub}."
+            if emd_amount is None and "emd" not in text_clean.lower():
+                # EMD not mentioned anywhere → treat as not required (common on
+                # simpler Bid PDFs); absence is not a risk, so don't penalise.
+                analysis["emd_status"] = "No EMD Required (not mentioned)"
+                analysis["reasons"].append("No EMD mentioned in document; treated as not required.")
+                emd_sub = 1.0
+                emd_detail = "EMD not mentioned; treated as not required."
+            else:
+                # EMD section present but Yes/No could not be parsed → genuine
+                # parse gap; stay neutral/unknown.
+                analysis["emd_status"] = "Unknown"
+                analysis["reasons"].append("EMD required status could not be parsed.")
+                emd_sub = unknown_sub
+                emd_detail = f"EMD required unknown; subscore={unknown_sub}."
         else:
             # required yes
             if emd_amount is not None:
@@ -1658,6 +1795,22 @@ def analyze_rfp_pdf(pdf_path, start_date_str=None, end_date_str=None,
         mse_sub = _exemption_pair_subscore(mse_exp, mse_turn, unknown_sub)
         st_detail = f"Startup pair subscore={st_sub:.3f} (exp={st_exp}, turn={st_turn})."
         mse_detail = f"MSE pair subscore={mse_sub:.3f} (exp={mse_exp}, turn={mse_turn})."
+
+        # Neutralize: a missing exemption table is absent-by-design on simpler Bid
+        # PDFs, not a denial. As a DPIIT startup + Udyam MSE, don't penalise it.
+        # Boost: a tender that explicitly relaxes Startup/MSE experience or turnover
+        # is easier for us to win — flag it so priority ranking can reward it.
+        exemptions_favorable = False
+        if exemptions_na:
+            st_sub = 1.0
+            mse_sub = 1.0
+            st_detail = "No exemption table (absent-by-design); neutral full credit."
+            mse_detail = "No exemption table (absent-by-design); neutral full credit."
+        else:
+            exemptions_favorable = any(
+                v == "yes" for v in (st_exp, st_turn, mse_exp, mse_turn)
+            )
+        analysis["exemptions_favorable"] = exemptions_favorable
 
         # --- 4. Pre-bid (BE-15 + BE-19: miss ≠ na; only parse success is "parsed") ---
         prebid_req = parse_prebid_required(text_clean) or "unknown"
@@ -1769,11 +1922,15 @@ def analyze_rfp_pdf(pdf_path, start_date_str=None, end_date_str=None,
         analysis["breakdown"] = breakdown
         analysis["analysis_status"] = "ok"
         analysis["is_expired"] = bool(date_info["is_expired"])
+        analysis["auto_reject"] = bool(date_info.get("auto_reject"))
 
-        # Hard-reject expired bids: force score 0 (BE-03)
-        if date_info["is_expired"]:
+        # Hard-reject expired bids AND bids closing sooner than the minimum days
+        # needed to prepare (min_days_to_bid): force score 0 (BE-03).
+        if analysis["auto_reject"]:
             analysis["score"] = 0
-            analysis["reasons"].insert(0, "Auto-Rejected: bid expired")
+            reject_msg = ("Auto-Rejected: bid expired" if date_info["is_expired"]
+                          else "Auto-Rejected: closing too soon to bid")
+            analysis["reasons"].insert(0, reject_msg)
 
         # --- BE-08: new bid signals (separate confidence tally) ---
         signals, signal_flags = extract_bid_signals(text_clean, card_meta=card_meta)
@@ -1785,6 +1942,24 @@ def analyze_rfp_pdf(pdf_path, start_date_str=None, end_date_str=None,
             analysis[k] = signals.get(k)
         analysis["signal_parsed"] = sum(1 for v in signal_flags.values() if v)
         analysis["signal_fields"] = TOTAL_SIGNAL_FIELDS
+
+        # --- Derive bid value from EMD when value is missing ---
+        # On GeM the EMD is typically ~5% of the estimated bid value, so
+        # value ≈ EMD × 20 (config emd.value_multiplier). Used for value_fit
+        # and band filtering, but flagged so the estimate is never mistaken
+        # for a parsed figure.
+        analysis["est_value_estimated"] = False
+        analysis["est_value_source"] = None
+        if analysis.get("est_value_inr") is None and emd_amount is not None:
+            mult = float(emd_cfg.get("value_multiplier", 20))
+            est = int(round(emd_amount * mult))
+            signals["est_value_inr"] = est
+            analysis["est_value_inr"] = est
+            analysis["est_value_estimated"] = True
+            analysis["est_value_source"] = "emd_x{:g}".format(mult)
+            analysis["reasons"].append(
+                f"Bid value not stated; estimated ₹{est:,} from EMD ₹{emd_amount:,} (×{mult:g})."
+            )
 
         # --- BE-09: soft eligibility gate ---
         eligibility = compute_eligibility(
@@ -1807,7 +1982,7 @@ def analyze_rfp_pdf(pdf_path, start_date_str=None, end_date_str=None,
             fit_score,
             analysis.get("score"),
             eligibility,
-            bool(analysis.get("is_expired")),
+            bool(analysis.get("auto_reject")),
             cfg
         )
 
@@ -1816,8 +1991,9 @@ def analyze_rfp_pdf(pdf_path, start_date_str=None, end_date_str=None,
             fit_score,
             analysis.get("score"),
             eligibility,
-            bool(analysis.get("is_expired")),
-            cfg
+            bool(analysis.get("auto_reject")),
+            cfg,
+            exemptions_favorable=bool(analysis.get("exemptions_favorable"))
         )
 
     except Exception as e:
@@ -1827,9 +2003,10 @@ def analyze_rfp_pdf(pdf_path, start_date_str=None, end_date_str=None,
 
     return analysis
 
-def load_existing_metadata():
+def load_existing_metadata(tenders_dir=None):
     existing_tenders = {}
-    csv_path = os.path.join(TENDERS_DIR, "metadata.csv")
+    tenders_dir = tenders_dir if tenders_dir is not None else workspace_paths()[0]
+    csv_path = os.path.join(tenders_dir, "metadata.csv")
     if os.path.exists(csv_path):
         try:
             with open(csv_path, mode="r", encoding="utf-8") as f:
@@ -1865,20 +2042,22 @@ def load_existing_metadata():
             logger.error(f"Error reading existing CSV metadata: {e}")
     return existing_tenders
 
-def save_metadata(tenders_list):
+def save_metadata(tenders_list, tenders_dir=None):
+    tenders_dir = tenders_dir if tenders_dir is not None else workspace_paths()[0]
+    os.makedirs(tenders_dir, exist_ok=True)
     # Save JSON
-    json_path = os.path.join(TENDERS_DIR, "metadata.json")
+    json_path = os.path.join(tenders_dir, "metadata.json")
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(tenders_list, f, indent=2, ensure_ascii=False)
 
     # Save JS (for dashboard)
-    js_path = os.path.join(TENDERS_DIR, "metadata.js")
+    js_path = os.path.join(tenders_dir, "metadata.js")
     with open(js_path, "w", encoding="utf-8") as f:
         f.write("// GeM Scraper Output Metadata\n")
         f.write(f"const TENDER_DATA = {json.dumps(tenders_list, indent=2, ensure_ascii=False)};\n")
 
     # Save CSV
-    csv_path = os.path.join(TENDERS_DIR, "metadata.csv")
+    csv_path = os.path.join(tenders_dir, "metadata.csv")
     try:
         with open(csv_path, mode="w", encoding="utf-8", newline="") as f:
             fieldnames = ["Bid Number", "Title", "Quantity", "Department", "Start Date", "End Date", "Keyword", "Downloaded", "Local PDF Path", "PDF URL", "Status", "Analysis"]
@@ -2132,7 +2311,13 @@ def scrape(selected_keywords=None, max_pages=2, sort_order="Bid-Start-Date-Lates
     try:
         logger.info("Initializing directories...")
         paths.ensure_dirs()
-        os.makedirs(DOWNLOADS_DIR, exist_ok=True)
+        # Resolve the active preset's isolated workspace (e.g. 'personel').
+        active_profile = load_company_profile()
+        workspace = get_active_workspace(active_profile)
+        tenders_dir, downloads_dir = workspace_paths(workspace)
+        os.makedirs(downloads_dir, exist_ok=True)
+        if workspace:
+            logger.info(f"Active preset workspace: '{workspace}' → {paths.repo_relative(tenders_dir)}")
 
         # 1. Load dynamic keywords
         if selected_keywords:
@@ -2140,9 +2325,9 @@ def scrape(selected_keywords=None, max_pages=2, sort_order="Bid-Start-Date-Lates
             logger.info(f"Scraping {len(KEYWORDS)} selected keyword(s) for search.")
         else:
             KEYWORDS = load_keywords()
-        
-        # 2. Load existing metadata records
-        all_tenders = load_existing_metadata()
+
+        # 2. Load existing metadata records (scoped to this workspace)
+        all_tenders = load_existing_metadata(tenders_dir)
         
         new_tenders_count = 0
         
@@ -2281,20 +2466,32 @@ def scrape(selected_keywords=None, max_pages=2, sort_order="Bid-Start-Date-Lates
                 sanitized_keyword = sanitize_folder_name(keyword)
                 date_folder = get_date_folder_name()
                 
-                # 2. Try to download RFP PDF first
-                existing_path = find_existing_pdf_file(sanitized_bid)
-                
-                target_dir = os.path.join(DOWNLOADS_DIR, sanitized_keyword, date_folder, sanitized_bid)
+                # 2. Date window first — skip the download for bids that will
+                # auto-reject (expired / closing sooner than min_days_to_bid), so
+                # we don't pull PDFs we immediately discard.
+                date_info = evaluate_date_window(
+                    tender.get("start_date"), tender.get("end_date"), scoring_cfg
+                )
+                existing_path = find_existing_pdf_file(sanitized_bid, downloads_dir)
+
+                target_dir = os.path.join(downloads_dir, sanitized_keyword, date_folder, sanitized_bid)
                 save_path = os.path.join(target_dir, f"{sanitized_bid}.pdf")
                 
                 pdf_location = None
+                did_network = False
                 if existing_path:
                     tender["downloaded"] = True
                     tender["local_pdf_path"] = existing_path
                     pdf_location = existing_path
+                elif date_info.get("auto_reject"):
+                    # Closing too soon / expired → don't waste a download.
+                    reason = "expired" if date_info.get("is_expired") else "closing too soon"
+                    logger.info(f"[{idx+1}/{len(tenders_list)}] Skipping download for Bid {bid_no}: auto-reject ({reason}).")
+                    tender["downloaded"] = False
                 else:
                     os.makedirs(target_dir, exist_ok=True)
                     logger.info(f"[{idx+1}/{len(tenders_list)}] Downloading RFP for Bid: {bid_no}...")
+                    did_network = True
                     success = download_rfp_pdf(context, pdf_url, save_path)
                     if success:
                         tender["downloaded"] = True
@@ -2303,12 +2500,7 @@ def scrape(selected_keywords=None, max_pages=2, sort_order="Bid-Start-Date-Lates
                     else:
                         tender["downloaded"] = False
 
-                # 3. Date window evaluation (graduated; hard-reject only when expired)
-                date_info = evaluate_date_window(
-                    tender.get("start_date"), tender.get("end_date"), scoring_cfg
-                )
-
-                # 4. Scan and analyze RFP PDF if it is downloaded
+                # 3. Scan and analyze RFP PDF if it is downloaded
                 if tender["downloaded"] and pdf_location and os.path.exists(pdf_location):
                     analysis = analyze_rfp_pdf(
                         pdf_location,
@@ -2325,12 +2517,15 @@ def scrape(selected_keywords=None, max_pages=2, sort_order="Bid-Start-Date-Lates
                         }
                     )
                     if analysis:
-                        if analysis.get("is_expired") or date_info.get("is_expired"):
+                        if analysis.get("auto_reject") or date_info.get("auto_reject"):
                             analysis["score"] = 0
                             analysis["recommendation"] = "Drop"
                             analysis["priority_score"] = 0
-                            if "Auto-Rejected: bid expired" not in analysis.get("reasons", []):
-                                analysis.setdefault("reasons", []).insert(0, "Auto-Rejected: bid expired")
+                            if not any(str(r).startswith("Auto-Rejected") for r in analysis.get("reasons", [])):
+                                msg = ("Auto-Rejected: bid expired"
+                                       if (analysis.get("is_expired") or date_info.get("is_expired"))
+                                       else "Auto-Rejected: closing too soon to bid")
+                                analysis.setdefault("reasons", []).insert(0, msg)
                             if tender.get("status") != "Shortlisted":
                                 tender["status"] = "Rejected"
                         elif analysis.get("analysis_status") == "failed" or analysis.get("score") is None:
@@ -2345,9 +2540,11 @@ def scrape(selected_keywords=None, max_pages=2, sort_order="Bid-Start-Date-Lates
                 else:
                     # PDF not downloaded / not available → analysis failed (BE-04)
                     analysis = get_failed_analysis("RFP PDF document is not available for analysis.")
-                    if date_info.get("is_expired"):
+                    if date_info.get("auto_reject"):
                         analysis["score"] = 0
-                        analysis["reasons"].insert(0, "Auto-Rejected: bid expired")
+                        msg = ("Auto-Rejected: bid expired" if date_info.get("is_expired")
+                               else "Auto-Rejected: closing too soon to bid")
+                        analysis["reasons"].insert(0, msg)
                         for r in date_info.get("reasons", []):
                             if r not in analysis["reasons"]:
                                 analysis["reasons"].append(r)
@@ -2358,11 +2555,13 @@ def scrape(selected_keywords=None, max_pages=2, sort_order="Bid-Start-Date-Lates
                             tender["status"] = "Pending Review"
                     tender["analysis"] = analysis
 
-                time.sleep(random.uniform(1.5, 3.0))
+                # Throttle only when we actually hit the GeM server.
+                if did_network:
+                    time.sleep(random.uniform(1.5, 3.0))
 
             browser.close()
 
-        save_metadata(tenders_list)
+        save_metadata(tenders_list, tenders_dir)
         return tenders_list, new_tenders_count
     finally:
         logging_setup.end_scrape_session()
@@ -2375,12 +2574,18 @@ def scrape_single_bid(bid_id, log_callback=None):
     try:
         logger.info("Initializing directories for manual ID acquisition...")
         paths.ensure_dirs()
-        os.makedirs(DOWNLOADS_DIR, exist_ok=True)
+        # Route manual acquisitions into the active preset's workspace too.
+        active_profile = load_company_profile()
+        workspace = get_active_workspace(active_profile)
+        tenders_dir, downloads_dir = workspace_paths(workspace)
+        os.makedirs(downloads_dir, exist_ok=True)
+        if workspace:
+            logger.info(f"Active preset workspace: '{workspace}' → {paths.repo_relative(tenders_dir)}")
 
         bid_id_clean = bid_id.strip()
         logger.info(f"Targeting Bid ID / Number: '{bid_id_clean}'")
-        
-        all_tenders = load_existing_metadata()
+
+        all_tenders = load_existing_metadata(tenders_dir)
         
         # Build search url by querying GeM with general search parameter
         encoded_term = urllib.parse.quote(bid_id_clean)
@@ -2455,10 +2660,10 @@ def scrape_single_bid(bid_id, log_callback=None):
             sanitized_keyword = "manual_downloads"
             date_folder = get_date_folder_name()
             
-            target_dir = os.path.join(DOWNLOADS_DIR, sanitized_keyword, date_folder, sanitized_bid)
+            target_dir = os.path.join(downloads_dir, sanitized_keyword, date_folder, sanitized_bid)
             save_path = os.path.join(target_dir, f"{sanitized_bid}.pdf")
-            
-            existing_path = find_existing_pdf_file(sanitized_bid)
+
+            existing_path = find_existing_pdf_file(sanitized_bid, downloads_dir)
             pdf_location = None
             
             if existing_path:
@@ -2501,11 +2706,13 @@ def scrape_single_bid(bid_id, log_callback=None):
                     target_tender["analysis"] = analysis
                     if analysis.get("analysis_status") == "failed" or analysis.get("score") is None:
                         target_tender["status"] = "Pending Review"
-                    elif analysis.get("is_expired"):
+                    elif analysis.get("auto_reject"):
                         analysis["score"] = 0
                         analysis["recommendation"] = "Drop"
-                        if "Auto-Rejected: bid expired" not in analysis.get("reasons", []):
-                            analysis.setdefault("reasons", []).insert(0, "Auto-Rejected: bid expired")
+                        if not any(str(r).startswith("Auto-Rejected") for r in analysis.get("reasons", [])):
+                            msg = ("Auto-Rejected: bid expired" if analysis.get("is_expired")
+                                   else "Auto-Rejected: closing too soon to bid")
+                            analysis.setdefault("reasons", []).insert(0, msg)
                         target_tender["status"] = "Rejected"
                     else:
                         target_tender["status"] = status_from_score(
@@ -2529,7 +2736,7 @@ def scrape_single_bid(bid_id, log_callback=None):
                 
             # Save or update in database
             all_tenders[bid_no] = target_tender
-            save_metadata(list(all_tenders.values()))
+            save_metadata(list(all_tenders.values()), tenders_dir)
             logger.info(f"Successfully processed and updated metadata for Bid: {bid_no}")
             
             browser.close()

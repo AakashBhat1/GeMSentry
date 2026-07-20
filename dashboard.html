@@ -583,16 +583,40 @@
             border-color: rgba(245, 158, 11, 0.3);
         }
 
-        .recommendation-watch {
-            background-color: rgba(6, 182, 212, 0.15);
-            color: var(--secondary-accent);
-            border-color: rgba(6, 182, 212, 0.3);
-        }
 
         .recommendation-drop {
             background-color: var(--failed-bg);
             color: var(--failed-color);
             border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .est-emd-badge {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 6px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            border-radius: 4px;
+            background-color: rgba(245, 158, 11, 0.15);
+            color: #f59e0b;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            vertical-align: middle;
+        }
+
+        .preset-switcher {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+        }
+        .preset-switcher select {
+            background-color: var(--card-bg, #1e293b);
+            color: var(--text-primary, #e2e8f0);
+            border: 1px solid var(--border-color, rgba(148,163,184,0.3));
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 0.8rem;
+            cursor: pointer;
         }
 
         .tag-business-line {
@@ -1165,10 +1189,6 @@
                         <span>Review</span>
                         <span class="badge-count" id="rec-cnt-review">0</span>
                     </button>
-                    <button class="filter-btn" id="rec-watch" onclick="setRecFilter('Watch')">
-                        <span>Watch</span>
-                        <span class="badge-count" id="rec-cnt-watch">0</span>
-                    </button>
                     <button class="filter-btn" id="rec-drop" onclick="setRecFilter('Drop')">
                         <span>Drop</span>
                         <span class="badge-count" id="rec-cnt-drop">0</span>
@@ -1276,7 +1296,13 @@
                 <h3 class="modal-title">GeM Scraper Control Center</h3>
                 <button class="close-btn" onclick="closeScraperModal()">&times;</button>
             </div>
-            
+
+            <div class="preset-switcher" style="margin-bottom: 0.75rem;">
+                <label style="color: var(--text-secondary); font-weight: 500;">Value Preset:</label>
+                <select id="presetSelect" onchange="onPresetChange()"></select>
+                <span id="presetBandLabel" style="color: var(--text-secondary);"></span>
+            </div>
+
             <div class="keywords-grid-container">
                 <span class="filter-title" style="margin-bottom: 0.25rem; display: block;">Select Keywords to Scrape</span>
                 <div class="keywords-toolbar">
@@ -2195,6 +2221,7 @@
             loadCompanyProfile();
             refreshData();
             loadKeywordsForModal();
+            loadPresets();
         });
 
         async function refreshData() {
@@ -2224,6 +2251,64 @@
                 `).join('');
             } catch (err) {
                 console.error("Failed to load keywords for modal:", err);
+            }
+        }
+
+        let loadedPresets = {};
+
+        async function loadPresets() {
+            try {
+                const response = await fetch('/api/presets');
+                const data = await response.json();
+                loadedPresets = data.value_presets || {};
+                const sel = document.getElementById('presetSelect');
+                if (!sel) return;
+                sel.innerHTML = Object.entries(loadedPresets).map(([id, p]) =>
+                    `<option value="${id}">${p.label || id}</option>`
+                ).join('');
+                if (data.active_preset && loadedPresets[data.active_preset]) {
+                    sel.value = data.active_preset;
+                }
+                updatePresetBandLabel();
+            } catch (err) {
+                console.error("Failed to load presets:", err);
+            }
+        }
+
+        function updatePresetBandLabel() {
+            const sel = document.getElementById('presetSelect');
+            const lbl = document.getElementById('presetBandLabel');
+            if (!sel || !lbl) return;
+            const p = loadedPresets[sel.value];
+            if (p && p.sweet_min_inr != null && p.sweet_max_inr != null) {
+                const fmt = v => v >= 10000000 ? `₹${(v/10000000).toFixed(2)}Cr`
+                    : v >= 100000 ? `₹${(v/100000).toFixed(1)}L` : `₹${v.toLocaleString('en-IN')}`;
+                lbl.innerText = `band ${fmt(p.sweet_min_inr)} – ${fmt(p.sweet_max_inr)}`;
+            } else { lbl.innerText = ''; }
+        }
+
+        async function onPresetChange() {
+            const sel = document.getElementById('presetSelect');
+            const presetId = sel.value;
+            updatePresetBandLabel();
+            try {
+                const response = await fetch('/api/preset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: presetId })
+                });
+                const data = await response.json();
+                if (data.error) { alert('Preset switch failed: ' + data.error); return; }
+                // Auto-select this preset's suggested keywords in the grid (case-insensitive).
+                const wanted = (data.keywords || []).map(k => k.toLowerCase());
+                if (wanted.length) {
+                    const boxes = document.getElementsByName('keywordCheckbox');
+                    boxes.forEach(b => { b.checked = wanted.includes(b.value.toLowerCase()); });
+                }
+                // Each preset has its own isolated inventory — reload the list.
+                if (typeof refreshData === 'function') { refreshData(); }
+            } catch (err) {
+                console.error("Failed to switch preset:", err);
             }
         }
 
@@ -2516,7 +2601,6 @@
                 document.getElementById('rec-cnt-all').innerText = tenders.length;
                 document.getElementById('rec-cnt-pursue').innerText = tenders.filter(t => t.analysis && t.analysis.recommendation === 'Pursue').length;
                 document.getElementById('rec-cnt-review').innerText = tenders.filter(t => t.analysis && t.analysis.recommendation === 'Review').length;
-                document.getElementById('rec-cnt-watch').innerText = tenders.filter(t => t.analysis && t.analysis.recommendation === 'Watch').length;
                 document.getElementById('rec-cnt-drop').innerText = tenders.filter(t => t.analysis && t.analysis.recommendation === 'Drop').length;
             }
 
@@ -2563,7 +2647,6 @@
             if (rec === 'all') document.getElementById('rec-all').classList.add('active');
             else if (rec === 'Pursue') document.getElementById('rec-pursue').classList.add('active');
             else if (rec === 'Review') document.getElementById('rec-review').classList.add('active');
-            else if (rec === 'Watch') document.getElementById('rec-watch').classList.add('active');
             else if (rec === 'Drop') document.getElementById('rec-drop').classList.add('active');
 
             currentRec = rec;
@@ -2769,7 +2852,6 @@
                         let recClass = '';
                         if (analysis.recommendation === 'Pursue') recClass = 'recommendation-pursue';
                         else if (analysis.recommendation === 'Review') recClass = 'recommendation-review';
-                        else if (analysis.recommendation === 'Watch') recClass = 'recommendation-watch';
                         else if (analysis.recommendation === 'Drop') recClass = 'recommendation-drop';
                         
                         recommendationChip = `<span class="rec-chip ${recClass}">${analysis.recommendation}</span>`;
@@ -3036,12 +3118,16 @@
                     const buyerStr = [analysis.buyer_org, analysis.buyer_dept].filter(Boolean).join(' | ') || 'N/A';
                     const itemStr = analysis.primary_item ? `${analysis.primary_item}${analysis.item_category ? ` (${analysis.item_category})` : ''}` : 'N/A';
                     const stateStr = analysis.consignee_state || 'N/A';
-                    
+                    const estBadge = analysis.est_value_estimated
+                        ? ` <span class="est-emd-badge" title="Bid value not stated; estimated from EMD (${analysis.est_value_source || 'derived'})">est. from EMD</span>`
+                        : '';
+
                     extraDetailsHtml = `
                         <div class="detail-item">
                             <span class="detail-label">Est. Value</span>
-                            <span class="detail-value" style="color: var(--secondary-accent); font-weight: 700;">${valStr}</span>
-                        </div>
+                            <span class="detail-value" style="color: var(--secondary-accent); font-weight: 700;">${valStr}${estBadge}</span>
+                        </div>`;
+                    extraDetailsHtml += `
                         <div class="detail-item" style="grid-column: span 2;" title="${buyerStr}">
                             <span class="detail-label">Buyer Detail</span>
                             <span class="detail-value" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">${buyerStr}</span>

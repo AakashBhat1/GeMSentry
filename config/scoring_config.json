@@ -4,17 +4,19 @@
     "emd": 2.0,
     "startup_exemption": 1.5,
     "mse_exemption": 1.5,
-    "prebid": 0.5,
+    "prebid": 0.0,
     "date_window": 1.0,
     "epbg": 0.5
   },
   "emd": {
     "free_threshold_inr": 200000,
-    "max_penalty_threshold_inr": 2000000
+    "max_penalty_threshold_inr": 2000000,
+    "value_multiplier": 20
   },
   "date_window": {
     "min_days": 7,
-    "full_credit_days": 14
+    "full_credit_days": 14,
+    "min_days_to_bid": 5
   },
   "epbg": {
     "free_threshold_pct": 3.0,
@@ -22,7 +24,7 @@
   },
   "unknown_subscore": 0.5,
   "status_thresholds": {
-    "shortlist_min": 70,
+    "shortlist_min": 90,
     "reject_max": 40
   },
   "fit": {
@@ -30,16 +32,17 @@
       "relevance": 3.0,
       "serviceability": 1.0,
       "value_fit": 1.0,
-      "buyer_affinity": 1.0,
+      "buyer_affinity": 0.0,
       "eligibility_factor": 2.0
     },
-    "fit_min": 60,
+    "fit_min": 65,
     "unknown_buyer_subscore": 0.4,
     "turnover_gap_subscore": 0.3,
     "weak_relevance_subscore": 0.5
   },
   "priority": {
     "fit_weight": 0.6,
-    "risk_weight": 0.4
+    "risk_weight": 0.4,
+    "exemption_boost": 1.1
   }
 }

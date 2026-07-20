@@ -1,11 +1,11 @@
 {
   "version": 1,
   "company": {
-    "hq_city": "Gurgaon",
-    "hq_state": "Haryana",
-    "incorporation_ym": "2020-03",
     "legal_name": "Earnest Tactical Solutions Pvt. Ltd.",
-    "short_name": "ETSPL"
+    "short_name": "ETSPL",
+    "incorporation_ym": "2020-03",
+    "hq_state": "Haryana",
+    "hq_city": "Gurgaon"
   },
   "eligibility": {
     "annual_turnover_inr": 1800000,
@@ -31,8 +31,8 @@
       "Telangana",
       "Puducherry"
     ],
-    "soft_avoid_penalty": 0.5,
-    "soft_avoid_reason": "Local monopoly on these product categories in South India"
+    "soft_avoid_reason": "Local monopoly on these product categories in South India",
+    "soft_avoid_penalty": 0.5
   },
   "business_lines": [
     {
@@ -117,7 +117,55 @@
         "router",
         "display",
         "laptop",
-        "notebook"
+        "notebook",
+        "machine learning",
+        "deep learning",
+        "computer vision",
+        "object detection",
+        "video analytics",
+        "anpr",
+        "number plate recognition",
+        "software development",
+        "web application",
+        "mobile app",
+        "mobile application",
+        "dashboard",
+        "portal",
+        "saas",
+        "api",
+        "ip camera",
+        "nvr",
+        "vms",
+        "command and control",
+        "perimeter security",
+        "surveillance system"
+      ],
+      "exclude_keywords": [
+        "manpower",
+        "housekeeping",
+        "deputation",
+        "security guard",
+        "sanitation",
+        "catering"
+      ]
+    },
+    {
+      "id": "biometrics",
+      "label": "Biometrics & Facial Recognition",
+      "priority": 1,
+      "keywords": [
+        "facial recognition",
+        "face recognition",
+        "biometric",
+        "biometrics",
+        "frs",
+        "fingerprint",
+        "iris scanner",
+        "iris recognition",
+        "access control",
+        "biometric attendance",
+        "e-kyc",
+        "aadhaar authentication"
       ],
       "exclude_keywords": [
         "manpower",
@@ -140,7 +188,34 @@
   },
   "value_preference": {
     "sweet_min_inr": 500000,
-    "sweet_max_inr": 30000000
+    "sweet_max_inr": 50000000
+  },
+  "active_preset": "main",
+  "value_presets": {
+    "main": {
+      "label": "Main (\u20b95L\u2013\u20b95Cr)",
+      "sweet_min_inr": 500000,
+      "sweet_max_inr": 50000000,
+      "keywords": [],
+      "workspace": ""
+    },
+    "small_supply": {
+      "label": "Small Supply (\u20b960k\u2013\u20b92L)",
+      "sweet_min_inr": 60000,
+      "sweet_max_inr": 200000,
+      "keywords": [
+        "resistors",
+        "cables",
+        "connectors",
+        "relay",
+        "rectifiers",
+        "harness",
+        "amplifier",
+        "psu",
+        "power supply"
+      ],
+      "workspace": "personel"
+    }
   },
   "avoid_rules": {
     "gem_q2_category": true,
