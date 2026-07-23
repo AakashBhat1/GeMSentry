@@ -1,0 +1,452 @@
+[
+  {
+    "num": 1,
+    "bid": "GEM_2026_B_7752824",
+    "cat": "tarpaulins_supplies",
+    "title": "Tarpaulins Made from High Density Polyethylene (HDPE) Woven Fabrics (V3) Conforming to IS 7903",
+    "dept": "Gujarat State Civil Supplies Corporation Limited",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 2,
+    "bid": "GEM_2026_B_7766775",
+    "cat": "civil_construction",
+    "title": "Custom Bid for Services - Provision for Supply of Sand at GNT, NLPD & NDL,Custom Bid for Services -",
+    "dept": "Ministry of Railways | Indian Railways",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 3,
+    "bid": "GEM_2026_B_7803679",
+    "cat": "augmented_reality",
+    "title": "Augmented Reality Based Unified Reconnaissance System",
+    "dept": "Ministry of Defence | Department of Military Affairs",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 4,
+    "bid": "GEM_2026_B_7797949",
+    "cat": "edge_computing",
+    "title": "Inter Locking Concrete Block (225 x 112 x 100 mm),Precast machine pressed edge blocks of size 300 m",
+    "dept": "Ministry of Defence | Department of Defence",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 5,
+    "bid": "GEM_2026_B_7694240",
+    "cat": "edge_computing",
+    "title": "Hiring of Consultants - Per Person Per Month Based - Subject Matter Experts; Education and Skilling",
+    "dept": "Training and Technical Education Department Delhi",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 6,
+    "bid": "GEM_2026_B_7796476",
+    "cat": "database",
+    "title": "Custom Bid for Services - UPDATION OF NAVIGATION AND OBSTRUCTION DATABASE OF MLUed DORNIER AIRCRAFT",
+    "dept": "Ministry of Defence | Department of Defence",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 7,
+    "bid": "GEM_2026_B_7651806",
+    "cat": "cloud_computing",
+    "title": "data wall display,LED Controller,LED Software,Stabilizer,Data Processing Unit,Online UPS,POE Switch",
+    "dept": "Electronics and Information Technology Department Odisha",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 8,
+    "bid": "GEM_2026_B_7801870",
+    "cat": "business_intelligence",
+    "title": "One-year renewal of the Dropbox Business Advanced Edition subscription",
+    "dept": "Ministry of Education | Department of Higher Education",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 9,
+    "bid": "GEM_2026_B_7672183",
+    "cat": "virtual_reality",
+    "title": "Supply of the virtual desktop infrastructure for secure Internet access.,Installation, Commissionin",
+    "dept": "PMO | Department of Atomic Energy",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 10,
+    "bid": "GEM_2026_B_7798639",
+    "cat": "internet_of_things",
+    "title": "Internet Bandwidth and Replication Service - Internet Leased Line; Goverment Service provider, Priv",
+    "dept": "Ministry of Petroleum and Natural Gas | Green Gas Limited",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 11,
+    "bid": "GEM_2026_B_7752688",
+    "cat": "business_intelligence",
+    "title": "Assets Insurance Service - Mega Risk Insurance; Property Damage Cover, Standard Fire & Special Peri",
+    "dept": "Ministry of Power | POWER GRID Corporation OF INDIA Limited",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 12,
+    "bid": "GEM_2026_B_7797361",
+    "cat": "penetration_testing",
+    "title": "Vulnerability and Penetration Testing - Web Application, As per the Scope of Work; Application Secu",
+    "dept": "Ministry of Communications | Department of Telecommunications (DOT)",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 13,
+    "bid": "GEM_2026_B_7798861",
+    "cat": "firewall",
+    "title": "Firewall (V4)",
+    "dept": "Ministry of Mines | NA",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 14,
+    "bid": "GEM_2026_B_7740736",
+    "cat": "automation",
+    "title": "Examination and Academic Administration Automation Software",
+    "dept": "Ministry of Food Processing Industries | NA",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 15,
+    "bid": "GEM_2026_B_7714506",
+    "cat": "automation",
+    "title": "Custom Bid for Services - Supply cum Installation of new kiosk-based control and relay panel with a",
+    "dept": "Ministry of Power | POWER GRID Corporation OF INDIA Limited",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 16,
+    "bid": "GEM_2026_B_7773557",
+    "cat": "business_intelligence",
+    "title": "Supply and Commissioning of IP Fixed Bullet Camera,Supply and Commissioning of IP VFL Bullet Camera",
+    "dept": "Ministry of Earth Sciences | Department of Earth Sciences",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 17,
+    "bid": "GEM_2026_B_7787318",
+    "cat": "database",
+    "title": "Database Management System Software (V3)",
+    "dept": "Science and Technology Department Gujarat",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 18,
+    "bid": "GEM_2026_B_7763955",
+    "cat": "deep_learning",
+    "title": "Ultra low temperature laboratory deep freezer",
+    "dept": "Agriculture and Co-operation Department Gujarat",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 19,
+    "bid": "GEM_2026_B_7697211",
+    "cat": "internet_of_things",
+    "title": "Internet Bandwidth and Replication Service - Internet Leased Line; Goverment Service provider, Priv",
+    "dept": "Energy and Petro Chemicals Department Gujarat",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 20,
+    "bid": "GEM_2026_B_7798331",
+    "cat": "quadcopter",
+    "title": "Telemetry Radio 915 MHz,ESC,Remote Controller with screen,Propeller carbon fiber 4 Inch,Frame Quadc",
+    "dept": "Ministry of Defence | Department of Military Affairs",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 21,
+    "bid": "GEM_2026_B_7679227",
+    "cat": "automation",
+    "title": "Custom Bid for Services - Trg of Manpower on IT, Computer Networks, Cyber Security , AI, ML, Automa",
+    "dept": "Ministry of Defence | Department of Military Affairs",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 22,
+    "bid": "GEM_2026_B_7646403",
+    "cat": "medical_equipment",
+    "title": "SNUGGER SET,VASCULAR ACCESS SET FOR CARDIAC SURGERY,SURGIFLO HAEMOSTATIC MATRIX 6 ML PER 8 ML,CARDI",
+    "dept": "Ministry of Defence | Department of Military Affairs",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 23,
+    "bid": "GEM_2026_B_7657673",
+    "cat": "database",
+    "title": "Database Management System Software (V3)",
+    "dept": "Ministry of Defence | Department of Defence Production",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 24,
+    "bid": "GEM_2026_B_7769956",
+    "cat": "tarpaulins_supplies",
+    "title": "TARPAULIN HOOD OLIVE GREEN WATER PROOF STD CAB TATA 1212 1613 SIZE 5 15X5 01 MTR,TARPAULIN HOOD ASH",
+    "dept": "Ministry of Home Affairs | Central Armed Police Forces",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 25,
+    "bid": "GEM_2026_B_7792748",
+    "cat": "firewall",
+    "title": "Firewall (V4)",
+    "dept": "Ministry of Education | Department of Higher Education",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 26,
+    "bid": "GEM_2026_B_7792839",
+    "cat": "database",
+    "title": "Oracle Audit Vault & Database Firewall alongwith Infra for enabling the audit trail in Oracle Finan",
+    "dept": "Ministry of Railways | Railways Public Sector Undertakings",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 27,
+    "bid": "GEM_2026_B_7757540",
+    "cat": "image_recognition",
+    "title": "Fluorocent Microscope with Image Analyzer System (Fish & Karyo Software)",
+    "dept": "PMO | Department of Atomic Energy",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 28,
+    "bid": "GEM_2026_B_7796010",
+    "cat": "penetration_testing",
+    "title": "1. Development and supply of PIDS application software,2. One time Vulnerability Assessment and Pen",
+    "dept": "PMO | Department of Atomic Energy",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 29,
+    "bid": "GEM_2026_B_7798161",
+    "cat": "edge_computing",
+    "title": "Hex Flange Screw,Nut 12mm x 1.5mm,Reducer Bushing 12mm,O Ring,K ASM Pad Brake,K Asm Brake Pad,Air F",
+    "dept": "Ministry of Defence | Department of Military Affairs",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 30,
+    "bid": "GEM_2026_B_7755631",
+    "cat": "agri_supplies",
+    "title": "Calcium amm. nitrate,Urea,Single Super Phosphate,Muriate of Potash,Wheat bran,Gypsum,Calcium carbon",
+    "dept": "Ministry of Agriculture and Farmers Welfare | Department of Agricultural Research and Education (DARE)",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 31,
+    "bid": "GEM_2026_B_7803341",
+    "cat": "cloud_computing",
+    "title": "Miscrosoft Windows 11 Pro Version 25H2,MS Office 2024 Professional Plus,Adobe Premiere Pro with Cre",
+    "dept": "Ministry of Defence | Department of Military Affairs",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 32,
+    "bid": "GEM_2026_B_7657481",
+    "cat": "facial_recognition",
+    "title": "TV Smart HD 55inch,Facial Recognition System,Hard Disk 8TB capacity,POE Switch 08 port,HDMI Cable 1",
+    "dept": "Ministry of Defence | Department of Defence",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 33,
+    "bid": "GEM_2026_B_7797751",
+    "cat": "cloud_computing",
+    "title": "HHC application software for Centre and cane survey,AMC of application software window based Cane w",
+    "dept": "Uttar Pradesh Cooperative Sugar Factories Federation Limited",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 34,
+    "bid": "GEM_2026_B_7779831",
+    "cat": "database",
+    "title": "Design, Development & Certification of Interface Control Definition - Database Management (ICD-DBM)",
+    "dept": "Ministry of Defence | Department of Defence Research & Development",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 35,
+    "bid": "GEM_2026_B_7788805",
+    "cat": "enterprise_software",
+    "title": "Github Enterprise Sub Per User for 2 years,GitHub Enterprise Security for 2 years",
+    "dept": "Ministry of Electronics and Information Technology | Department of Electronics and Information Technology",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 36,
+    "bid": "GEM_2026_B_7616279",
+    "cat": "firewall",
+    "title": "Router,Firewall,VOIP Gateway,L2 Switch,Network Management Server, 100 License,Programing Console PC",
+    "dept": "Ministry of Defence | Department of Military Affairs",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 37,
+    "bid": "GEM_2026_B_7778267",
+    "cat": "business_intelligence",
+    "title": "GitHub Copilot for Business (Please quote rate Per License),Additional AI Credits (Please quote rat",
+    "dept": "Ministry of Petroleum and Natural Gas | Bharat Petroleum Corporation Ltd",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 38,
+    "bid": "GEM_2026_B_7796930",
+    "cat": "facial_recognition",
+    "title": "BIOMETRIC FACIAL RECOGNITION SYSTEM",
+    "dept": "Ministry of Defence | Department of Military Affairs",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 39,
+    "bid": "GEM_2026_B_7700509",
+    "cat": "facial_recognition",
+    "title": "Maxillofacial Instrument Set",
+    "dept": "Ministry of Health and Family Welfare | Department of Health and Family Welfare",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 40,
+    "bid": "GEM_2026_B_7799416",
+    "cat": "quadcopter",
+    "title": "Repair and Maintenance Carbon Fiber Arms Abecode Quadcopter,Repair and Maintenance Motor Mounts Abe",
+    "dept": "Ministry of Defence | Department of Military Affairs",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 41,
+    "bid": "GEM_2026_B_7787657",
+    "cat": "edge_computing",
+    "title": "Bearing,Main Clutch Pump A,Pump Assy,Truck Roller Assy Bottom,Cutting Edge End Bit,Hyd jack cyl sea",
+    "dept": "Ministry of Defence | Department of Military Affairs",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 42,
+    "bid": "GEM_2026_B_7804702",
+    "cat": "automation",
+    "title": "Custom Bid for Services - COMPREHENSIVE ANNUAL MAINTANANCE CONTRACT OF UNDERGROUND PUMPING AUTOMATI",
+    "dept": "Ministry of Steel | MOIL Limited",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 43,
+    "bid": "GEM_2026_B_7789819",
+    "cat": "image_recognition",
+    "title": "Under Vehicle Scanning System (UVSS) With Image And Automated License Plate Recognition System as p",
+    "dept": "Ministry of Petroleum and Natural Gas | NA",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 44,
+    "bid": "GEM_2026_B_7786653",
+    "cat": "internet_of_things",
+    "title": "Custom Bid for Services - Provisioning of Internet Leased Lines and Point to Point links for Indian",
+    "dept": "Ministry of Petroleum and Natural Gas | INDIAN OIL CORPORATION LIMITED",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 45,
+    "bid": "GEM_2026_B_7747525",
+    "cat": "cleaning_supplies",
+    "title": "Coconut Brooms,Soft Brooms,Stick Brooms,Bamboo baskets,Rechargeable torch light,Dust Bins,Duster Cl",
+    "dept": "Ministry of Culture | NA",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 46,
+    "bid": "GEM_2026_B_7583645",
+    "cat": "firewall",
+    "title": "Supply, Configuration, and installation of an Enterprise-Grade Next-Generation Firewall (NGFW) UTM,",
+    "dept": "Ministry of Education | Department of Higher Education",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 47,
+    "bid": "GEM_2026_B_7641098",
+    "cat": "business_intelligence",
+    "title": "UTP Plus License for 3 Yrs,Exchange Software Licence 200 Lines,Filmora AI Subscription,Pro AI Subsc",
+    "dept": "Ministry of Defence | Department of Military Affairs",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 48,
+    "bid": "GEM_2026_B_7791467",
+    "cat": "it_hardware",
+    "title": "MacStudio with M3 Ultra Chip, 28-core CPU, 60-core GPU, 32-core Neural Engine, 96 GB Unified Memory",
+    "dept": "Training and Technical Education Department Delhi",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 49,
+    "bid": "GEM_2026_B_7799496",
+    "cat": "embedded_system",
+    "title": "Embedded Development Board 8 GB,Buzzer Small 3 to 5 Volt,40 x 1 Female Berg Strip,DC Connector,On O",
+    "dept": "Ministry of Defence | Department of Military Affairs",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  },
+  {
+    "num": 50,
+    "bid": "GEM_2026_B_7761707",
+    "cat": "scada",
+    "title": "Integrated PLC based automation system with enclosure panel including installation, testing and tra",
+    "dept": "PMO | Department of Atomic Energy",
+    "verdict": "Correct",
+    "notes": "Accurately categorized"
+  }
+]
