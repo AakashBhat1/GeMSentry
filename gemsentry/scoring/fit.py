@@ -2,6 +2,7 @@
 
 import re
 
+from gemsentry.textmatch import keyword_hit
 from gemsentry.defaults import DEFAULT_SCORING_CONFIG
 from gemsentry.scoring.dates import _linear_ramp
 from gemsentry.scoring.verdict import build_score_breakdown
@@ -107,22 +108,6 @@ def compute_fit_score(analysis, signals, eligibility, profile, cfg, card_meta=No
         str(signals.get("item_category") or ""),
     ]).lower()
 
-    def _kw_hit(kw: str, text: str) -> bool:
-        """
-        Whole-word / phrase match so short tokens (ups, psu) don't match inside
-        words. Tolerates a trailing plural 's' ("connector" hits "connectors").
-
-        A keyword that already ends in 's' is matched exactly: appending the
-        optional 's' would make the real final letter optional, so "ups" would
-        match the bare word "up" (gym bid "Sit up bench" scored as Power Supply).
-        """
-        if not kw:
-            return False
-        term = re.escape(kw.lower().strip())
-        pattern = r"\b" + term + (r"\b" if kw.lower().strip().endswith("s")
-                                  else r"s?\b")
-        return re.search(pattern, text) is not None
-
     # The bid's lead item is its actual subject; used to break ties between
     # business lines that score equally (a CCTV bid listing a UPS and a power
     # supply must file under AI/IT, not Power Supply — list order is not a
@@ -139,12 +124,12 @@ def compute_fit_score(analysis, signals, eligibility, profile, cfg, card_meta=No
     cross_line_hits = set()  # distinct keywords matched across all non-vetoed lines
     for line in profile.get("business_lines") or []:
         kws = line.get("keywords") or []
-        matched = [kw for kw in kws if _kw_hit(kw, haystack)]
+        matched = [kw for kw in kws if keyword_hit(kw, haystack)]
         hits = len(matched)
         # Negative/exclusion keywords: presence signals a non-fit context
         # (e.g. "manpower supply for power plant" hitting a product line).
         excludes = line.get("exclude_keywords") or []
-        excluded = [kw for kw in excludes if _kw_hit(kw, haystack)]
+        excluded = [kw for kw in excludes if keyword_hit(kw, haystack)]
         if excluded:
             if hits and suppressed is None:
                 suppressed = (line.get("label"), excluded)
@@ -171,7 +156,7 @@ def compute_fit_score(analysis, signals, eligibility, profile, cfg, card_meta=No
         priority = float(line.get("priority", 1.0) or 1.0)
         s = min(1.0, s * priority)
         if s > 0:
-            lead_match = any(_kw_hit(kw, lead_text) for kw in matched)
+            lead_match = any(keyword_hit(kw, lead_text) for kw in matched)
             candidates.append((s, lead_match, hits, line, matched))
 
     # Rank: score, then whether the line explains the bid's lead item, then
@@ -198,7 +183,7 @@ def compute_fit_score(analysis, signals, eligibility, profile, cfg, card_meta=No
         title, signals.get("primary_item"), signals.get("item_category")
     )
     best_score, dilution_note = _apply_omnibus_dilution(
-        best_score, best_line, best_matched, bid_items, fit_cfg, _kw_hit
+        best_score, best_line, best_matched, bid_items, fit_cfg, keyword_hit
     )
     if best_score <= 0:
         best_line = None
