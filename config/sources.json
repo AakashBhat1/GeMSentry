@@ -1,0 +1,268 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": "gem",
+      "name": "Government e-Marketplace (GeM)",
+      "url": "https://gem.gov.in/",
+      "category": "core_procurement",
+      "engine": "gem",
+      "enabled": true,
+      "description": "Primary Indian central government e-procurement marketplace"
+    },
+    {
+      "id": "defproc",
+      "name": "Defence eProcurement Portal",
+      "url": "https://defproc.gov.in/nicgep/app",
+      "category": "defence",
+      "engine": "gepnic",
+      "enabled": true,
+      "description": "NIC Defence Public Procurement Portal"
+    },
+    {
+      "id": "bel",
+      "name": "BEL eProcurement Portal",
+      "url": "https://eprocurebel.co.in/nicgep/app",
+      "category": "defence_psu",
+      "engine": "gepnic",
+      "enabled": true,
+      "description": "Bharat Electronics Limited Procurement Portal"
+    },
+    {
+      "id": "cppp_cg",
+      "name": "Central Public Procurement Portal (CPPP - CG)",
+      "url": "https://eprocure.gov.in/eprocure/app",
+      "category": "central_gov",
+      "engine": "gepnic",
+      "enabled": true,
+      "description": "Central Government Procurement Portal"
+    },
+    {
+      "id": "cppp_pub",
+      "name": "CPPP e-Publish Portal",
+      "url": "https://eprocure.gov.in/epublish/app",
+      "category": "central_gov",
+      "engine": "gepnic",
+      "enabled": true,
+      "description": "CPPP e-Publishing Tender Portal"
+    },
+    {
+      "id": "cppp_cpse",
+      "name": "CPPP CPSE e-Tenders",
+      "url": "https://etenders.gov.in/eprocure/app",
+      "category": "central_psu",
+      "engine": "gepnic",
+      "enabled": true,
+      "description": "Central Public Sector Enterprises e-Tenders Portal"
+    },
+    {
+      "id": "ntpc",
+      "name": "NTPC Limited e-Procurement",
+      "url": "https://eprocurentpc.nic.in/nicgep/app",
+      "category": "central_psu",
+      "engine": "gepnic",
+      "enabled": true,
+      "description": "NTPC Limited eProcurement Portal"
+    },
+    {
+      "id": "srijan",
+      "name": "SRIJAN Defence Portal",
+      "url": "https://srijandefence.gov.in/",
+      "category": "defence_indigenization",
+      "engine": "srijan",
+      "enabled": true,
+      "description": "Opportunities for Make in India in Defence",
+      "blocked_reason": "Indigenisation product catalogue, not a tender listing (zero tender records on the site)."
+    },
+    {
+      "id": "ireps",
+      "name": "Indian Railways e-Procurement (IREPS)",
+      "url": "https://ireps.gov.in/",
+      "category": "railways",
+      "engine": "ireps",
+      "enabled": true,
+      "description": "Indian Railways Official Tender Portal",
+      "blocked_reason": "Tender search is CAPTCHA-gated (anonymSearch.do) and all navigation is JavaScript-only."
+    },
+    {
+      "id": "hal_eproc",
+      "name": "HAL e-Procurement Portal",
+      "url": "https://eproc.hal-india.co.in/HAL/",
+      "category": "defence_psu",
+      "engine": "hal",
+      "enabled": true,
+      "description": "Hindustan Aeronautics Limited e-Procurement",
+      "blocked_reason": "Tenderwizard single-page app behind an auto-submitting form; no server-rendered listing."
+    },
+    {
+      "id": "hal_tenders",
+      "name": "HAL Tenders Portal",
+      "url": "https://hal-india.co.in/Tenders/M__63",
+      "category": "defence_psu",
+      "engine": "hal_tenders",
+      "enabled": true,
+      "description": "Hindustan Aeronautics Limited Active Tenders",
+      "blocked_reason": "hal-india.co.in/Tenders does not respond (connection times out)."
+    },
+    {
+      "id": "bdl",
+      "name": "Bharat Dynamics Limited (BDL)",
+      "url": "https://bdl-india.in/",
+      "category": "defence_psu",
+      "engine": "bdl",
+      "enabled": true,
+      "description": "Bharat Dynamics Limited Tenders & Vendor Portal",
+      "blocked_reason": "Tenders are hosted on the third-party abcprocure portal behind a search session; the public page exposes one ticker item."
+    },
+    {
+      "id": "bhel",
+      "name": "Bharat Heavy Electricals Limited (BHEL)",
+      "url": "https://tenders.bhel.com/tenders",
+      "category": "central_psu",
+      "engine": "bhel",
+      "enabled": true,
+      "description": "BHEL live tender listing (tenders.bhel.com; self-signed TLS chain)",
+      "verify_tls": false
+    },
+    {
+      "id": "isro",
+      "name": "ISRO e-Procurement Portal",
+      "url": "https://eproc.isro.gov.in/",
+      "category": "space_defence",
+      "engine": "isro",
+      "enabled": true,
+      "description": "ISRO e-Procurement - live tenders across all centres (URSC, SAC, VSSC, LPSC)"
+    },
+    {
+      "id": "mii_defence",
+      "name": "Make in India Defence",
+      "url": "https://makeinindiadefence.gov.in/industry_registration",
+      "category": "defence_indigenization",
+      "engine": "mii_defence",
+      "enabled": true,
+      "description": "Make in India Defence Opportunities & Registration",
+      "blocked_reason": "URL is an industry-registration form, not a tender listing, and returns HTTP 503."
+    },
+    {
+      "id": "idex",
+      "name": "Innovations for Defence Excellence (iDEX)",
+      "url": "https://idex.gov.in/",
+      "category": "defence_innovation",
+      "engine": "idex",
+      "enabled": true,
+      "description": "iDEX Defence Innovation Challenges & Grants",
+      "blocked_reason": "Innovation challenges and grants rather than tenders; the site is CAPTCHA-protected."
+    },
+    {
+      "id": "railtel",
+      "name": "RailTel e-Nivida Portal",
+      "url": "https://enivida.odisha.gov.in/",
+      "category": "railways_psu",
+      "engine": "railtel",
+      "enabled": true,
+      "description": "RailTel e-Nivida e-Procurement",
+      "blocked_reason": "eNivida listing is an AJAX DataTable requiring a search session. Note: the configured URL is Odisha eNivida, not RailTel."
+    },
+    {
+      "id": "state_mh",
+      "name": "Govt. Of Maharashtra e-Tender",
+      "url": "https://mahatenders.gov.in/nicgep/app",
+      "category": "state_gov",
+      "engine": "gepnic",
+      "enabled": true,
+      "description": "Maharashtra eProcurement Portal"
+    },
+    {
+      "id": "state_mp",
+      "name": "Madhya Pradesh eProcurement",
+      "url": "https://mptenders.gov.in/nicgep/app",
+      "category": "state_gov",
+      "engine": "gepnic",
+      "enabled": true,
+      "description": "Madhya Pradesh eProcurement Portal"
+    },
+    {
+      "id": "state_hp",
+      "name": "Government of Himachal Pradesh",
+      "url": "https://hptenders.gov.in/nicgep/app",
+      "category": "state_gov",
+      "engine": "gepnic",
+      "enabled": true,
+      "description": "Himachal Pradesh eProcurement"
+    },
+    {
+      "id": "state_pb",
+      "name": "Government of Punjab",
+      "url": "https://eproc.punjab.gov.in/",
+      "category": "state_gov",
+      "engine": "gepnic",
+      "enabled": true,
+      "description": "Punjab eProcurement Portal"
+    },
+    {
+      "id": "state_wb",
+      "name": "Government of West Bengal",
+      "url": "https://wbtenders.gov.in/nicgep/app",
+      "category": "state_gov",
+      "engine": "gepnic",
+      "enabled": true,
+      "description": "West Bengal eProcurement"
+    },
+    {
+      "id": "state_rj",
+      "name": "Government of Rajasthan",
+      "url": "https://eproc.rajasthan.gov.in/nicgep/app",
+      "category": "state_gov",
+      "engine": "gepnic",
+      "enabled": true,
+      "description": "Rajasthan eProcurement Portal"
+    },
+    {
+      "id": "state_jk",
+      "name": "Government of Jammu and Kashmir",
+      "url": "https://jktenders.gov.in/nicgep/app",
+      "category": "state_gov",
+      "engine": "gepnic",
+      "enabled": true,
+      "description": "J&K eProcurement Portal"
+    },
+    {
+      "id": "state_kl",
+      "name": "Government of Kerala",
+      "url": "https://etenders.kerala.gov.in/nicgep/app",
+      "category": "state_gov",
+      "engine": "gepnic",
+      "enabled": true,
+      "description": "Kerala eProcurement Portal"
+    },
+    {
+      "id": "state_hr",
+      "name": "Haryana eProc",
+      "url": "https://etenders.hry.nic.in/nicgep/app",
+      "category": "state_gov",
+      "engine": "gepnic",
+      "enabled": true,
+      "description": "Haryana eProcurement Portal"
+    },
+    {
+      "id": "digikey",
+      "name": "Digikey India",
+      "url": "https://www.digikey.in/",
+      "category": "component_sourcing",
+      "engine": "digikey",
+      "enabled": false,
+      "description": "Electronic components distributor pricing & stock",
+      "blocked_reason": "Component distributor catalogue, not a tender source."
+    },
+    {
+      "id": "robu",
+      "name": "Robu.in",
+      "url": "https://robu.in/",
+      "category": "component_sourcing",
+      "engine": "robu",
+      "enabled": false,
+      "description": "Robotics & Electronics components supplier",
+      "blocked_reason": "Component distributor catalogue, not a tender source."
+    }
+  ]
+}

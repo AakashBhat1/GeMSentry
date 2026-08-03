@@ -23,8 +23,9 @@
     "max_penalty_pct": 10.0
   },
   "unknown_subscore": 0.5,
+  "no_relaxation_floor": 0.5,
   "status_thresholds": {
-    "shortlist_min": 90,
+    "shortlist_min": 75,
     "reject_max": 40
   },
   "fit": {
@@ -36,6 +37,7 @@
       "eligibility_factor": 2.0
     },
     "fit_min": 65,
+    "review_band": 8,
     "unknown_buyer_subscore": 0.4,
     "turnover_gap_subscore": 0.3,
     "weak_relevance_subscore": 0.5
@@ -44,5 +46,9 @@
     "fit_weight": 0.6,
     "risk_weight": 0.4,
     "exemption_boost": 1.1
+  },
+  "download_policy": {
+    "skip_zero_relevance_download": true,
+    "download_workers": 4
   }
 }

@@ -1103,6 +1103,13 @@
             </div>
         </div>
         <div class="header-right">
+            <button class="btn-theme" id="sourcesToggle" onclick="openSourcesModal()" aria-label="Portals Hub" style="padding: 0.5rem 0.85rem; border-color: rgba(99, 102, 241, 0.4); color: #a5b4fc;">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"></path>
+                </svg>
+                <span>Portals Hub</span>
+            </button>
             <button class="btn-theme" id="profileToggle" onclick="openProfileModal()" aria-label="Company Profile" style="padding: 0.5rem 0.85rem;">
                 <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -1140,6 +1147,14 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                 </svg>
                 <input type="text" id="searchInput" placeholder="Search title, department, ID..." oninput="filterData()">
+            </div>
+
+            <!-- Discovery Date Filter (newest first; "Today" fills live during a scrape) -->
+            <div class="filter-section">
+                <span class="filter-title">Scrape Date</span>
+                <div class="filter-options" id="dateFilters">
+                    <!-- Loaded dynamically from tenders' first_seen -->
+                </div>
             </div>
 
             <!-- Dynamic Keyword Filter -->
@@ -1219,6 +1234,29 @@
                 </div>
             </div>
 
+            <!-- Multi-Source Portal Filter -->
+            <div class="filter-section">
+                <span class="filter-title">Procurement Portal</span>
+                <div class="filter-options" id="sourceFilters">
+                    <button class="filter-btn active" id="src-all" onclick="setSourceFilter('all')">
+                        <span>All Portals</span>
+                        <span class="badge-count" id="src-cnt-all">0</span>
+                    </button>
+                    <button class="filter-btn" id="src-gem" onclick="setSourceFilter('gem')">
+                        <span>GeM</span>
+                        <span class="badge-count" id="src-cnt-gem">0</span>
+                    </button>
+                    <button class="filter-btn" id="src-defproc" onclick="setSourceFilter('defproc')">
+                        <span>DefProc</span>
+                        <span class="badge-count" id="src-cnt-defproc">0</span>
+                    </button>
+                    <button class="filter-btn" id="src-srijan" onclick="setSourceFilter('srijan')">
+                        <span>SRIJAN</span>
+                        <span class="badge-count" id="src-cnt-srijan">0</span>
+                    </button>
+                </div>
+            </div>
+
             <!-- Value Band Filter -->
             <div class="filter-section">
                 <span class="filter-title">Estimated Value</span>
@@ -1238,6 +1276,37 @@
                     <button class="filter-btn" id="vb-over-3cr" onclick="setValueBandFilter('over-3cr')">
                         <span>&gt; ₹3 Crore</span>
                         <span class="badge-count" id="vb-cnt-over-3cr">0</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Deadline Filter -->
+            <div class="filter-section">
+                <span class="filter-title">Deadline Window</span>
+                <div class="filter-options" id="deadlineFilters">
+                    <button class="filter-btn active" id="dl-all" onclick="setDeadlineFilter('all')">
+                        <span>All Deadlines</span>
+                        <span class="badge-count" id="dl-cnt-all">0</span>
+                    </button>
+                    <button class="filter-btn" id="dl-15-20" onclick="setDeadlineFilter('15-20')" style="border-color: rgba(99, 102, 241, 0.4);">
+                        <span>⏳ 15–20 Days</span>
+                        <span class="badge-count" id="dl-cnt-15-20">0</span>
+                    </button>
+                    <button class="filter-btn" id="dl-critical" onclick="setDeadlineFilter('critical')">
+                        <span>🔥 ≤ 3 Days</span>
+                        <span class="badge-count" id="dl-cnt-critical">0</span>
+                    </button>
+                    <button class="filter-btn" id="dl-week" onclick="setDeadlineFilter('week')">
+                        <span>📅 4–7 Days</span>
+                        <span class="badge-count" id="dl-cnt-week">0</span>
+                    </button>
+                    <button class="filter-btn" id="dl-2weeks" onclick="setDeadlineFilter('2weeks')">
+                        <span>📆 8–14 Days</span>
+                        <span class="badge-count" id="dl-cnt-2weeks">0</span>
+                    </button>
+                    <button class="filter-btn" id="dl-over20" onclick="setDeadlineFilter('over20')">
+                        <span>🚀 &gt; 20 Days</span>
+                        <span class="badge-count" id="dl-cnt-over20">0</span>
                     </button>
                 </div>
             </div>
@@ -1305,13 +1374,33 @@
 
             <div class="keywords-grid-container">
                 <span class="filter-title" style="margin-bottom: 0.25rem; display: block;">Select Keywords to Scrape</span>
-                <div class="keywords-toolbar">
-                    <button class="btn btn-secondary" onclick="selectAllKeywords()" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; border-radius: 4px;">Select All</button>
-                    <button class="btn btn-secondary" onclick="clearAllKeywords()" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; border-radius: 4px;">Clear All</button>
+                <div class="keywords-toolbar" style="display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.5rem; align-items: center;">
+                    <span style="font-size: 0.75rem; color: var(--text-secondary); margin-right: 0.25rem; font-weight: 500;">Quick Presets:</span>
+                    <button class="btn btn-secondary" onclick="selectCategoryKeywords('solar_broad')" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; border-radius: 4px; background: rgba(245, 158, 11, 0.2); border-color: rgba(245, 158, 11, 0.4); color: #fef08a;">☀️ Solar &amp; Panels</button>
+                    <button class="btn btn-secondary" onclick="selectCategoryKeywords('power_electrical')" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; border-radius: 4px; background: rgba(59, 130, 246, 0.2); border-color: rgba(59, 130, 246, 0.4); color: #93c5fd;">⚡ Power &amp; Electricals</button>
+                    <button class="btn btn-secondary" onclick="selectCategoryKeywords('ai_software')" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; border-radius: 4px; background: rgba(168, 85, 247, 0.2); border-color: rgba(168, 85, 247, 0.4); color: #e9d5ff;">🤖 AI &amp; Software</button>
+                    <button class="btn btn-secondary" onclick="selectCategoryKeywords('defence_avionics')" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; border-radius: 4px; background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.4); color: #fca5a5;">🛡️ Defence &amp; Avionics</button>
+                    <button class="btn btn-secondary" onclick="selectCategoryKeywords('battery_storage')" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; border-radius: 4px; background: rgba(16, 185, 129, 0.2); border-color: rgba(16, 185, 129, 0.4); color: #6ee7b7;">🔋 Battery &amp; BESS</button>
+                    <button class="btn btn-secondary" onclick="selectCategoryKeywords('ev_infrastructure')" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; border-radius: 4px; background: rgba(20, 184, 166, 0.2); border-color: rgba(20, 184, 166, 0.4); color: #99f6e4;">🚗 EV Charging</button>
+                    <button class="btn btn-secondary" onclick="selectCategoryKeywords('lighting_mast')" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; border-radius: 4px; background: rgba(251, 191, 36, 0.2); border-color: rgba(251, 191, 36, 0.4); color: #fde68a;">💡 Lighting &amp; High Mast</button>
+                    <button class="btn btn-secondary" onclick="selectCategoryKeywords('pumps_kusum')" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; border-radius: 4px; background: rgba(6, 182, 212, 0.2); border-color: rgba(6, 182, 212, 0.4); color: #a5f3fc;">🌊 Solar Pumps &amp; KUSUM</button>
+                    <button class="btn btn-secondary" onclick="selectCategoryKeywords('all_technical')" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; border-radius: 4px; background: rgba(139, 92, 246, 0.2); border-color: rgba(139, 92, 246, 0.4); color: #c4b5fd; margin-left: auto;">🚀 All Technical</button>
+                    <button class="btn btn-secondary" onclick="selectAllKeywords()" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; border-radius: 4px;">Select All</button>
+                    <button class="btn btn-secondary" onclick="clearAllKeywords()" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; border-radius: 4px;">Clear All</button>
                 </div>
                 <div class="keywords-grid" id="modalKeywordsGrid">
                     <!-- Loaded dynamically from /api/keywords -->
                 </div>
+            </div>
+
+            <!-- Target Goal Finder Option -->
+            <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 0.9rem; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 8px; width: 100%;">
+                <input type="checkbox" id="enableTargetGoal" style="width: 16px; height: 16px; cursor: pointer;">
+                <label for="enableTargetGoal" style="font-size: 0.825rem; color: var(--text-primary); cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
+                    <span>🎯 Target Goal: Paginate until at least</span>
+                    <input type="number" id="targetCountInput" value="20" min="1" max="100" style="width: 45px; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); color: var(--text-primary); text-align: center; border-radius: 4px; padding: 2px 4px; font-size: 0.8rem;">
+                    <span>tenders per keyword ending in <strong>15–20 Days</strong> of current date are found</span>
+                </label>
             </div>
 
             <!-- Specific Bid Acquisition Section -->
@@ -1344,7 +1433,17 @@
                         <option value="Bid-Start-Date-Oldest">Bid Start Date: Oldest First</option>
                     </select>
                 </div>
-                <button class="btn btn-primary" id="startScrapeBtn" onclick="triggerScrape()" style="align-self: flex-end; padding: 0.55rem 1.75rem; border-radius: 8px; margin-left: auto;">
+                <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                    <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;" title="Skip tenders ending in less than N days during ingestion">Min Days Left</label>
+                    <input type="number" id="modalMinDaysLeft" value="5" min="0" max="30" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none; width: 100px; text-align: center;" title="Only ingest tenders with at least this many days left to bid">
+                </div>
+                <button class="btn btn-secondary" id="clearWorkspaceBtn" onclick="triggerClearWorkspace()" title="Reset the ACTIVE profile's workspace: delete its tenders, PDFs and report (metadata is backed up first). Other profiles are untouched." style="align-self: flex-end; padding: 0.55rem 1.25rem; border-radius: 8px; margin-left: auto; border-color: #c62828; color: #ef5350;">
+                    Clear Workspace
+                </button>
+                <button class="btn btn-secondary" id="rescoreBtn" onclick="triggerRescore()" title="Re-score every tender locally with the current scoring config and company profile — no network, applies config changes instantly" style="align-self: flex-end; padding: 0.55rem 1.25rem; border-radius: 8px;">
+                    Rescore (local)
+                </button>
+                <button class="btn btn-primary" id="startScrapeBtn" onclick="triggerScrape()" style="align-self: flex-end; padding: 0.55rem 1.75rem; border-radius: 8px;">
                     Start Scraper
                 </button>
             </div>
@@ -1367,6 +1466,44 @@
                     <div class="console-title" style="font-size: 0.75rem;">Historical / Disk Log Tail</div>
                     <div class="console-logs" id="secondaryTailLogs" style="height: 120px; color: #60a5fa; border-color: rgba(96, 165, 250, 0.15);"></div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Portals Hub Modal Overlay -->
+    <div id="sourcesModal" class="modal">
+        <div class="modal-content" style="max-width: 840px; max-height: 85vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; margin-bottom: 0.75rem;">
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <span style="font-size: 1.4rem;">🌐</span>
+                    <div>
+                        <h3 class="modal-title" style="margin: 0;">Procurement Portals &amp; Sources Manager</h3>
+                        <span style="font-size: 0.75rem; color: var(--text-secondary);">Manage 28+ monitored government, defence, PSU &amp; component sourcing sites</span>
+                    </div>
+                </div>
+                <button class="close-btn" onclick="closeSourcesModal()">&times;</button>
+            </div>
+
+            <!-- Search and Filter Bar -->
+            <div style="display: flex; gap: 0.75rem; margin-bottom: 1rem; align-items: center; flex-wrap: wrap;">
+                <div class="search-box" style="flex: 1; min-width: 240px;">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-secondary);">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    <input type="text" id="sourceSearchInput" placeholder="Search portals (e.g. DefProc, BEL, CPPP, SRIJAN)..." oninput="renderSourcesList()" style="width: 100%; padding: 0.5rem 0.85rem 0.5rem 2.25rem; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 8px; font-size: 0.85rem; outline: none;">
+                </div>
+                <div style="display: flex; gap: 0.35rem;" id="sourceCategoryTabs">
+                    <button class="btn btn-secondary active" onclick="filterSourceCategory('all', this)" style="padding: 0.4rem 0.75rem; font-size: 0.75rem; border-radius: 6px;">All</button>
+                    <button class="btn btn-secondary" onclick="filterSourceCategory('defence', this)" style="padding: 0.4rem 0.75rem; font-size: 0.75rem; border-radius: 6px;">Defence</button>
+                    <button class="btn btn-secondary" onclick="filterSourceCategory('central', this)" style="padding: 0.4rem 0.75rem; font-size: 0.75rem; border-radius: 6px;">Central</button>
+                    <button class="btn btn-secondary" onclick="filterSourceCategory('state', this)" style="padding: 0.4rem 0.75rem; font-size: 0.75rem; border-radius: 6px;">State</button>
+                    <button class="btn btn-secondary" onclick="filterSourceCategory('sourcing', this)" style="padding: 0.4rem 0.75rem; font-size: 0.75rem; border-radius: 6px;">Sourcing</button>
+                </div>
+            </div>
+
+            <!-- Portals Grid -->
+            <div id="sourcesGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 0.85rem; overflow-y: auto; padding-right: 0.25rem; flex: 1;">
+                <!-- Loaded dynamically via JS -->
             </div>
         </div>
     </div>
@@ -1618,6 +1755,8 @@
         let currentRec = 'all';
         let currentBusinessLine = 'all';
         let currentValueBand = 'all';
+        let currentDeadlineBand = 'all';
+        let currentDate = 'all';   // 'all' | 'YYYY-MM-DD' | 'unknown'
         let searchStr = '';
         let tenders = [];
         let pollingInterval = null;
@@ -2312,6 +2451,89 @@
             }
         }
 
+        const TECHNICAL_CATEGORIES = {
+            solar_broad: [
+                "solar", "solar panels", "panels", "panel", "solar power plant", "solar epc", 
+                "solar project", "solar pv", "solar photovoltaic", "renewable energy", 
+                "green energy", "rooftop solar", "on grid solar", "off grid solar", 
+                "hybrid solar", "pm surya ghar", "residential rooftop solar", 
+                "government building solar", "sitc solar", "epc solar", "turnkey solar", 
+                "solar installation", "solar commissioning", "solar o&m", "annual maintenance solar", 
+                "solar panel", "solar module", "mono perc", "topcon module", "bifacial module", 
+                "solar inverter", "string inverter", "central inverter", "hybrid inverter", 
+                "battery energy storage system", "bess", "lithium battery", "solar battery", 
+                "solar cable", "solar mounting structure", "module mounting structure", 
+                "solar junction box", "ground mounted solar", "solar street light", 
+                "solar high mast", "solar led street light", "solar pump", 
+                "solar water pump", "pm kusum", "kusum component b", "kusum component c"
+            ],
+            power_electrical: [
+                "power", "power supply", "psu", "lvpsu", "hvpsu", "transformer", 
+                "substation", "switchgear", "gis substation", "discom", "power distribution", 
+                "electrical testing", "electrical commissioning", "solid state power amplifier", 
+                "amplifier", "resistors", "cables", "cable", "rectifiers", "harness", 
+                "relay", "connectors", "repairing (electronics)", "supply", "meter", 
+                "smart meter", "energy meter", "ht equipment", "lt equipment", "ht/lt equipment"
+            ],
+            ai_software: [
+                "ai", "artificial intelligence", "machine learning", "deep learning", "computer vision", 
+                "object detection", "video analytics", "generative ai", "large language model", 
+                "llm", "chatbot", "natural language processing", "nlp", "neural network", 
+                "predictive analytics", "data analytics", "data science", "big data", 
+                "image recognition", "speech recognition", "software", "development", 
+                "cloud computing", "cloud migration", "cybersecurity", "firewall", 
+                "endpoint security", "penetration testing", "vulnerability assessment", 
+                "erp", "crm", "enterprise software", "database", "data warehouse", 
+                "business intelligence", "iot", "internet of things", "smart city", 
+                "edge computing", "embedded system", "embedded software", "scada", 
+                "automation", "blockchain", "digital twin", "augmented reality", 
+                "virtual reality", "it infrastructure", "system integration", 
+                "data center", "digital transformation", "e-governance", 
+                "website development", "web portal", "custom software", 
+                "application development", "api integration", "mobile application"
+            ],
+            defence_avionics: [
+                "defence", "military", "military grade", "radar", "drone", "drones", 
+                "unmanned aerial vehicles (uavs)", "multirotor", "quadcopter", "gis", 
+                "mapping", "cctv", "data aquisition", "indigenous & development", "design", 
+                "mechanical", "repair", "avionics"
+            ],
+            battery_storage: [
+                "battery", "bess", "battery energy storage system", "lithium battery", 
+                "solar battery", "cell", "charger", "storage"
+            ],
+            ev_infrastructure: [
+                "ev", "ev charging", "electric vehicle charger", "charging station"
+            ],
+            lighting_mast: [
+                "light", "lights", "lighting", "solar street light", "solar high mast", 
+                "solar led street light", "cctv"
+            ],
+            pumps_kusum: [
+                "pump", "pumps", "solar pump", "solar water pump", "pm kusum", 
+                "kusum component b", "kusum component c"
+            ]
+        };
+
+        function selectCategoryKeywords(categoryKey) {
+            const boxes = document.getElementsByName('keywordCheckbox');
+            if (categoryKey === 'all_technical') {
+                const allTech = Object.values(TECHNICAL_CATEGORIES).flat();
+                boxes.forEach(b => {
+                    const val = b.value.toLowerCase().trim();
+                    b.checked = allTech.some(t => val.includes(t) || t.includes(val));
+                });
+                return;
+            }
+            const targetTerms = TECHNICAL_CATEGORIES[categoryKey] || [];
+            boxes.forEach(b => {
+                const val = b.value.toLowerCase().trim();
+                if (targetTerms.some(t => val.includes(t) || t.includes(val))) {
+                    b.checked = true;
+                }
+            });
+        }
+
         function selectAllKeywords() {
             const boxes = document.getElementsByName('keywordCheckbox');
             boxes.forEach(b => b.checked = true);
@@ -2438,12 +2660,28 @@
             
             const maxPages = parseInt(document.getElementById('modalPageLimit').value);
             const sortOrder = document.getElementById('modalSortOrder').value;
+            const minDaysLeftInput = document.getElementById('modalMinDaysLeft');
+            const minDaysLeftVal = minDaysLeftInput ? parseInt(minDaysLeftInput.value) : 5;
+            const enableTarget = document.getElementById('enableTargetGoal') ? document.getElementById('enableTargetGoal').checked : false;
+            const targetCount = enableTarget ? (parseInt(document.getElementById('targetCountInput').value) || 20) : null;
+            
+            const payload = {
+                keywords: selected,
+                max_pages: maxPages,
+                sort_order: sortOrder,
+                min_days_left: isNaN(minDaysLeftVal) ? 5 : minDaysLeftVal
+            };
+            if (enableTarget && targetCount) {
+                payload.target_count = targetCount;
+                payload.min_days_left = 15;
+                payload.max_days_left = 20;
+            }
             
             try {
                 const response = await fetch('/api/scrape', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ keywords: selected, max_pages: maxPages, sort_order: sortOrder })
+                    body: JSON.stringify(payload)
                 });
                 const resData = await response.json();
                 if (resData.error) {
@@ -2459,6 +2697,55 @@
             } catch (err) {
                 console.error("Failed to start scrape:", err);
                 alert("Failed to start scrape. Please try again.");
+            }
+        }
+
+        async function triggerRescore() {
+            try {
+                const response = await fetch('/api/rescore', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                const resData = await response.json();
+                if (resData.error) {
+                    alert(resData.error);
+                } else {
+                    document.getElementById('consoleLogs').innerText = 'Rescoring all tenders locally (no network)...';
+                    if (!pollingInterval) {
+                        pollingInterval = setInterval(checkScraperStatus, 1000);
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to start rescore:", err);
+                alert("Failed to start rescore. Please try again.");
+            }
+        }
+
+        async function triggerClearWorkspace() {
+            const sure = confirm(
+                "Clear the ACTIVE profile's workspace?\n\n" +
+                "This deletes ALL its tenders, downloaded PDFs and the Excel report.\n" +
+                "Metadata is backed up to the workspace's backups/ folder first.\n" +
+                "Other profiles are NOT affected."
+            );
+            if (!sure) return;
+            try {
+                const response = await fetch('/api/clear-workspace', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ confirm: true })
+                });
+                const resData = await response.json();
+                if (resData.error) {
+                    alert(resData.error);
+                } else {
+                    alert(resData.message);
+                    location.reload();
+                }
+            } catch (err) {
+                console.error("Failed to clear workspace:", err);
+                alert("Failed to clear workspace. Please try again.");
             }
         }
 
@@ -2557,29 +2844,51 @@
 
         function renderKeywordFilters() {
             const filtersContainer = document.getElementById('keywordFilters');
+            if (!filtersContainer) return;
             
+            // Scope keyword options to the currently selected Date and Business Line (broad type)
+            let scopedTenders = tenders;
+            if (currentDate !== 'all') {
+                scopedTenders = scopedTenders.filter(t => {
+                    const seen = t.first_seen || '';
+                    return currentDate === 'unknown' ? !seen : seen === currentDate;
+                });
+            }
+            if (currentBusinessLine !== 'all') {
+                scopedTenders = scopedTenders.filter(t => {
+                    return t.analysis && t.analysis.business_line && t.analysis.business_line.id === currentBusinessLine;
+                });
+            }
+
             let html = `
                 <button class="filter-btn ${currentKeyword === 'all' ? 'active' : ''}" id="kw-all" onclick="setKeywordFilter('all')">
-                    <span>All Tenders</span>
-                    <span class="badge-count">${tenders.length}</span>
+                    <span>All Keywords</span>
+                    <span class="badge-count">${scopedTenders.length}</span>
                 </button>
             `;
             
-            const uniqueKeywords = new Set();
-            tenders.forEach(t => {
-                t.keyword.split(',').forEach(k => {
-                    const clean = k.strip ? k.strip() : k.trim();
-                    if (clean) uniqueKeywords.add(clean);
+            const kwMap = new Map();
+            scopedTenders.forEach(t => {
+                const rawKw = t.keyword || '';
+                rawKw.split(',').forEach(k => {
+                    const clean = k.trim();
+                    if (clean) {
+                        const lower = clean.toLowerCase();
+                        if (!kwMap.has(lower)) {
+                            kwMap.set(lower, { display: clean, count: 0 });
+                        }
+                        kwMap.get(lower).count += 1;
+                    }
                 });
             });
             
-            Array.from(uniqueKeywords).sort().forEach(kw => {
-                const kwLower = kw.toLowerCase();
-                const count = tenders.filter(t => t.keyword.toLowerCase().includes(kwLower)).length;
+            const sortedKws = Array.from(kwMap.values()).sort((a, b) => a.display.localeCompare(b.display));
+            sortedKws.forEach(item => {
+                const kwLower = item.display.toLowerCase();
                 html += `
                     <button class="filter-btn ${currentKeyword === kwLower ? 'active' : ''}" onclick="setKeywordFilter('${kwLower}')">
-                        <span style="text-transform: capitalize;">${kw}</span>
-                        <span class="badge-count">${count}</span>
+                        <span style="text-transform: capitalize;">${item.display}</span>
+                        <span class="badge-count">${item.count}</span>
                     </button>
                 `;
             });
@@ -2587,7 +2896,130 @@
             filtersContainer.innerHTML = html;
         }
 
+        // --- Scrape-date navigation -------------------------------------------
+        // Tenders carry `first_seen` (YYYY-MM-DD), stamped when a scrape first
+        // discovers them. Dates render newest-first so the most recent run is the
+        // default landing point instead of one long undifferentiated scroll.
+
+        function localTodayISO() {
+            const d = new Date();
+            const pad = n => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        }
+
+        function formatSeenDate(iso) {
+            const today = localTodayISO();
+            if (iso === today) return 'Today';
+            const parts = iso.split('-').map(Number);
+            if (parts.length !== 3 || parts.some(isNaN)) return iso;
+            const d = new Date(parts[0], parts[1] - 1, parts[2]);
+            const diff = Math.round(
+                (new Date(today.split('-')[0], today.split('-')[1] - 1, today.split('-')[2]) - d)
+                / 86400000);
+            if (diff === 1) return 'Yesterday';
+            return d.toLocaleDateString(undefined,
+                { day: 'numeric', month: 'short', weekday: 'short' });
+        }
+
+        function renderDateFilters() {
+            const container = document.getElementById('dateFilters');
+            if (!container) return;
+
+            const counts = new Map();
+            let undated = 0;
+            tenders.forEach(t => {
+                const seen = t.first_seen || '';
+                if (!seen) { undated++; return; }
+                counts.set(seen, (counts.get(seen) || 0) + 1);
+            });
+
+            const today = localTodayISO();
+            let html = `
+                <button class="filter-btn ${currentDate === 'all' ? 'active' : ''}" onclick="setDateFilter('all')">
+                    <span>All Dates</span>
+                    <span class="badge-count">${tenders.length}</span>
+                </button>
+            `;
+
+            // A scrape running today should show its bucket even before the first
+            // tender lands, so the count visibly fills as results arrive.
+            const dates = Array.from(counts.keys());
+            if (!counts.has(today)) dates.push(today);
+            dates.sort().reverse();
+
+            dates.forEach(d => {
+                const count = counts.get(d) || 0;
+                const isToday = d === today;
+                html += `
+                    <button class="filter-btn ${currentDate === d ? 'active' : ''}"
+                            onclick="setDateFilter('${d}')"
+                            ${isToday ? 'style="border-color: rgba(99, 102, 241, 0.55);"' : ''}>
+                        <span>${isToday ? '🟢 ' : ''}${formatSeenDate(d)}</span>
+                        <span class="badge-count">${count}</span>
+                    </button>
+                `;
+            });
+
+            if (undated > 0) {
+                html += `
+                    <button class="filter-btn ${currentDate === 'unknown' ? 'active' : ''}" onclick="setDateFilter('unknown')">
+                        <span>Undated</span>
+                        <span class="badge-count">${undated}</span>
+                    </button>
+                `;
+            }
+
+            container.innerHTML = html;
+        }
+
+        function renderBusinessLineFilters() {
+            const container = document.getElementById('businessLineFilters');
+            if (!container) return;
+
+            let targetTenders = tenders;
+            if (currentDate !== 'all') {
+                targetTenders = targetTenders.filter(t => {
+                    const seen = t.first_seen || '';
+                    return currentDate === 'unknown' ? !seen : seen === currentDate;
+                });
+            }
+
+            const lines = (companyProfile && companyProfile.business_lines && companyProfile.business_lines.length > 0)
+                ? companyProfile.business_lines
+                : (DEFAULT_COMPANY_PROFILE.business_lines || []);
+
+            let html = `
+                <button class="filter-btn ${currentBusinessLine === 'all' ? 'active' : ''}" id="bl-all" onclick="setBusinessLineFilter('all')">
+                    <span>All Lines</span>
+                    <span class="badge-count">${targetTenders.length}</span>
+                </button>
+            `;
+
+            lines.forEach(line => {
+                const count = targetTenders.filter(t => t.analysis && t.analysis.business_line && t.analysis.business_line.id === line.id).length;
+                const isActive = currentBusinessLine === line.id;
+                html += `
+                    <button class="filter-btn ${isActive ? 'active' : ''}" id="bl-${line.id}" onclick="setBusinessLineFilter('${line.id}')">
+                        <span>${line.label || line.id}</span>
+                        <span class="badge-count">${count}</span>
+                    </button>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function setDateFilter(d) {
+            currentDate = d;
+            renderDateFilters();
+            renderBusinessLineFilters();
+            renderKeywordFilters();
+            filterData();
+        }
+
         function updateBadges() {
+            renderDateFilters();
+            renderBusinessLineFilters();
             renderKeywordFilters();
 
             // Evaluation status counts
@@ -2604,20 +3036,22 @@
                 document.getElementById('rec-cnt-drop').innerText = tenders.filter(t => t.analysis && t.analysis.recommendation === 'Drop').length;
             }
 
-            // Business line counts
-            if (document.getElementById('bl-cnt-all')) {
-                document.getElementById('bl-cnt-all').innerText = tenders.length;
-                document.getElementById('bl-cnt-drone').innerText = tenders.filter(t => t.analysis && t.analysis.business_line && t.analysis.business_line.id === 'drone').length;
-                document.getElementById('bl-cnt-power_supply').innerText = tenders.filter(t => t.analysis && t.analysis.business_line && t.analysis.business_line.id === 'power_supply').length;
-                document.getElementById('bl-cnt-ai_it').innerText = tenders.filter(t => t.analysis && t.analysis.business_line && t.analysis.business_line.id === 'ai_it').length;
-            }
-
             // Value band counts
             if (document.getElementById('vb-cnt-all')) {
                 document.getElementById('vb-cnt-all').innerText = tenders.length;
                 document.getElementById('vb-cnt-under-5l').innerText = tenders.filter(t => t.analysis && t.analysis.est_value_inr < 500000 && t.analysis.est_value_inr > 0).length;
                 document.getElementById('vb-cnt-sweet').innerText = tenders.filter(t => t.analysis && t.analysis.est_value_inr >= 500000 && t.analysis.est_value_inr <= 30000000).length;
                 document.getElementById('vb-cnt-over-3cr').innerText = tenders.filter(t => t.analysis && t.analysis.est_value_inr > 30000000).length;
+            }
+
+            // Deadline counts
+            if (document.getElementById('dl-cnt-all')) {
+                document.getElementById('dl-cnt-all').innerText = tenders.length;
+                document.getElementById('dl-cnt-15-20').innerText = tenders.filter(t => { const d = gemDaysToDeadline(t.end_date); return d !== null && d >= 15 && d <= 20; }).length;
+                document.getElementById('dl-cnt-critical').innerText = tenders.filter(t => { const d = gemDaysToDeadline(t.end_date); return d !== null && d >= 0 && d <= 3; }).length;
+                document.getElementById('dl-cnt-week').innerText = tenders.filter(t => { const d = gemDaysToDeadline(t.end_date); return d !== null && d >= 4 && d <= 7; }).length;
+                document.getElementById('dl-cnt-2weeks').innerText = tenders.filter(t => { const d = gemDaysToDeadline(t.end_date); return d !== null && d >= 8 && d <= 14; }).length;
+                document.getElementById('dl-cnt-over20').innerText = tenders.filter(t => { const d = gemDaysToDeadline(t.end_date); return d !== null && d > 20; }).length;
             }
         }
 
@@ -2654,15 +3088,9 @@
         }
 
         function setBusinessLineFilter(bl) {
-            const btns = document.querySelectorAll('#businessLineFilters .filter-btn');
-            btns.forEach(b => b.classList.remove('active'));
-
-            if (bl === 'all') document.getElementById('bl-all').classList.add('active');
-            else if (bl === 'drone') document.getElementById('bl-drone').classList.add('active');
-            else if (bl === 'power_supply') document.getElementById('bl-power_supply').classList.add('active');
-            else if (bl === 'ai_it') document.getElementById('bl-ai_it').classList.add('active');
-
             currentBusinessLine = bl;
+            renderBusinessLineFilters();
+            renderKeywordFilters();
             filterData();
         }
 
@@ -2676,6 +3104,21 @@
             else if (vb === 'over-3cr') document.getElementById('vb-over-3cr').classList.add('active');
 
             currentValueBand = vb;
+            filterData();
+        }
+
+        function setDeadlineFilter(dl) {
+            const btns = document.querySelectorAll('#deadlineFilters .filter-btn');
+            btns.forEach(b => b.classList.remove('active'));
+
+            if (dl === 'all') document.getElementById('dl-all').classList.add('active');
+            else if (dl === '15-20') document.getElementById('dl-15-20').classList.add('active');
+            else if (dl === 'critical') document.getElementById('dl-critical').classList.add('active');
+            else if (dl === 'week') document.getElementById('dl-week').classList.add('active');
+            else if (dl === '2weeks') document.getElementById('dl-2weeks').classList.add('active');
+            else if (dl === 'over20') document.getElementById('dl-over20').classList.add('active');
+
+            currentDeadlineBand = dl;
             filterData();
         }
 
@@ -2737,7 +3180,32 @@
                     }
                 }
 
-                return matchKeyword && matchStatus && matchSearch && matchRec && matchBL && matchVal;
+                let matchDeadline = true;
+                if (currentDeadlineBand !== 'all') {
+                    const days = gemDaysToDeadline(t.end_date);
+                    if (days === null) {
+                        matchDeadline = false;
+                    } else if (currentDeadlineBand === '15-20') {
+                        matchDeadline = days >= 15 && days <= 20;
+                    } else if (currentDeadlineBand === 'critical') {
+                        matchDeadline = days >= 0 && days <= 3;
+                    } else if (currentDeadlineBand === 'week') {
+                        matchDeadline = days >= 4 && days <= 7;
+                    } else if (currentDeadlineBand === '2weeks') {
+                        matchDeadline = days >= 8 && days <= 14;
+                    } else if (currentDeadlineBand === 'over20') {
+                        matchDeadline = days > 20;
+                    }
+                }
+
+                // Scrape date: which run discovered this tender
+                let matchDate = true;
+                if (currentDate !== 'all') {
+                    const seen = t.first_seen || '';
+                    matchDate = currentDate === 'unknown' ? !seen : seen === currentDate;
+                }
+
+                return matchKeyword && matchStatus && matchSearch && matchRec && matchBL && matchVal && matchDeadline && matchDate;
             });
 
             // Sort logic
@@ -2904,7 +3372,11 @@
                         // Score Badge (Risk / Phase 1)
                         let riskClass = 'score-medium';
                         let scoreText = '';
-                        if (analysis.score_scale === 100) {
+                        // BE-26: card_only = no PDF; Fit scored from card metadata, Risk unknown
+                        const cardOnly = analysis.analysis_status === 'card_only' || analysis.score === null || analysis.score === undefined;
+                        if (cardOnly) {
+                            scoreText = '';
+                        } else if (analysis.score_scale === 100) {
                             const shortlistMin = (scoringConfig && scoringConfig.status_thresholds) ? scoringConfig.status_thresholds.shortlist_min : 70;
                             const rejectMax = (scoringConfig && scoringConfig.status_thresholds) ? scoringConfig.status_thresholds.reject_max : 40;
                             if (analysis.score >= shortlistMin) riskClass = 'score-high';
@@ -2932,13 +3404,26 @@
                             priorityBadge = `<span class="score-badge ${prClass}" style="font-weight: 700;" title="Blended best-match ranking (Fit + Risk)">⭐ ${analysis.priority_score}</span>`;
                         }
 
+                        const riskBadge = cardOnly
+                            ? `<span class="score-badge" style="background: rgba(156, 163, 175, 0.15); color: #9ca3af; border-color: rgba(156, 163, 175, 0.3);" title="No RFP PDF — Fit scored from card metadata; tender terms (Risk) unknown">No PDF</span>`
+                            : `<span class="score-badge ${riskClass}">${scoreText}</span>`;
                         scoreBadge = `
                             <div style="display: flex; gap: 0.35rem; align-items: center;">
                                 ${priorityBadge}
                                 ${fitBadge}
-                                <span class="score-badge ${riskClass}">${scoreText}</span>
+                                ${riskBadge}
                             </div>
                         `;
+                        if (cardOnly) {
+                            reanalyzeBtn = `
+                                <button class="btn btn-secondary" onclick="reanalyzeBid('${tender.bid_no}')" style="padding: 0.45rem 1rem; font-size: 0.8rem; border-color: var(--primary-accent);">
+                                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17" />
+                                    </svg>
+                                    Fetch PDF & Re-analyze
+                                </button>
+                            `;
+                        }
                         
                         if (analysis.confidence !== undefined && analysis.confidence !== null) {
                             const parsed = analysis.parsed_fields || 0;
@@ -3143,11 +3628,16 @@
                     `;
                 }
 
+                // Source Portal Badge
+                const sourceName = tender.source_name || (tender.source_id ? tender.source_id.toUpperCase() : 'GEM');
+                const sourceBadge = `<span class="tag" style="background: rgba(99, 102, 241, 0.15); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.3); font-weight: 700; font-size: 0.72rem; letter-spacing: 0.03em;">🌐 ${sourceName}</span>`;
+
                 return `
                     <div class="tender-card">
                         <div class="tender-header">
                             <div class="tender-title-area">
                                 <div class="tender-tags">
+                                    ${sourceBadge}
                                     <span class="tag tag-id">${tender.bid_no}</span>
                                     ${keywordsList}
                                     ${businessLineTag}
@@ -3211,6 +3701,138 @@
                     </div>
                 `;
             }).join('');
+        }
+
+        // Portals Hub Modal Logic
+        let allSourcesList = [];
+        let activeSourceCategory = 'all';
+
+        async function openSourcesModal() {
+            document.getElementById('sourcesModal').style.display = 'flex';
+            await loadSourcesData();
+        }
+
+        function closeSourcesModal() {
+            document.getElementById('sourcesModal').style.display = 'none';
+        }
+
+        async function loadSourcesData() {
+            try {
+                const res = await fetch('/api/sources');
+                if (!res.ok) throw new Error("Failed to fetch sources");
+                const data = await res.json();
+                allSourcesList = data.sources || [];
+                renderSourcesList();
+            } catch (err) {
+                console.error("Error loading portal sources:", err);
+            }
+        }
+
+        function filterSourceCategory(cat, btnElem) {
+            activeSourceCategory = cat;
+            const container = document.getElementById('sourceCategoryTabs');
+            if (container) {
+                const btns = container.querySelectorAll('button');
+                btns.forEach(b => b.classList.remove('active'));
+            }
+            if (btnElem) btnElem.classList.add('active');
+            renderSourcesList();
+        }
+
+        function renderSourcesList() {
+            const grid = document.getElementById('sourcesGrid');
+            if (!grid) return;
+
+            const searchKw = (document.getElementById('sourceSearchInput').value || '').toLowerCase().trim();
+
+            const filtered = allSourcesList.filter(src => {
+                const nameMatch = (src.name || '').toLowerCase().includes(searchKw) || (src.id || '').toLowerCase().includes(searchKw) || (src.description || '').toLowerCase().includes(searchKw);
+                let catMatch = true;
+                if (activeSourceCategory === 'defence') {
+                    catMatch = (src.category || '').includes('defence') || (src.id || '').includes('def') || (src.id || '').includes('srijan') || (src.id || '').includes('hal') || (src.id || '').includes('bdl');
+                } else if (activeSourceCategory === 'central') {
+                    catMatch = (src.category || '').includes('central') || (src.id || '').includes('cppp') || (src.id || '').includes('ntpc') || (src.id || '').includes('gem');
+                } else if (activeSourceCategory === 'state') {
+                    catMatch = (src.category || '').includes('state') || (src.id || '').includes('state');
+                } else if (activeSourceCategory === 'sourcing') {
+                    catMatch = (src.category || '').includes('sourcing') || (src.id || '').includes('digikey') || (src.id || '').includes('robu');
+                }
+                return nameMatch && catMatch;
+            });
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 2rem; color: var(--text-secondary);">No matching portals found.</div>`;
+                return;
+            }
+
+            grid.innerHTML = filtered.map(src => {
+                const isEnabled = src.enabled !== false;
+                // A portal only actually fetches when it is enabled AND has an
+                // adapter for its engine. `native` = GeM, driven by the main
+                // scrape pipeline rather than the multi-source fan-out.
+                const badge = (text, colour) =>
+                    `<span style="background: ${colour}26; color: ${colour}; border: 1px solid ${colour}4d; font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; white-space: nowrap;">${text}</span>`;
+
+                let statusBadge;
+                if (!isEnabled) {
+                    statusBadge = badge('DISABLED', '#ef4444');
+                } else if (src.native) {
+                    statusBadge = badge('NATIVE', '#818cf8');
+                } else if (src.supported === false) {
+                    statusBadge = badge('NO ADAPTER', '#f59e0b');
+                } else {
+                    statusBadge = badge('ACTIVE', '#10b981');
+                }
+
+                return `
+                    <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 10px; padding: 0.85rem; display: flex; flex-direction: column; justify-content: space-between; gap: 0.6rem;">
+                        <div>
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.25rem;">
+                                <h4 style="margin: 0; font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">${src.name}</h4>
+                                ${statusBadge}
+                            </div>
+                            <p style="margin: 0 0 0.4rem 0; font-size: 0.75rem; color: var(--text-secondary); line-height: 1.35;">${src.description || 'Monitored e-Procurement Portal'}</p>
+                            <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
+                                <span style="font-size: 0.68rem; font-weight: 600; text-transform: uppercase; background: rgba(99,102,241,0.1); color: #818cf8; padding: 1px 5px; border-radius: 3px;">${src.category}</span>
+                                <span style="font-size: 0.68rem; color: var(--text-secondary);">Engine: <strong>${src.engine}</strong></span>
+                            </div>
+                            ${(isEnabled && src.supported === false && !src.native)
+                                ? `<p style="margin: 0.35rem 0 0 0; font-size: 0.68rem; color: #f59e0b;">Not scraped: ${src.blocked_reason || `no adapter for the <strong>${src.engine}</strong> engine yet.`}</p>`
+                                : ''}
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.5rem; margin-top: 0.25rem;">
+                            <a href="${src.url}" target="_blank" style="font-size: 0.75rem; color: #60a5fa; text-decoration: none; display: flex; align-items: center; gap: 0.2rem;">
+                                🌐 Open Portal
+                            </a>
+                            <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; font-size: 0.78rem; color: var(--text-primary); font-weight: 500;">
+                                <input type="checkbox" ${isEnabled ? 'checked' : ''} onchange="toggleSourceStatus('${src.id}', this.checked)" style="width: 15px; height: 15px; cursor: pointer;">
+                                Enable
+                            </label>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function toggleSourceStatus(sourceId, enabled) {
+            try {
+                const res = await fetch('/api/sources', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: sourceId, enabled: enabled })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const found = allSourcesList.find(s => s.id === sourceId);
+                    if (found) found.enabled = enabled;
+                    renderSourcesList();
+                } else {
+                    alert(data.error || "Failed to update source");
+                }
+            } catch (err) {
+                console.error("Error toggling source:", err);
+            }
         }
     </script>
 </body>

@@ -13,8 +13,12 @@ paths.ensure_dirs()
 logging_setup.setup_logging()
 
 import scraper  # noqa: E402
+from gemsentry.sources import SourceRegistry  # noqa: E402
 
 logger = logging.getLogger("gemsentry")
+
+# One registry for the process; config/sources.json is re-read on demand.
+source_registry = SourceRegistry()
 
 app = Flask(__name__, static_folder=".", static_url_path="")
 
@@ -39,10 +43,15 @@ def add_log(message):
     logger.info("%s", message)
 
 
-def run_scraper_thread(keywords, max_pages, sort_order):
+def run_scraper_thread(keywords, max_pages, sort_order, target_count=None, min_days_left=None, max_days_left=None):
     global scrape_status
     try:
-        add_log(f"Starting background scrape for {len(keywords)} keyword(s)...")
+        if target_count:
+            add_log(f"Starting background scrape for {len(keywords)} keyword(s) with target goal: {target_count} tenders per keyword in [{min_days_left}-{max_days_left}] days window...")
+        elif min_days_left is not None:
+            add_log(f"Starting background scrape for {len(keywords)} keyword(s) sorted by '{sort_order}' (filtering tenders closing in < {min_days_left} days)...")
+        else:
+            add_log(f"Starting background scrape for {len(keywords)} keyword(s) sorted by '{sort_order}'...")
 
         # Scraper logs via logger; BufferHandler fills live buffer.
         # Optional callback reserved for future UI hooks (no re-log).
@@ -54,7 +63,23 @@ def run_scraper_thread(keywords, max_pages, sort_order):
             max_pages=max_pages,
             sort_order=sort_order,
             log_callback=scraper_log_callback,
+            target_count=target_count,
+            min_days_left=min_days_left,
+            max_days_left=max_days_left,
         )
+
+        # Fan out to the non-GeM portals (DefProc, BEL, CPPP, NTPC, states...).
+        try:
+            source_registry.reload_sources()
+            runnable = source_registry.runnable_adapters()
+            if runnable:
+                add_log(f"Querying {len(runnable)} external portal(s) in parallel...")
+                extra_tenders = source_registry.fetch_from_all_active(keywords, max_pages=max_pages)
+                if extra_tenders:
+                    add_log(f"Multi-source portals returned {len(extra_tenders)} unique tenders.")
+                    new_count += scraper.ingest_external_tenders(extra_tenders)
+        except Exception as ms_err:
+            add_log(f"Multi-source fetch error: {ms_err}")
 
         with status_lock:
             # Capture session path before scraper's finally clears handler
@@ -63,7 +88,7 @@ def run_scraper_thread(keywords, max_pages, sort_order):
             if sess:
                 scrape_status["log_session_path"] = paths.repo_relative(sess)
 
-        add_log(f"Scraping completed. Discovered {new_count} new tenders.")
+        add_log(f"Scraping completed. Discovered {new_count} total new tenders across all portals.")
         with status_lock:
             scrape_status["status"] = "idle"
             scrape_status["new_count"] = new_count
@@ -163,6 +188,9 @@ def trigger_scrape():
         selected_keywords = data.get("keywords", [])
         max_pages = data.get("max_pages", 2)
         sort_order = data.get("sort_order", "Bid-Start-Date-Latest")
+        target_count = data.get("target_count")
+        min_days_left = data.get("min_days_left")
+        max_days_left = data.get("max_days_left")
 
         if not selected_keywords:
             return jsonify({"error": "No keywords selected."}), 400
@@ -175,7 +203,7 @@ def trigger_scrape():
 
     thread = threading.Thread(
         target=run_scraper_thread,
-        args=(selected_keywords, max_pages, sort_order),
+        args=(selected_keywords, max_pages, sort_order, target_count, min_days_left, max_days_left),
         daemon=True,
     )
     thread.start()
@@ -228,10 +256,82 @@ def update_tender_status():
         tenders_dict = scraper.load_existing_metadata()
         if bid_no in tenders_dict:
             tenders_dict[bid_no]["status"] = new_status
+            # User-set statuses are pinned: rescore/scrape never overwrite them.
+            tenders_dict[bid_no]["status_source"] = "manual"
             scraper.save_metadata(list(tenders_dict.values()))
-            return jsonify({"message": f"Status for bid {bid_no} updated to {new_status}."})
+            scraper.auto_export_summary(*scraper.workspace_paths())
+            return jsonify({"message": f"Status for bid {bid_no} updated to {new_status} (pinned)."})
         else:
             return jsonify({"error": f"Bid {bid_no} not found in database."}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/rescore", methods=["POST"])
+def trigger_rescore():
+    """Re-score all tenders in the active workspace from local data (no network).
+
+    Re-parses local PDFs with current config/profile; falls back to
+    card-metadata scoring when a PDF is missing. Makes config changes
+    take effect immediately instead of 'on next scrape'."""
+    global scrape_status
+    with status_lock:
+        if scrape_status["status"] == "running":
+            return jsonify({"error": "Scraper is already running."}), 400
+        scrape_status["status"] = "running"
+        scrape_status["new_count"] = 0
+        scrape_status["start_time"] = datetime.datetime.now().isoformat()
+        logging_setup.clear_log_buffer()
+
+    data = request.json or {}
+    # Default fast mode: re-derive from stored signals (~instant).
+    # Pass {"reparse": true} to fully re-parse local PDFs.
+    reparse = bool(data.get("reparse", False))
+
+    def run_rescore():
+        global scrape_status
+        try:
+            add_log("Starting local rescore of active workspace...")
+            summary = scraper.rescore_metadata(reparse=reparse)
+            add_log(
+                f"Rescore complete: {summary['total']} tenders. "
+                f"Status: {summary['status_counts']}. "
+                f"Recommendations: {summary['recommendation_counts']}."
+            )
+        except Exception as e:
+            add_log(f"Rescore failed: {e}")
+        finally:
+            with status_lock:
+                scrape_status["status"] = "idle"
+
+    threading.Thread(target=run_rescore, daemon=True).start()
+    return jsonify({"message": "Rescore started (local, no network)."})
+
+
+@app.route("/api/clear-workspace", methods=["POST"])
+def clear_workspace():
+    """Reset the ACTIVE profile's workspace: back up + wipe its metadata,
+    downloaded PDFs, and generated report. Other workspaces are untouched.
+    Requires {"confirm": true} so the dashboard must ask the user first."""
+    with status_lock:
+        if scrape_status["status"] == "running":
+            return jsonify({"error": "Scraper is running; wait for it to finish."}), 400
+
+    data = request.json or {}
+    if data.get("confirm") is not True:
+        return jsonify({"error": "Missing confirmation. Send {\"confirm\": true}."}), 400
+
+    try:
+        workspace = scraper.get_active_workspace() or "main"
+        summary = scraper.clear_workspace()
+        return jsonify({
+            "message": (
+                f"Workspace '{workspace}' cleared: {summary['records_removed']} records "
+                f"and {summary['pdfs_removed']} PDFs removed."
+            ),
+            "workspace": workspace,
+            **summary,
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -366,6 +466,31 @@ def get_logs():
             "sessions": sessions,
             "latest_session": latest,
             "tail": tail,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/sources", methods=["GET", "POST"])
+def manage_sources():
+    """GET configured multi-source portals or POST toggle enabled status."""
+    try:
+        if request.method == "POST":
+            data = request.json or {}
+            source_id = data.get("id")
+            enabled = data.get("enabled", True)
+            if not source_id:
+                return jsonify({"error": "Missing source id"}), 400
+            success = source_registry.toggle_source(source_id, enabled)
+            if not success:
+                return jsonify({"error": f"Unknown source id '{source_id}'"}), 404
+            return jsonify({"success": True, "id": source_id, "enabled": bool(enabled)})
+
+        sources = source_registry.get_all_sources()
+        return jsonify({
+            "sources": sources,
+            "total": len(sources),
+            "runnable": len(source_registry.runnable_adapters()),
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
