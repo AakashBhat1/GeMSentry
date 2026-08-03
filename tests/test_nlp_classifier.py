@@ -59,6 +59,28 @@ class TestKeywordHit(unittest.TestCase):
         self.assertEqual(count_hits("ai", "maintenance repair air paint chair"), 0)
         self.assertEqual(count_hits("", "abc"), 0)
 
+    def test_acronym_part_number_is_not_a_hit(self):
+        """PLC-337 / API 8810 are model numbers, not product keywords."""
+        self.assertFalse(keyword_hit("plc", "Prodot Laser Cartridge PLC-337"))
+        self.assertFalse(keyword_hit("api", "ANGLE POSITION INDICATOR MODEL NO API 8810"))
+        self.assertFalse(keyword_hit("api", "API 600 GATE VALVE"))
+        self.assertFalse(keyword_hit("api", "API 6D Ball Valve 12 Inch"))
+        self.assertEqual(count_hits("plc", "cartridge PLC-337 and more"), 0)
+
+    def test_real_acronym_product_still_hits(self):
+        """Bare product acronyms and capacity forms must keep matching."""
+        self.assertTrue(keyword_hit("plc", "Schneider Electric PLC"))
+        self.assertTrue(keyword_hit("plc", "Integrated PLC based automation system"))
+        self.assertTrue(keyword_hit("plc", "PLC-SCADA for Vacuum Casting System"))
+        self.assertTrue(keyword_hit("plc", "PLC CPU 64 STEPS"))
+        self.assertTrue(keyword_hit("api", "INTEGRATION OF APPLICATION THROUGH API"))
+        self.assertTrue(keyword_hit("ups", "Online UPS 10 KVA with battery bank"))
+        self.assertTrue(keyword_hit("ups", "UPS 600 VA"))
+        self.assertTrue(keyword_hit("ups", "logic card microtech for UPS 1KVA"))
+        self.assertTrue(keyword_hit("nvr", "NVR 16 channel for CCTV"))
+        self.assertTrue(keyword_hit("mcb", "MCB 32A"))
+        self.assertTrue(keyword_hit("mcb", "MCB 32 A"))
+
 
 class TestSubstringFalsePositives(unittest.TestCase):
     """The defect that put 575 of 2555 real bids into AI & Data Science."""

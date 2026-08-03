@@ -227,6 +227,41 @@ def test_undeclared_acronyms_are_still_coincidence():
     assert sub == 0, f"lone 'CRM' scored {sub} as {bl}"
 
 
+# --- Part-number guard (PLC-337 / API 8810) ---------------------------------
+
+def test_part_number_acronym_is_not_relevance():
+    """
+    Short acronyms glued to model / standard numbers are SKUs, not products.
+    Real corpus false positives: printer cartridge PLC-337, indicator API 8810,
+    valve standards API 600 / API 6D.
+    """
+    for title in (
+        "Prodot Laser Cartridge PLC-337,Image King Power of Clarity 88A",
+        "TWO CHANNEL ANGLE POSITION INDICATOR MODEL NO API 8810",
+        "API 600 GATE VALVE",
+        "API 6D Ball Valve 12 Inch X 150 Series",
+        "Half inch Air powered impact wrench API 7407",
+    ):
+        sub, bl = relevance(title)
+        assert sub == 0, f"part-number title scored {sub} as {bl}: {title!r}"
+
+
+def test_real_plc_and_capacity_still_match():
+    """Part-number guard must not erase genuine PLC bids or capacity forms."""
+    for text in (
+        "Schneider Electric PLC",
+        "Integrated PLC based automation system with enclosure panel",
+        "PLC-SCADA for Vacuum Casting System",
+        "PLC CPU 64 STEPS",
+        "Online UPS 10 KVA with battery bank",
+        # mcb alone is a short acronym (lone-acronym guard); pair with relay so
+        # this asserts the part-number guard does not strip "MCB 32A".
+        "RELAY 24V, MCB 32A, FAN BELT",
+    ):
+        sub, bl = relevance(text)
+        assert sub > 0, f"genuine product lost its match: {text!r} -> {sub} {bl}"
+
+
 def test_business_line_cites_only_its_own_keywords():
     """
     Cross-line corroboration pools hits from every business line to decide the
