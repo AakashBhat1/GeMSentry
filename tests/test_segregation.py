@@ -206,6 +206,24 @@ def test_surveillance_bundle_files_under_ai_it():
 
 # --- Splitter ---------------------------------------------------------------
 
+def test_business_line_cites_only_its_own_keywords():
+    """
+    Cross-line corroboration pools hits from every business line to decide the
+    score. The reported evidence must still be the winning line's own
+    keywords: crediting Drone / UAV with "software" is a false audit trail.
+    """
+    _, _, bl = scraper.compute_fit_score(
+        {}, dict(BASE_SIGNALS, item_category="CRIME ANALYTICS AND MAPPING SOFTWARE",
+                 primary_item="CRIME ANALYTICS AND MAPPING SOFTWARE"),
+        {"verdict": "unknown"}, PROFILE, CFG,
+        card_meta={"title": "CRIME ANALYTICS AND MAPPING SOFTWARE"})
+    assert bl is not None
+    line = next(l for l in PROFILE["business_lines"] if l["label"] == bl["label"])
+    own = {k.lower() for k in line["keywords"]}
+    foreign = [k for k in bl["matched_keywords"] if k.lower() not in own]
+    assert not foreign, f"{bl['label']} credited with foreign keywords: {foreign}"
+
+
 def test_split_bid_items():
     assert scraper.split_bid_items("A,B,C", None, None) == ["A", "B", "C"]
     assert scraper.split_bid_items("Single Item", None, None) == []

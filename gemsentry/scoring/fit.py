@@ -290,10 +290,17 @@ def compute_fit_score(analysis, signals, eligibility, profile, cfg, card_meta=No
 
     business_line = None
     if best_line and best_score > 0:
+        # Report only the keywords this line actually owns. Cross-line
+        # corroboration pools hits from every line to decide the score, so the
+        # raw list could credit Drone / UAV with "software" -- a keyword that
+        # line does not have. That is a misleading audit trail in the UI and in
+        # metadata. Scoring above is deliberately left on the pooled set.
+        own_kws = {k.lower() for k in (best_line.get("keywords") or [])}
+        owned = [kw for kw in best_matched if kw.lower() in own_kws]
         business_line = {
             "id": best_line.get("id"),
             "label": best_line.get("label"),
-            "matched_keywords": best_matched
+            "matched_keywords": owned or best_matched,
         }
 
     return fit_score, fit_breakdown, business_line
