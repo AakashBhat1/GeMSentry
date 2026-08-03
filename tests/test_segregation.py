@@ -206,6 +206,27 @@ def test_surveillance_bundle_files_under_ai_it():
 
 # --- Splitter ---------------------------------------------------------------
 
+def test_promoted_acronyms_match_on_their_own():
+    """
+    pcb / plc / fuse / iot / gis are unambiguous in this company's domain, so
+    they are declared strong_keywords and count as evidence alone. Without
+    that they hit the lone-acronym guard and genuine bids scored zero:
+    "H.265 Codec PCB", "SWITCH FUSE UNIT FN400", "IOT EDGE GATEWAY".
+    """
+    for text in ("IOT EDGE GATEWAY",
+                 "SWITCH FUSE UNIT FN400",
+                 "RF AMPLIFIER PCB / TEST BOARD 75 MHZ",
+                 "GIS related Survey Services"):
+        sub, bl = relevance(text)
+        assert sub >= 1.0, f"{text!r} scored {sub} as {bl}"
+
+
+def test_undeclared_acronyms_are_still_coincidence():
+    """Promoting five terms must not disarm the guard for the rest."""
+    sub, bl = relevance("Certified Reference Material CRM for laboratory use")
+    assert sub == 0, f"lone 'CRM' scored {sub} as {bl}"
+
+
 def test_business_line_cites_only_its_own_keywords():
     """
     Cross-line corroboration pools hits from every business line to decide the

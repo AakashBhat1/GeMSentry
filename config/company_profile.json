@@ -46,7 +46,8 @@
         "unmanned aerial",
         "quadcopter",
         "multirotor",
-        "aerostat"
+        "aerostat",
+        "gis"
       ],
       "keywords": [
         "drone",
@@ -137,7 +138,9 @@
         "surveillance system",
         "command and control",
         "e-governance",
-        "e governance"
+        "e governance",
+        "plc",
+        "iot"
       ],
       "keywords": [
         "artificial intelligence",
@@ -331,7 +334,9 @@
       "strong_keywords": [
         "wiring harness",
         "printed circuit board",
-        "smps"
+        "smps",
+        "pcb",
+        "fuse"
       ],
       "keywords": [
         "resistor",
@@ -574,14 +579,14 @@
   "active_preset": "main",
   "value_presets": {
     "main": {
-      "label": "Main (\u20b95L\u2013\u20b95Cr)",
+      "label": "Main (₹5L–₹5Cr)",
       "sweet_min_inr": 500000,
       "sweet_max_inr": 50000000,
       "keywords": [],
       "workspace": ""
     },
     "small_supply": {
-      "label": "Small Supply (\u20b960k\u2013\u20b92L)",
+      "label": "Small Supply (₹60k–₹2L)",
       "sweet_min_inr": 60000,
       "sweet_max_inr": 200000,
       "keywords": [
