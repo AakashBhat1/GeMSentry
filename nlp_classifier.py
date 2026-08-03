@@ -339,6 +339,14 @@ WEIGHT_KEYWORD_HINT = 1.0
 WEIGHT_PDF_PER_HIT = 1.0
 MAX_PDF_SCORE_PER_KEYWORD = 3.0
 
+# Total PDF contribution per domain, capped below the title weight. An RFP body
+# is mostly boilerplate -- terms, delivery, inspection, warranty -- that name
+# many domains in passing. Uncapped, 20 keywords x 3.0 let the body outvote the
+# title 60 to 3.5, which filed "Toilet Paper Roll type 2" under Medical &
+# Laboratory and "Dig in post 1.6 mtr" under Electronics. The title is the
+# bid's actual subject; the body only corroborates.
+MAX_PDF_SCORE_PER_DOMAIN = 3.0
+
 # A product noun ("quadcopter") identifies what is being bought; a purpose word
 # ("surveillance") qualifies many domains. Without this, "Repair of Quadcopter
 # for High Altitude Surveillance" tied 3.5-3.5 and was decided by dict order.
@@ -355,7 +363,9 @@ def score_domain(keywords, title, category_text, keyword_hint, pdf_text, strong=
     Matching is whole-word: substring matching put 690 bids in AI & Data
     Science because "ai" sits inside maintenance, repair, air, paint and chair.
     """
-    score = 0.0
+    subject_score = 0.0   # title + category: what the bid is actually for
+    hint_score = 0.0      # the search term that found it (noisy)
+    pdf_score = 0.0       # RFP body: corroboration only
     reasons = []
     strong_terms = {normalize_text(t) for t in strong}
     for keyword in keywords:
@@ -366,28 +376,34 @@ def score_domain(keywords, title, category_text, keyword_hint, pdf_text, strong=
         in_subject = False
         if keyword_hit(term, title):
             in_subject = True
-            score += WEIGHT_TITLE
+            subject_score += WEIGHT_TITLE
             reasons.append(f"Title: '{keyword}'")
 
         if keyword_hit(term, category_text):
             in_subject = True
-            score += WEIGHT_CATEGORY
+            subject_score += WEIGHT_CATEGORY
             reasons.append(f"Category: '{keyword}'")
 
         if in_subject and term in strong_terms:
-            score += STRONG_KEYWORD_BONUS
+            subject_score += STRONG_KEYWORD_BONUS
             reasons.append(f"Product term: '{keyword}'")
 
         if keyword_hit(term, keyword_hint):
-            score += WEIGHT_KEYWORD_HINT
+            hint_score += WEIGHT_KEYWORD_HINT
             reasons.append(f"Keyword hint: '{keyword}'")
 
         pdf_hits = count_hits(term, pdf_text)
         if pdf_hits:
-            score += min(pdf_hits * WEIGHT_PDF_PER_HIT, MAX_PDF_SCORE_PER_KEYWORD)
+            pdf_score += min(pdf_hits * WEIGHT_PDF_PER_HIT, MAX_PDF_SCORE_PER_KEYWORD)
             reasons.append(f"PDF content ({pdf_hits}x): '{keyword}'")
 
-    return score, reasons
+    # The RFP body only corroborates a subject match. On its own it would
+    # classify bids whose title says nothing about the domain -- boilerplate
+    # put "Toilet Paper Roll type 2" in Medical and "Dig in post 1.6 mtr" in
+    # Electronics purely on body text.
+    if subject_score > 0:
+        return subject_score + hint_score + min(pdf_score, MAX_PDF_SCORE_PER_DOMAIN), reasons
+    return hint_score, [r for r in reasons if r.startswith("Keyword hint")]
 
 
 def classify_tender(

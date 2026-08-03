@@ -162,6 +162,37 @@ class TestBusinessLineCoverage(unittest.TestCase):
                             "audio_video_and_display")
 
 
+class TestPdfTextIsCorroborationOnly(unittest.TestCase):
+    """RFP body text may support a subject match; it may never create one.
+
+    An RFP body is mostly boilerplate (terms, delivery, inspection, warranty)
+    that names many domains in passing. Left uncapped and unqualified it filed
+    "Toilet Paper Roll type 2" under Medical & Laboratory.
+    """
+
+    BOILERPLATE = ("terms and conditions delivery inspection warranty "
+                   "medical device laboratory equipment incubator autoclave "
+                   "server database cable connector power supply ups")
+
+    def test_body_text_alone_cannot_classify(self):
+        for title in ("Toilet Paper Roll type 2", "Dig in post 1 point 6 mtr"):
+            result = N.classify_tender({"title": title}, pdf_text=self.BOILERPLATE)
+            self.assertEqual(result["domain"], "uncategorized_general", title)
+
+    def test_body_text_corroborates_a_real_subject_match(self):
+        bare = N.classify_tender({"title": "Online UPS 10 KVA"})
+        with_pdf = N.classify_tender({"title": "Online UPS 10 KVA"},
+                                     pdf_text="ups battery rectifier power supply cable")
+        self.assertEqual(with_pdf["domain"], "electronics_and_electrical")
+        self.assertGreater(with_pdf["raw_score"], bare["raw_score"])
+
+    def test_body_contribution_is_capped_below_the_title(self):
+        """20 keywords x 3.0 must not outvote a 3.5 title match."""
+        flooded = " ".join(["medical device"] * 40 + ["incubator"] * 40 + ["autoclave"] * 40)
+        result = N.classify_tender({"title": "Online UPS 10 KVA"}, pdf_text=flooded)
+        self.assertEqual(result["domain"], "electronics_and_electrical")
+
+
 class TestConfidenceAndThresholds(unittest.TestCase):
     def test_weak_evidence_falls_back_to_uncategorized(self):
         result = classify("Skid mounted HP Dosing System")
