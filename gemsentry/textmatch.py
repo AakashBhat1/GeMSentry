@@ -11,6 +11,12 @@ import re
 from functools import lru_cache
 
 
+# Shortest stem for which a trailing 's' is assumed to be a plural rather than
+# part of the word. "cables" -> "cable" (5) is a plural; "ups" -> "up" (2) and
+# "gas" -> "ga" (2) are not.
+_MIN_PLURAL_STEM = 4
+
+
 def _is_word_char(char: str) -> bool:
     return char.isalnum() or char == "_"
 
@@ -29,13 +35,23 @@ def _pattern(keyword: str) -> "re.Pattern":
     end in punctuation still work: ``\\b`` after the '+' in "c++" can never
     match, since there is no word character for the boundary to sit against.
     """
-    term = re.escape(keyword)
     prefix = r"(?<!\w)" if _is_word_char(keyword[0]) else ""
-    if _is_word_char(keyword[-1]) and not keyword.endswith("s"):
-        suffix = r"s?(?!\w)"
-    else:
-        suffix = r"(?!\w)"
-    return re.compile(prefix + term + suffix)
+
+    if not _is_word_char(keyword[-1]):
+        return re.compile(prefix + re.escape(keyword) + r"(?!\w)")
+
+    if not keyword.endswith("s"):
+        return re.compile(prefix + re.escape(keyword) + r"s?(?!\w)")
+
+    # Keyword already ends in 's'. If the stem is long enough to be a real
+    # word, treat the 's' as a plural and match both forms, so the keyword
+    # "cables" still finds "cable" (33 downloaded bids missed it). Short
+    # stems keep the exact match: "ups" must not become "up", which is how a
+    # gym bid ("Sit up bench") once scored as Power Supply.
+    stem = keyword[:-1]
+    if len(stem) >= _MIN_PLURAL_STEM:
+        return re.compile(prefix + re.escape(stem) + r"s?(?!\w)")
+    return re.compile(prefix + re.escape(keyword) + r"(?!\w)")
 
 
 def keyword_hit(keyword: str, text: str) -> bool:

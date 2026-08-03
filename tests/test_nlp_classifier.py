@@ -121,6 +121,47 @@ class TestTruePositives(unittest.TestCase):
             self.assertEqual(classify(title)["domain"], expected, title)
 
 
+class TestBusinessLineCoverage(unittest.TestCase):
+    """The folder taxonomy must cover the company's actual business lines.
+
+    Solar and Smart Metering are live business lines but had no domain, so
+    those bids -- which do pass the fit gate and get downloaded -- were all
+    filed under "uncategorized". Titles below are real downloaded tenders.
+    """
+
+    CASES = [
+        ("Supply and Installation of 100 KW Rooftop Solar PV Plant", "solar_and_renewable"),
+        ("SITC of Solar Street Light with MPPT charge controller", "solar_and_renewable"),
+        ("Three Phase Smart Energy Meter with DLMS protocol", "smart_metering_and_ami"),
+        ("CT Operated Meter for HT consumers", "smart_metering_and_ami"),
+        ("Pin Attenuator (A1)", "rf_and_communication"),
+        ("Antenna 10 to 12 DBI 400 to 500 Mhz", "rf_and_communication"),
+        ("Wall Mount Speaker", "audio_video_and_display"),
+        ("Chairman Unit Microphone", "audio_video_and_display"),
+        ("SITC of Chip on Board LED Video Wall", "audio_video_and_display"),
+    ]
+
+    def test_new_domains_classify_real_downloaded_bids(self):
+        for title, expected in self.CASES:
+            self.assertEqual(classify(title)["domain"], expected, title)
+
+    def test_every_business_line_has_a_home(self):
+        """No business line should have to fall back to uncategorized."""
+        for title in ("Surveillance Drone for defence", "Online UPS 10 KVA",
+                      "CCTV IP Camera", "Rooftop Solar PV plant",
+                      "Smart Energy Meter DLMS", "Supply of cable and connectors"):
+            self.assertNotEqual(classify(title)["domain"], "uncategorized_general", title)
+
+    def test_plural_keyword_matches_singular(self):
+        """The keyword is "cables"; 33 downloaded bids say "cable"."""
+        self.assertEqual(classify("RG 9 Marine Cable for TVRO")["domain"],
+                         "electronics_and_electrical")
+
+    def test_tv_does_not_match_inside_tvro(self):
+        self.assertNotEqual(classify("RG 9 Marine Cable for TVRO")["domain"],
+                            "audio_video_and_display")
+
+
 class TestConfidenceAndThresholds(unittest.TestCase):
     def test_weak_evidence_falls_back_to_uncategorized(self):
         result = classify("Skid mounted HP Dosing System")

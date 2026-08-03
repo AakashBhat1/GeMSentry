@@ -97,7 +97,8 @@ CANONICAL_DOMAINS: Dict[str, Dict[str, Any]] = {
             "data center", "storage array", "virtual machine", "hypervisor",
             "disaster recovery", "san storage", "nas storage", "it hardware",
             "rack server", "blade server", "database management", "database server",
-            "compute cluster", "workstation", "desktop computer", "laptop"
+            "compute cluster", "workstation", "desktop computer", "laptop",
+            "random access memory", "ram module", "memory module", "operating system", "hard disk", "ssd", "oracle database", "database", "processor", "network switch", "router", "printer", "scanner"
         ]
     },
     "biometrics_and_surveillance": {
@@ -117,7 +118,8 @@ CANONICAL_DOMAINS: Dict[str, Dict[str, Any]] = {
             "biometric", "facial recognition", "fingerprint", "iris scanner",
             "access control", "cctv", "surveillance", "ip camera",
             "video analytics", "anpr", "rfid", "smart card",
-            "turnstile", "boom barrier", "visitor management", "frs"
+            "turnstile", "boom barrier", "visitor management", "frs",
+            "dash camera", "body worn camera", "dome camera", "bullet camera", "nvr", "dvr"
         ]
     },
     "automation_and_robotics": {
@@ -159,7 +161,8 @@ CANONICAL_DOMAINS: Dict[str, Dict[str, Any]] = {
         ],
         "keywords": [
             "power supply", "ups", "battery", "inverter", "rectifier", "rectifiers",
-            "resistor", "resistors", "amplifier", "amplifiers", "cables",
+            "resistor", "resistors", "amplifier", "amplifiers", "cable", "cables",
+            "connector", "connectors", "terminal block", "busbar",
             "electrical equipment", "transformer", "switchgear", "pcb",
             "circuit board", "harness", "wire", "voltage stabilizer", "dg set"
         ]
@@ -178,7 +181,8 @@ CANONICAL_DOMAINS: Dict[str, Dict[str, Any]] = {
             "industrial lab testing", "industrial mechanical", "valves", "piping",
             "hvac", "pump", "generator", "machining", "fabrication",
             "metallurgy", "test equipment", "pressure vessel", "compressor",
-            "pipe fittings", "lathe machine", "hydraulic"
+            "pipe fittings", "lathe machine", "hydraulic",
+            "ball bearing", "bearing", "gearbox", "conveyor"
         ]
     },
     "medical_and_lab": {
@@ -196,7 +200,8 @@ CANONICAL_DOMAINS: Dict[str, Dict[str, Any]] = {
             "medical equipment", "healthcare", "lab equipment", "hospital",
             "diagnostic", "patient monitor", "ventilator", "surgical",
             "pharmaceutical", "laboratory testing", "microscope", "centrifuge",
-            "reagent", "medical device", "ultrasound"
+            "reagent", "medical device", "ultrasound",
+            "deep freezer", "laboratory oven", "incubator", "autoclave", "laboratory equipment", "immunization"
         ]
     },
     "civil_and_facility_maintenance": {
@@ -228,6 +233,65 @@ CANONICAL_DOMAINS: Dict[str, Dict[str, Any]] = {
             "logistics services", "transportation", "freight", "supply chain",
             "agri supplies", "agricultural", "tarpaulins", "stationery",
             "general supplies", "packaging material", "cargo", "warehousing"
+        ]
+    },
+    "solar_and_renewable": {
+        "label": "Solar & Renewable Energy",
+        "description": "Solar PV, Rooftop Solar, EPC, Inverters, Renewable Power Plants",
+        "strong": [
+            "solar", "photovoltaic", "solar pv", "rooftop solar", "solar plant",
+            "solar power plant", "windmill", "wind turbine", "solar epc"
+        ],
+        "keywords": [
+            "solar", "solar pv", "photovoltaic", "solar panel", "solar module",
+            "rooftop solar", "solar plant", "solar power plant", "solar epc",
+            "solar street light", "solar pump", "renewable energy", "grid tied",
+            "off grid", "net metering", "windmill", "wind turbine", "biogas",
+            "solar inverter", "mppt", "string inverter"
+        ]
+    },
+    "smart_metering_and_ami": {
+        "label": "Smart Metering & AMI",
+        "description": "Smart Energy Meters, AMI/AMR, CT/PT Meters, Prepaid Metering, DLMS",
+        "strong": [
+            "smart meter", "energy meter", "ami", "amr", "prepaid meter",
+            "dlms", "ct operated meter", "ht meter", "net meter"
+        ],
+        "keywords": [
+            "smart meter", "energy meter", "electricity meter", "ami", "amr",
+            "prepaid meter", "postpaid meter", "dlms", "ct operated meter",
+            "ct meter", "ht meter", "lt meter", "net meter", "meter reading",
+            "metering", "hes", "mdm", "meter data", "static meter",
+            "three phase meter", "single phase meter"
+        ]
+    },
+    "rf_and_communication": {
+        "label": "RF & Communication",
+        "description": "RF Components, Antennas, Transceivers, Radios, Waveguides, Telecom Links",
+        "strong": [
+            "antenna", "transceiver", "waveguide", "attenuator", "rf amplifier",
+            "coaxial", "vhf", "uhf", "satcom", "base station"
+        ],
+        "keywords": [
+            "antenna", "transceiver", "waveguide", "attenuator", "coaxial",
+            "rf amplifier", "radio set", "vhf", "uhf", "satcom", "satellite link",
+            "base station", "repeater", "modem", "leased line", "bandwidth",
+            "optical fibre", "optical fiber", "ofc", "telecom"
+        ]
+    },
+    "audio_video_and_display": {
+        "label": "Audio, Video & Display",
+        "description": "LED Video Walls, Displays, Projectors, PA Systems, Conference Audio",
+        "strong": [
+            "video wall", "led display", "projector", "public address",
+            "conference system", "loudspeaker", "digital signage"
+        ],
+        "keywords": [
+            "video wall", "led display", "led video", "display panel", "projector",
+            "public address", "pa system", "conference system", "microphone",
+            "loudspeaker", "speaker", "amplifier system", "digital signage",
+            "video conferencing", "interactive panel", "smart board",
+            "tv", "television", "smart tv", "led tv", "set top box", "monitor"
         ]
     },
     "uncategorized_general": {
