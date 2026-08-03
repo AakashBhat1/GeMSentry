@@ -48,6 +48,11 @@ data/pdf_text_cache/
 # Atomic-write temp files (cache entries, config saves)
 *.tmp
 
+# One-off audit / analysis dumps — regenerate from tools/, don't commit
+audit_*.json
+final_audit_*.json
+tenders_analysis.json
+
 # Logs (keep directory structure via .gitkeep)
 logs/**
 !logs/.gitkeep
