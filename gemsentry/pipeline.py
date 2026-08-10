@@ -16,7 +16,7 @@ from gemsentry.constants import logger
 from gemsentry.dateparse import check_date_policy
 from gemsentry.defaults import DEFAULT_SCORING_CONFIG
 from gemsentry.profile import get_active_workspace, load_company_profile, workspace_paths
-from gemsentry.scoring.dates import evaluate_date_window
+from gemsentry.scoring.dates import evaluate_date_window, resolve_min_days_left
 from gemsentry.scoring.verdict import apply_verdict, finalize_auto_reject
 from gemsentry.sources.gem.client import (
     download_pdf_http, download_rfp_pdf, fetch_keyword_bids_api, parse_cards,
@@ -129,6 +129,8 @@ def scrape(
         paths.ensure_dirs()
         # Resolve the active preset's isolated workspace (e.g. 'personel').
         active_profile = load_company_profile()
+        scoring_cfg = load_scoring_config()
+        min_days_left = resolve_min_days_left(min_days_left, scoring_cfg)
         workspace = get_active_workspace(active_profile)
         tenders_dir, downloads_dir = workspace_paths(workspace)
         os.makedirs(downloads_dir, exist_ok=True)
@@ -222,8 +224,8 @@ def scrape(
             # Download RFP documents
             logger.info(f"\n--- Checking RFP Downloads for {len(all_tenders)} total tenders ---")
             tenders_list = list(all_tenders.values())
-            # Load scoring config + company profile once per scrape run
-            scoring_cfg = load_scoring_config()
+            # Reuse the same config/profile snapshot used by discovery so the
+            # remaining-time gate and analysis cannot disagree during a run.
             company_profile = load_company_profile()
             
             # --- BE-27 fast pipeline: plan → parallel fetch → analyze ---
@@ -595,6 +597,15 @@ def ingest_external_tenders(external_tenders, tenders_dir=None, downloads_dir=No
             continue
 
         record = external_tender_to_record(item, now_str)
+        date_info = evaluate_date_window(
+            record.get("start_date"), record.get("end_date"), scoring_cfg
+        )
+        if date_info.get("auto_reject"):
+            logger.debug(
+                "Skipping external tender %s: %s",
+                bid_no, date_info.get("detail") or "outside actionable date window",
+            )
+            continue
         analysis = analyze_from_card(record, scoring_cfg, company_profile)
         record["analysis"] = analysis
         record["score"] = analysis.get("score")

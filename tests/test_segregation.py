@@ -204,6 +204,17 @@ def test_surveillance_bundle_files_under_ai_it():
     assert sub > 0, "surveillance bundle lost its match entirely"
 
 
+def test_first_real_subject_breaks_tie_in_prose_like_bundle_title():
+    title = (
+        "Supply, Installation and Commissioning of VIRDI UBio-X face recognition "
+        "device or equivalent for outdoor use.,Design, development and Installation "
+        "of Compatible software.,Integration - API Development.,Charges for hosting"
+    )
+    sub, bl = relevance(title)
+    assert sub >= 1.0
+    assert bl == "biometrics", f"face-recognition device filed under {bl}"
+
+
 # --- Splitter ---------------------------------------------------------------
 
 def test_promoted_acronyms_match_on_their_own():

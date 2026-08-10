@@ -10,6 +10,9 @@ if ROOT not in sys.path:
 
 import paths  # noqa: E402
 from gemsentry.sources import NATIVE_ENGINES, SourceRegistry  # noqa: E402
+from gemsentry.sources.attribution import (  # noqa: E402
+    UNKNOWN_SOURCE_ID, UNKNOWN_SOURCE_NAME, annotate_sources, build_host_index, derive_source,
+)
 from gemsentry.sources.base import UnsupportedAdapter  # noqa: E402
 from gemsentry.sources.gepnic import GePNICAdapter  # noqa: E402
 
@@ -222,6 +225,72 @@ class TestGePNICParsing(unittest.TestCase):
         self.assertEqual(adapter.parse_listing("", []), [])
         self.assertEqual(adapter.parse_listing("<html><body>nope</body></html>", []), [])
         self.assertEqual(adapter.parse_listing("<table><tr><td>a</td></tr></table>", []), [])
+
+
+SOURCES_FIXTURE = [
+    {"id": "gem", "name": "Government e-Marketplace (GeM)", "url": "https://gem.gov.in/"},
+    {"id": "defproc", "name": "Defence eProcurement Portal", "url": "https://defproc.gov.in/nicgep/app"},
+    {"id": "isro", "name": "ISRO e-Procurement Portal", "url": "https://eproc.isro.gov.in/"},
+    {"id": "cppp_cg", "name": "CPPP - CG", "url": "https://eprocure.gov.in/eprocure/app"},
+    {"id": "cppp_pub", "name": "CPPP e-Publish", "url": "https://eprocure.gov.in/epublish/app"},
+]
+
+
+class SourceAttributionTest(unittest.TestCase):
+    """Legacy records carry no source_id; the portal filter still has to work."""
+
+    def setUp(self):
+        self.index = build_host_index(SOURCES_FIXTURE)
+
+    def test_explicit_source_id_is_authoritative(self):
+        record = {"source_id": "defproc", "source_name": "Defence eProcurement Portal",
+                  "bid_no": "GEM/2026/B/1", "pdf_url": "https://bidplus.gem.gov.in/x"}
+        self.assertEqual(derive_source(record, self.index),
+                         ("defproc", "Defence eProcurement Portal"))
+
+    def test_subdomain_of_a_configured_host_attributes_to_that_portal(self):
+        """GeM serves documents from bidplus.gem.gov.in; config lists gem.gov.in."""
+        record = {"bid_no": "GEM/2026/B/7577626",
+                  "pdf_url": "https://bidplus.gem.gov.in/showbidDocument/123"}
+        self.assertEqual(derive_source(record, self.index)[0], "gem")
+
+    def test_host_wins_over_the_bid_number_prefix(self):
+        record = {"bid_no": "GEM/2026/B/9", "pdf_url": "https://eproc.isro.gov.in/tender/9"}
+        self.assertEqual(derive_source(record, self.index)[0], "isro")
+
+    def test_gem_bid_prefix_attributes_records_that_have_no_document_url(self):
+        record = {"bid_no": "GEM/2026/B/7577626", "pdf_url": ""}
+        self.assertEqual(derive_source(record, self.index),
+                         ("gem", "Government e-Marketplace (GeM)"))
+
+    def test_unattributable_records_get_their_own_bucket(self):
+        record = {"bid_no": "2026_NAVY_781162_1", "pdf_url": "https://unheard-of.example/x"}
+        self.assertEqual(derive_source(record, self.index),
+                         (UNKNOWN_SOURCE_ID, UNKNOWN_SOURCE_NAME))
+
+    def test_shared_host_resolves_to_the_first_configured_portal(self):
+        record = {"bid_no": "X/1", "pdf_url": "https://eprocure.gov.in/epublish/app?id=4"}
+        self.assertEqual(derive_source(record, self.index)[0], "cppp_cg")
+
+    def test_annotate_leaves_the_caller_records_untouched(self):
+        records = [{"bid_no": "GEM/2026/B/1", "pdf_url": "https://bidplus.gem.gov.in/d/1"}]
+        annotated = annotate_sources(records, SOURCES_FIXTURE)
+        self.assertEqual(annotated[0]["source_id"], "gem")
+        self.assertNotIn("source_id", records[0])
+
+    def test_annotate_covers_every_record(self):
+        records = [
+            {"bid_no": "GEM/2026/B/1", "pdf_url": "https://bidplus.gem.gov.in/d/1"},
+            {"bid_no": "2026_X_1", "pdf_url": "https://defproc.gov.in/nicgep/app?id=1"},
+            {"bid_no": "junk", "pdf_url": ""},
+        ]
+        ids = [r["source_id"] for r in annotate_sources(records, SOURCES_FIXTURE)]
+        self.assertEqual(ids, ["gem", "defproc", UNKNOWN_SOURCE_ID])
+
+    def test_malformed_urls_do_not_raise(self):
+        for bad in (None, "", "not a url", "http://", "://broken"):
+            record = {"bid_no": "junk", "pdf_url": bad}
+            self.assertEqual(derive_source(record, self.index)[0], UNKNOWN_SOURCE_ID)
 
 
 if __name__ == "__main__":

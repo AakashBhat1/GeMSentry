@@ -2,7 +2,7 @@
 
 import re
 
-from gemsentry.textmatch import keyword_hit
+from gemsentry.textmatch import first_hit_position, keyword_hit
 from gemsentry.defaults import DEFAULT_SCORING_CONFIG
 from gemsentry.scoring.dates import _linear_ramp
 from gemsentry.scoring.verdict import build_score_breakdown
@@ -119,7 +119,7 @@ def compute_fit_score(analysis, signals, eligibility, profile, cfg, card_meta=No
                  else str(signals.get("primary_item") or title)).lower()
 
     acronym_len = int(fit_cfg.get("lone_acronym_max_len", 3))
-    candidates = []  # (score, lead_match, hits, line, matched)
+    candidates = []  # (score, lead_match, -first_title_pos, hits, line, matched)
     suppressed = None  # (label, [exclusion terms]) when a keyword match was vetoed
     cross_line_hits = set()  # distinct keywords matched across all non-vetoed lines
     for line in profile.get("business_lines") or []:
@@ -157,14 +157,17 @@ def compute_fit_score(analysis, signals, eligibility, profile, cfg, card_meta=No
         s = min(1.0, s * priority)
         if s > 0:
             lead_match = any(keyword_hit(kw, lead_text) for kw in matched)
-            candidates.append((s, lead_match, hits, line, matched))
+            positions = [first_hit_position(kw, title) for kw in matched]
+            positions = [pos for pos in positions if pos is not None]
+            first_title_pos = min(positions) if positions else len(title) + 1
+            candidates.append((s, lead_match, -first_title_pos, hits, line, matched))
 
     # Rank: score, then whether the line explains the bid's lead item, then
     # depth of evidence. Ties previously fell to profile order.
     best_score, best_line, best_matched = 0.0, None, []
     if candidates:
-        s, _lead, _hits, line, matched = max(
-            candidates, key=lambda c: (c[0], c[1], c[2])
+        s, _lead, _position, _hits, line, matched = max(
+            candidates, key=lambda c: (c[0], c[1], c[2], c[3])
         )
         best_score, best_line, best_matched = s, line, matched
 

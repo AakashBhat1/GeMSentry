@@ -294,6 +294,10 @@
       "strong_keywords": [
         "facial recognition",
         "face recognition",
+        "facial based",
+        "face based",
+        "facial authentication",
+        "face authentication",
         "biometric",
         "biometrics",
         "biometric attendance",
@@ -306,6 +310,10 @@
       "keywords": [
         "facial recognition",
         "face recognition",
+        "facial based",
+        "face based",
+        "facial authentication",
+        "face authentication",
         "biometric",
         "biometrics",
         "frs",
@@ -324,7 +332,9 @@
         "security guard",
         "sanitation",
         "catering",
-        "facility management"
+        "facility management",
+        "facial tissue",
+        "facial tissue paper"
       ]
     },
     {
@@ -579,14 +589,14 @@
   "active_preset": "main",
   "value_presets": {
     "main": {
-      "label": "Main (₹5L–₹5Cr)",
+      "label": "Main (\u20b95L\u2013\u20b95Cr)",
       "sweet_min_inr": 500000,
       "sweet_max_inr": 50000000,
       "keywords": [],
       "workspace": ""
     },
     "small_supply": {
-      "label": "Small Supply (₹60k–₹2L)",
+      "label": "Small Supply (\u20b960k\u2013\u20b92L)",
       "sweet_min_inr": 60000,
       "sweet_max_inr": 200000,
       "keywords": [

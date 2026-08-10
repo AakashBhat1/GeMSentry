@@ -13,7 +13,7 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 import nlp_classifier as N  # noqa: E402
-from gemsentry.textmatch import count_hits, keyword_hit  # noqa: E402
+from gemsentry.textmatch import count_hits, first_hit_position, keyword_hit  # noqa: E402
 
 
 def classify(title, keyword="", **extra):
@@ -58,6 +58,8 @@ class TestKeywordHit(unittest.TestCase):
         self.assertEqual(count_hits("drone", "drone and drones and drone"), 3)
         self.assertEqual(count_hits("ai", "maintenance repair air paint chair"), 0)
         self.assertEqual(count_hits("", "abc"), 0)
+        self.assertEqual(first_hit_position("drone", "camera then drone"), 12)
+        self.assertIsNone(first_hit_position("drone", "camera only"))
 
     def test_acronym_part_number_is_not_a_hit(self):
         """PLC-337 / API 8810 are model numbers, not product keywords."""
@@ -257,6 +259,33 @@ class TestConfidenceAndThresholds(unittest.TestCase):
         result = N.classify_tender({"title": "Custom Bid for Goods",
                                     "item_category": "CCTV Surveillance Camera"})
         self.assertEqual(result["domain"], "biometrics_and_surveillance")
+
+    def test_stored_analysis_fields_contribute_to_resegregation(self):
+        """Persisted extraction lives under analysis, not at tender top level."""
+        result = N.classify_tender({
+            "title": "Custom Bid for Goods",
+            "analysis": {
+                "primary_item": "Facial based Time and Attendance System",
+                "item_category": "Face authentication terminal",
+                "business_line": {"id": "biometrics", "label": "Biometrics"},
+            },
+        })
+        self.assertEqual(result["domain"], "biometrics_and_surveillance")
+
+    def test_lead_title_outranks_a_strong_accessory_in_item_category(self):
+        """A speaker bid does not become electrical because it includes an amplifier."""
+        result = N.classify_tender({
+            "title": "Wall Mount Speaker",
+            "keyword": "amplifier",
+            "analysis": {
+                "primary_item": "Wall Mount Speaker",
+                "item_category": (
+                    "Wall Mount Speaker, 260W Mixer amplifier, "
+                    "250W Power amplifier, power supply, speaker cable"
+                ),
+            },
+        })
+        self.assertEqual(result["domain"], "audio_video_and_display")
 
     def test_every_domain_key_has_a_label(self):
         for key, info in N.CANONICAL_DOMAINS.items():

@@ -155,3 +155,14 @@ def count_hits(keyword: str, text: str) -> int:
         return 0
     lowered = text.lower()
     return sum(1 for _ in _iter_real_hits(term, lowered))
+
+
+def first_hit_position(keyword: str, text: str):
+    """Return the first real whole-word match offset, or ``None``."""
+    if not keyword or not text:
+        return None
+    term = keyword.lower().strip()
+    if not term:
+        return None
+    match = next(_iter_real_hits(term, text.lower()), None)
+    return match.start() if match is not None else None

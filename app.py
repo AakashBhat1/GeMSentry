@@ -13,7 +13,8 @@ paths.ensure_dirs()
 logging_setup.setup_logging()
 
 import scraper  # noqa: E402
-from gemsentry.sources import SourceRegistry  # noqa: E402
+from gemsentry.search import expand_keywords  # noqa: E402
+from gemsentry.sources import SourceRegistry, annotate_sources  # noqa: E402
 
 logger = logging.getLogger("gemsentry")
 
@@ -35,6 +36,83 @@ scrape_status = {
 # Bounded live buffer (also mirrored via logging_setup.log_buffer)
 LOG_BUFFER_MAX = logging_setup.LOG_BUFFER_MAX
 scrape_logs = logging_setup.log_buffer  # deque, maxlen=500
+
+ALLOWED_SCRAPE_SORTS = {
+    "Bid-End-Date-Latest",
+    "Bid-End-Date-Oldest",
+    "Bid-Start-Date-Latest",
+    "Bid-Start-Date-Oldest",
+}
+
+
+def _number(value, name, minimum, maximum, integer=False):
+    if isinstance(value, bool):
+        raise ValueError(f"{name} must be a number")
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{name} must be a number") from exc
+    if integer and not parsed.is_integer():
+        raise ValueError(f"{name} must be a whole number")
+    if not minimum <= parsed <= maximum:
+        raise ValueError(f"{name} must be between {minimum} and {maximum}")
+    return int(parsed) if integer else parsed
+
+
+def normalize_scrape_payload(data):
+    """Validate and normalize the background scrape request."""
+    if not isinstance(data, dict):
+        raise ValueError("JSON body must be an object")
+
+    raw_keywords = data.get("keywords")
+    if not isinstance(raw_keywords, list):
+        raise ValueError("keywords must be a non-empty list")
+    keywords = []
+    seen = set()
+    for raw in raw_keywords:
+        clean = " ".join(str(raw or "").split()).strip()
+        key = clean.casefold()
+        if clean and key not in seen:
+            keywords.append(clean)
+            seen.add(key)
+    if not keywords:
+        raise ValueError("keywords must contain at least one non-empty value")
+    if len(keywords) > 250:
+        raise ValueError("keywords may contain at most 250 values")
+
+    sort_order = data.get("sort_order", "Bid-Start-Date-Latest")
+    if sort_order not in ALLOWED_SCRAPE_SORTS:
+        raise ValueError("sort_order is not supported")
+
+    cfg = scraper.load_scoring_config()
+    default_min_days = float(
+        (cfg.get("date_window") or {}).get("min_days_to_bid", 5)
+    )
+    min_days_left = _number(
+        data.get("min_days_left", default_min_days),
+        "min_days_left", 0, 365,
+    )
+    raw_max_days = data.get("max_days_left")
+    max_days_left = (
+        None if raw_max_days is None
+        else _number(raw_max_days, "max_days_left", 0, 365)
+    )
+    if max_days_left is not None and max_days_left < min_days_left:
+        raise ValueError("max_days_left must be greater than or equal to min_days_left")
+
+    raw_target = data.get("target_count")
+    target_count = (
+        None if raw_target is None
+        else _number(raw_target, "target_count", 1, 1000, integer=True)
+    )
+    return {
+        "keywords": keywords,
+        "max_pages": _number(data.get("max_pages", 2), "max_pages", 1, 30, integer=True),
+        "sort_order": sort_order,
+        "target_count": target_count,
+        "min_days_left": min_days_left,
+        "max_days_left": max_days_left,
+    }
 
 
 def add_log(message):
@@ -74,7 +152,10 @@ def run_scraper_thread(keywords, max_pages, sort_order, target_count=None, min_d
             runnable = source_registry.runnable_adapters()
             if runnable:
                 add_log(f"Querying {len(runnable)} external portal(s) in parallel...")
-                extra_tenders = source_registry.fetch_from_all_active(keywords, max_pages=max_pages)
+                external_keywords = expand_keywords(keywords)
+                extra_tenders = source_registry.fetch_from_all_active(
+                    external_keywords, max_pages=max_pages
+                )
                 if extra_tenders:
                     add_log(f"Multi-source portals returned {len(extra_tenders)} unique tenders.")
                     new_count += scraper.ingest_external_tenders(extra_tenders)
@@ -152,7 +233,10 @@ def get_keywords():
 def get_tenders():
     try:
         tenders_dict = scraper.load_existing_metadata()
-        return jsonify({"tenders": list(tenders_dict.values())})
+        # Legacy records predate source_id; derive it so the dashboard's portal
+        # filter covers the full history, not just post-refactor scrapes.
+        tenders = annotate_sources(tenders_dict.values(), source_registry.get_all_sources())
+        return jsonify({"tenders": tenders})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -180,20 +264,14 @@ def get_status():
 @app.route("/api/scrape", methods=["POST"])
 def trigger_scrape():
     global scrape_status
+    try:
+        params = normalize_scrape_payload(request.get_json(silent=True) or {})
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
     with status_lock:
         if scrape_status["status"] == "running":
             return jsonify({"error": "Scraper is already running."}), 400
-
-        data = request.json or {}
-        selected_keywords = data.get("keywords", [])
-        max_pages = data.get("max_pages", 2)
-        sort_order = data.get("sort_order", "Bid-Start-Date-Latest")
-        target_count = data.get("target_count")
-        min_days_left = data.get("min_days_left")
-        max_days_left = data.get("max_days_left")
-
-        if not selected_keywords:
-            return jsonify({"error": "No keywords selected."}), 400
 
         scrape_status["status"] = "running"
         scrape_status["new_count"] = 0
@@ -203,7 +281,10 @@ def trigger_scrape():
 
     thread = threading.Thread(
         target=run_scraper_thread,
-        args=(selected_keywords, max_pages, sort_order, target_count, min_days_left, max_days_left),
+        args=(
+            params["keywords"], params["max_pages"], params["sort_order"],
+            params["target_count"], params["min_days_left"], params["max_days_left"],
+        ),
         daemon=True,
     )
     thread.start()

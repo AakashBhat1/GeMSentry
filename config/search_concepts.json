@@ -1,0 +1,37 @@
+{
+  "facial_recognition": {
+    "canonical_keyword": "facial recognition",
+    "aliases": ["facial recognition", "face recognition", "facial recognition system", "face recognition system", "facial based", "face based", "rcognition"],
+    "queries": ["facial recognition", "face recognition", "facial recognition system", "biometric facial recognition", "facial based attendance", "rcognition"],
+    "positive_terms": ["facial recognition", "face recognition", "facial based", "face based", "biometric facial", "facial attendance", "face attendance", "facial authentication", "face authentication", "biometric access control", "frs"],
+    "exclude_terms": ["facial tissue", "facial tissues", "facial paper"]
+  },
+  "drone_uav": {
+    "canonical_keyword": "drone",
+    "aliases": ["drone", "drones", "uav", "unmanned aerial vehicle", "unmanned aerial vehicles", "quadcopter", "multirotor"],
+    "queries": ["drone", "uav", "unmanned aerial vehicle", "quadcopter", "multirotor"],
+    "positive_terms": ["drone", "uav", "unmanned aerial vehicle", "quadcopter", "multirotor"],
+    "exclude_terms": ["bagpipe drone", "drone book"]
+  },
+  "power_supply": {
+    "canonical_keyword": "power supply",
+    "aliases": ["power supply", "psu", "lvpsu", "hvpsu", "smps"],
+    "queries": ["power supply", "psu", "smps", "ac dc power supply", "dc power supply"],
+    "positive_terms": ["power supply", "psu", "lvpsu", "hvpsu", "smps", "ac dc converter"],
+    "exclude_terms": ["manpower supply", "water supply"]
+  },
+  "cctv_surveillance": {
+    "canonical_keyword": "cctv",
+    "aliases": ["cctv", "surveillance camera", "ip camera", "video surveillance"],
+    "queries": ["cctv", "surveillance camera", "ip camera", "video surveillance"],
+    "positive_terms": ["cctv", "surveillance camera", "ip camera", "video surveillance", "ptz camera", "dome camera", "bullet camera"],
+    "exclude_terms": []
+  },
+  "artificial_intelligence": {
+    "canonical_keyword": "artificial intelligence",
+    "aliases": ["artificial intelligence", "machine learning", "deep learning", "computer vision", "generative ai"],
+    "queries": ["artificial intelligence", "machine learning", "computer vision", "generative ai", "ai based analytics"],
+    "positive_terms": ["artificial intelligence", "machine learning", "deep learning", "computer vision", "generative ai", "ai based", "ai enabled"],
+    "exclude_terms": []
+  }
+}

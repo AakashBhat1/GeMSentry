@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup
 
 from gemsentry.constants import logger
 from gemsentry.dateparse import parse_gem_date, parse_iso_date_to_gem
+from gemsentry.search import build_search_plan, matches_search_result
 from gemsentry.textutils import _parse_inr_amount, today_iso
 
 
@@ -263,6 +264,10 @@ def doc_to_tender(doc, keyword):
         "start_date": start_date,
         "end_date": end_date,
         "pdf_url": pdf_url,
+        # Stamped so the marketplace is one portal among many in the dashboard
+        # filter, rather than the unlabelled default everything else is not.
+        "source_id": "gem",
+        "source_name": "Government e-Marketplace (GeM)",
         "keyword": keyword,
         "downloaded": False,
         "local_pdf_path": "",
@@ -288,78 +293,110 @@ def fetch_keyword_bids_api(
     max_days_left=None,
 ):
     tenders = []
+    seen_bid_nos = set()
     url = "https://bidplus.gem.gov.in/all-bids-data"
     safety_max_pages = 30 if target_count else max_pages
     matching_target_count = 0
     now = datetime.datetime.now()
+    plan = build_search_plan(keyword)
 
-    for page_num in range(1, safety_max_pages + 1):
-        try:
-            payload_dict = {
-                "param": {"searchBid": keyword, "searchType": "fullText"},
-                "filter": {
-                    "bidStatusType": "ongoing_bids",
-                    "byType": "all",
-                    "highBidValue": "",
-                    "byEndDate": {"from": "", "to": ""},
-                    "sort": sort_order
+    if len(plan.queries) > 1:
+        logger.info(
+            "Keyword '%s' expanded to %d focused portal queries: %s",
+            keyword, len(plan.queries), ", ".join(plan.queries),
+        )
+
+    for search_query in plan.queries:
+        if target_count and matching_target_count >= target_count:
+            break
+        for page_num in range(1, safety_max_pages + 1):
+            try:
+                payload_dict = {
+                    "param": {"searchBid": search_query, "searchType": "fullText"},
+                    "filter": {
+                        "bidStatusType": "ongoing_bids",
+                        "byType": "all",
+                        "highBidValue": "",
+                        "byEndDate": {"from": "", "to": ""},
+                        "sort": sort_order
+                    }
                 }
-            }
-            if page_num > 1:
-                payload_dict["param"]["page"] = page_num
+                if page_num > 1:
+                    payload_dict["param"]["page"] = page_num
 
-            data = urllib.parse.urlencode({
-                "payload": json.dumps(payload_dict),
-                "csrf_bd_gem_nk": csrf_token or ""
-            }).encode("utf-8")
+                data = urllib.parse.urlencode({
+                    "payload": json.dumps(payload_dict),
+                    "csrf_bd_gem_nk": csrf_token or ""
+                }).encode("utf-8")
 
-            req = urllib.request.Request(
-                url,
-                data=data,
-                headers={
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                    "Accept": "application/json, text/javascript, */*; q=0.01",
-                    "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-                    "X-Requested-With": "XMLHttpRequest",
-                    "Referer": "https://bidplus.gem.gov.in/all-bids",
-                    "Cookie": cookie_header or ""
-                },
-                method="POST"
-            )
-
-            with urllib.request.urlopen(req, context=_SSL_CTX, timeout=12) as resp:
-                res_json = json.loads(resp.read().decode("utf-8"))
-                docs = (
-                    res_json.get("response", {})
-                    .get("response", {})
-                    .get("docs", [])
+                req = urllib.request.Request(
+                    url,
+                    data=data,
+                    headers={
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                        "Accept": "application/json, text/javascript, */*; q=0.01",
+                        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                        "X-Requested-With": "XMLHttpRequest",
+                        "Referer": "https://bidplus.gem.gov.in/all-bids",
+                        "Cookie": cookie_header or ""
+                    },
+                    method="POST"
                 )
-                if not docs:
-                    break
-                for doc in docs:
-                    t = doc_to_tender(doc, keyword)
 
-                    if min_days_left is not None or max_days_left is not None:
-                        end_dt = parse_gem_date(t.get("end_date"))
-                        if end_dt:
-                            rem_days = (end_dt - now).days
-                            min_d = min_days_left if min_days_left is not None else 0
-                            max_d = max_days_left if max_days_left is not None else 9999
-                            if not (min_d <= rem_days <= max_d):
+                with urllib.request.urlopen(req, context=_SSL_CTX, timeout=12) as resp:
+                    res_json = json.loads(resp.read().decode("utf-8"))
+                    docs = (
+                        res_json.get("response", {})
+                        .get("response", {})
+                        .get("docs", [])
+                    )
+                    if not docs:
+                        break
+                    for doc in docs:
+                        t = doc_to_tender(doc, plan.canonical_keyword)
+                        bid_no = t.get("bid_no")
+                        if not bid_no or bid_no in seen_bid_nos:
+                            continue
+                        if not matches_search_result(t, plan):
+                            logger.debug(
+                                "Discarding %s: card does not verify search concept '%s'",
+                                bid_no, plan.concept_id,
+                            )
+                            continue
+
+                        if min_days_left is not None or max_days_left is not None:
+                            end_dt = parse_gem_date(t.get("end_date"))
+                            if not end_dt:
                                 logger.debug(
-                                    f"Skipping tender {t['bid_no']} ({rem_days} days left) - outside filter window [{min_d}-{max_d}] days."
+                                    "Skipping tender %s: deadline is not parseable.", bid_no
                                 )
                                 continue
-                            matching_target_count += 1
+                            remaining = (end_dt - now).total_seconds() / 86400.0
+                            min_d = float(min_days_left) if min_days_left is not None else 0.0
+                            max_d = float(max_days_left) if max_days_left is not None else 9999.0
+                            if not (min_d <= remaining <= max_d):
+                                logger.debug(
+                                    "Skipping tender %s (%.1f days left) - outside "
+                                    "filter window [%.1f-%.1f] days.",
+                                    bid_no, remaining, min_d, max_d,
+                                )
+                                continue
 
-                    tenders.append(t)
+                        seen_bid_nos.add(bid_no)
+                        tenders.append(t)
+                        matching_target_count += 1
 
-            if target_count and matching_target_count >= target_count:
-                logger.info(
-                    f"Keyword '{keyword}': Target goal reached ({matching_target_count}/{target_count} tenders in window) on page {page_num}."
+                if target_count and matching_target_count >= target_count:
+                    logger.info(
+                        "Keyword '%s': Target goal reached (%d/%d unique tenders) "
+                        "with query '%s' on page %d.",
+                        keyword, matching_target_count, target_count, search_query, page_num,
+                    )
+                    break
+            except Exception as e:
+                logger.warning(
+                    "API request failed for keyword '%s' (query '%s') page %d: %s",
+                    keyword, search_query, page_num, e,
                 )
                 break
-        except Exception as e:
-            logger.warning(f"API request failed for keyword '{keyword}' page {page_num}: {e}")
-            break
     return tenders

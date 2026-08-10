@@ -11,37 +11,79 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
     <style>
+        /* ==========================================================
+           Design tokens. Light is the default surface; `.dark-mode`
+           on <body> swaps the same token names, so every rule below
+           is written once and works in both themes.
+           ========================================================== */
         :root {
-            --bg-color: #0b0f19;
-            --card-bg: rgba(17, 24, 39, 0.7);
-            --border-color: rgba(255, 255, 255, 0.06);
-            --text-primary: #f3f4f6;
-            --text-secondary: #9ca3af;
-            --primary-accent: #8b5cf6;
-            --primary-accent-glow: rgba(139, 92, 246, 0.15);
-            --secondary-accent: #06b6d4;
-            --success-color: #10b981;
-            --success-bg: rgba(16, 185, 129, 0.1);
-            --failed-color: #ef4444;
-            --failed-bg: rgba(239, 68, 68, 0.1);
-            --card-hover-shadow: 0 10px 30px -10px rgba(139, 92, 246, 0.25);
+            --bg-color: #f2f5f8;
+            --bg-grid: rgba(15, 42, 66, 0.035);
+            --card-bg: #ffffff;
+            --surface-sunken: #f7f9fb;
+            --input-bg: #ffffff;
+            --border-color: #e0e6ed;
+            --border-strong: #cbd5e0;
+            --text-primary: #15222f;
+            --text-secondary: #566a7d;
+            --text-muted: #8698a8;
+            --primary-accent: #0b6a94;
+            --primary-accent-soft: #e6f1f7;
+            --primary-accent-glow: rgba(11, 106, 148, 0.12);
+            --secondary-accent: #0e7c6b;
+            --success-color: #0f7a55;
+            --success-bg: rgba(15, 122, 85, 0.1);
+            --success-border: rgba(15, 122, 85, 0.24);
+            --warning-color: #a45c09;
+            --warning-bg: rgba(164, 92, 9, 0.1);
+            --warning-border: rgba(164, 92, 9, 0.24);
+            --failed-color: #b3312a;
+            --failed-bg: rgba(179, 49, 42, 0.09);
+            --failed-border: rgba(179, 49, 42, 0.24);
+            --neutral-color: #6b7c8d;
+            --neutral-bg: rgba(107, 124, 141, 0.1);
+            --neutral-border: rgba(107, 124, 141, 0.26);
+            --accent-border: rgba(11, 106, 148, 0.26);
+            --header-bg: rgba(242, 245, 248, 0.88);
+            --shadow-sm: 0 1px 2px rgba(15, 42, 66, 0.06);
+            --shadow-md: 0 4px 12px -4px rgba(15, 42, 66, 0.12);
+            --card-hover-shadow: 0 10px 28px -12px rgba(15, 42, 66, 0.22);
             --sidebar-width: 280px;
+            --font-mono: 'SFMono-Regular', 'JetBrains Mono', Consolas, 'Courier New', monospace;
         }
 
-        .light-mode {
-            --bg-color: #f8fafc;
-            --card-bg: rgba(255, 255, 255, 0.85);
-            --border-color: rgba(0, 0, 0, 0.06);
-            --text-primary: #0f172a;
-            --text-secondary: #475569;
-            --primary-accent: #6d28d9;
-            --primary-accent-glow: rgba(109, 40, 217, 0.1);
-            --secondary-accent: #0891b2;
-            --success-color: #059669;
-            --success-bg: rgba(5, 150, 105, 0.1);
-            --failed-color: #dc2626;
-            --failed-bg: rgba(220, 38, 38, 0.1);
-            --card-hover-shadow: 0 10px 30px -10px rgba(109, 40, 217, 0.2);
+        .dark-mode {
+            --bg-color: #0d141c;
+            --bg-grid: rgba(255, 255, 255, 0.028);
+            --card-bg: #151f2a;
+            --surface-sunken: #111925;
+            --input-bg: #0f1822;
+            --border-color: #24313f;
+            --border-strong: #35465a;
+            --text-primary: #e8eef4;
+            --text-secondary: #9fb0c0;
+            --text-muted: #6f8194;
+            --primary-accent: #4aa8d8;
+            --primary-accent-soft: rgba(74, 168, 216, 0.14);
+            --primary-accent-glow: rgba(74, 168, 216, 0.18);
+            --secondary-accent: #3fbfa6;
+            --success-color: #35b98a;
+            --success-bg: rgba(53, 185, 138, 0.13);
+            --success-border: rgba(53, 185, 138, 0.3);
+            --warning-color: #e0a03c;
+            --warning-bg: rgba(224, 160, 60, 0.13);
+            --warning-border: rgba(224, 160, 60, 0.3);
+            --failed-color: #ec6a62;
+            --failed-bg: rgba(236, 106, 98, 0.13);
+            --failed-border: rgba(236, 106, 98, 0.3);
+            --neutral-color: #8496a8;
+            --neutral-bg: rgba(132, 150, 168, 0.13);
+            --neutral-border: rgba(132, 150, 168, 0.3);
+            --accent-border: rgba(74, 168, 216, 0.32);
+            --header-bg: rgba(13, 20, 28, 0.88);
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+            --shadow-md: 0 4px 14px -4px rgba(0, 0, 0, 0.5);
+            --card-hover-shadow: 0 12px 30px -14px rgba(0, 0, 0, 0.75);
         }
 
         * {
@@ -53,11 +95,18 @@
         body {
             font-family: 'Inter', sans-serif;
             background-color: var(--bg-color);
+            /* A faint blueprint grid: gives the light surface some texture
+               without adding a single request or repaint cost. */
+            background-image:
+                linear-gradient(var(--bg-grid) 1px, transparent 1px),
+                linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px);
+            background-size: 44px 44px;
             color: var(--text-primary);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
             transition: background-color 0.3s ease, color 0.3s ease;
         }
 
@@ -77,11 +126,7 @@
             position: sticky;
             top: 0;
             z-index: 100;
-            background-color: rgba(11, 15, 25, 0.85);
-        }
-
-        .light-mode header {
-            background-color: rgba(248, 250, 252, 0.85);
+            background-color: var(--header-bg);
         }
 
         .header-left {
@@ -101,7 +146,7 @@
             color: white;
             font-weight: 800;
             font-size: 1.25rem;
-            box-shadow: 0 4px 10px rgba(139, 92, 246, 0.3);
+            box-shadow: var(--shadow-sm);
         }
 
         .logo-text h1 {
@@ -140,7 +185,7 @@
         .btn-primary {
             background: linear-gradient(135deg, var(--primary-accent), var(--secondary-accent));
             color: white;
-            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
+            box-shadow: var(--shadow-sm);
         }
 
         .btn-primary:hover {
@@ -155,13 +200,13 @@
         }
 
         .btn-secondary {
-            background: rgba(255, 255, 255, 0.04);
+            background: var(--surface-sunken);
             border-color: var(--border-color);
             color: var(--text-primary);
         }
 
         .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.08);
+            background: var(--primary-accent-soft);
             border-color: var(--text-secondary);
         }
 
@@ -201,11 +246,7 @@
             flex-direction: column;
             gap: 2rem;
             flex-shrink: 0;
-            background-color: rgba(17, 24, 39, 0.2);
-        }
-
-        .light-mode .sidebar {
-            background-color: rgba(255, 255, 255, 0.3);
+            background-color: var(--card-bg);
         }
 
         .content-area {
@@ -227,16 +268,12 @@
         .search-box input {
             width: 100%;
             padding: 0.75rem 1rem 0.75rem 2.5rem;
-            background-color: rgba(0, 0, 0, 0.2);
-            border: 1px solid var(--border-color);
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-strong);
             border-radius: 10px;
             color: var(--text-primary);
             font-size: 0.875rem;
-            transition: all 0.2s ease;
-        }
-
-        .light-mode .search-box input {
-            background-color: rgba(255, 255, 255, 0.7);
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
         }
 
         .search-box input:focus {
@@ -284,7 +321,7 @@
             width: 4px;
         }
         .filter-options::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.1);
+            background: var(--border-strong);
             border-radius: 2px;
         }
 
@@ -306,22 +343,19 @@
         }
 
         .filter-btn:hover {
-            background-color: rgba(255, 255, 255, 0.03);
+            background-color: var(--surface-sunken);
             color: var(--text-primary);
-        }
-
-        .light-mode .filter-btn:hover {
-            background-color: rgba(0, 0, 0, 0.03);
         }
 
         .filter-btn.active {
-            background-color: var(--primary-accent-glow);
-            color: var(--text-primary);
+            background-color: var(--primary-accent-soft);
+            color: var(--primary-accent);
             font-weight: 600;
+            box-shadow: inset 2px 0 0 var(--primary-accent);
         }
 
         .badge-count {
-            background-color: rgba(255, 255, 255, 0.06);
+            background-color: var(--surface-sunken);
             border: 1px solid var(--border-color);
             padding: 0.1rem 0.5rem;
             border-radius: 99px;
@@ -330,8 +364,8 @@
         }
 
         .filter-btn.active .badge-count {
-            border-color: rgba(139, 92, 246, 0.3);
-            background-color: rgba(139, 92, 246, 0.15);
+            border-color: var(--accent-border);
+            background-color: var(--primary-accent-soft);
             color: var(--text-primary);
         }
 
@@ -352,13 +386,13 @@
             flex-direction: column;
             gap: 0.5rem;
             backdrop-filter: blur(12px);
-            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.15);
+            box-shadow: var(--shadow-sm);
             transition: transform 0.2s, box-shadow 0.2s;
         }
 
         .metric-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.25);
+            box-shadow: var(--shadow-md);
         }
 
         .metric-title {
@@ -429,7 +463,7 @@
         }
 
         .tender-card:hover {
-            border-color: rgba(139, 92, 246, 0.2);
+            border-color: var(--accent-border);
             box-shadow: var(--card-hover-shadow);
             transform: scale(1.005);
         }
@@ -475,15 +509,17 @@
         }
 
         .tag-id {
-            background-color: rgba(6, 182, 212, 0.1);
-            color: var(--secondary-accent);
-            border: 1px solid rgba(6, 182, 212, 0.2);
+            background-color: var(--surface-sunken);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
         }
 
         .tag-keyword {
-            background-color: rgba(139, 92, 246, 0.1);
+            background-color: var(--primary-accent-soft);
             color: var(--primary-accent);
-            border: 1px solid rgba(139, 92, 246, 0.2);
+            border: 1px solid var(--accent-border);
             text-transform: capitalize;
         }
 
@@ -510,19 +546,19 @@
         .status-shortlisted {
             background-color: var(--success-bg);
             color: var(--success-color);
-            border-color: rgba(16, 185, 129, 0.2);
+            border-color: var(--success-border);
         }
 
         .status-pending {
-            background-color: rgba(245, 158, 11, 0.1);
-            color: #f59e0b;
-            border-color: rgba(245, 158, 11, 0.2);
+            background-color: var(--warning-bg);
+            color: var(--warning-color);
+            border-color: var(--warning-border);
         }
 
         .status-rejected {
             background-color: var(--failed-bg);
             color: var(--failed-color);
-            border-color: rgba(239, 68, 68, 0.2);
+            border-color: var(--failed-border);
         }
 
         .score-badge {
@@ -535,19 +571,19 @@
 
         .score-high {
             background-color: rgba(16, 185, 129, 0.15);
-            color: #10b981;
+            color: var(--success-color);
             border-color: rgba(16, 185, 129, 0.3);
         }
 
         .score-medium {
             background-color: rgba(245, 158, 11, 0.15);
-            color: #f59e0b;
+            color: var(--warning-color);
             border-color: rgba(245, 158, 11, 0.3);
         }
 
         .score-low {
             background-color: rgba(239, 68, 68, 0.15);
-            color: #ef4444;
+            color: var(--failed-color);
             border-color: rgba(239, 68, 68, 0.3);
         }
 
@@ -574,20 +610,19 @@
         .recommendation-pursue {
             background-color: var(--success-bg);
             color: var(--success-color);
-            border-color: rgba(16, 185, 129, 0.3);
+            border-color: var(--success-border);
         }
 
         .recommendation-review {
-            background-color: rgba(245, 158, 11, 0.15);
-            color: #f59e0b;
-            border-color: rgba(245, 158, 11, 0.3);
+            background-color: var(--warning-bg);
+            color: var(--warning-color);
+            border-color: var(--warning-border);
         }
-
 
         .recommendation-drop {
             background-color: var(--failed-bg);
             color: var(--failed-color);
-            border-color: rgba(239, 68, 68, 0.3);
+            border-color: var(--failed-border);
         }
 
         .est-emd-badge {
@@ -597,9 +632,9 @@
             font-size: 0.65rem;
             font-weight: 600;
             border-radius: 4px;
-            background-color: rgba(245, 158, 11, 0.15);
-            color: #f59e0b;
-            border: 1px solid rgba(245, 158, 11, 0.3);
+            background-color: var(--warning-bg);
+            color: var(--warning-color);
+            border: 1px solid var(--warning-border);
             vertical-align: middle;
         }
 
@@ -610,9 +645,9 @@
             font-size: 0.8rem;
         }
         .preset-switcher select {
-            background-color: var(--card-bg, #1e293b);
-            color: var(--text-primary, #e2e8f0);
-            border: 1px solid var(--border-color, rgba(148,163,184,0.3));
+            background-color: var(--input-bg);
+            color: var(--text-primary);
+            border: 1px solid var(--border-strong);
             border-radius: 6px;
             padding: 4px 8px;
             font-size: 0.8rem;
@@ -620,39 +655,45 @@
         }
 
         .tag-business-line {
-            background-color: rgba(139, 92, 246, 0.15) !important;
+            background-color: var(--primary-accent-soft) !important;
             color: var(--primary-accent) !important;
-            border: 1px solid rgba(139, 92, 246, 0.3) !important;
+            border: 1px solid var(--accent-border) !important;
         }
 
         .tag-eligibility-warning {
-            background-color: rgba(239, 68, 68, 0.15) !important;
+            background-color: var(--failed-bg) !important;
             color: var(--failed-color) !important;
-            border: 1px solid rgba(239, 68, 68, 0.3) !important;
+            border: 1px solid var(--failed-border) !important;
         }
 
         .tag-eligibility-ok {
             background-color: var(--success-bg) !important;
             color: var(--success-color) !important;
-            border: 1px solid rgba(16, 185, 129, 0.3) !important;
+            border: 1px solid var(--success-border) !important;
         }
 
         .tag-urgency-critical {
-            background-color: rgba(239, 68, 68, 0.15) !important;
-            color: #f87171 !important;
-            border: 1px solid rgba(239, 68, 68, 0.35) !important;
+            background-color: var(--failed-bg) !important;
+            color: var(--failed-color) !important;
+            border: 1px solid var(--failed-border) !important;
         }
 
         .tag-urgency-soon {
-            background-color: rgba(245, 158, 11, 0.15) !important;
-            color: #fbbf24 !important;
-            border: 1px solid rgba(245, 158, 11, 0.35) !important;
+            background-color: var(--warning-bg) !important;
+            color: var(--warning-color) !important;
+            border: 1px solid var(--warning-border) !important;
         }
 
         .tag-urgency-expired {
-            background-color: rgba(156, 163, 175, 0.15) !important;
-            color: #9ca3af !important;
-            border: 1px solid rgba(156, 163, 175, 0.3) !important;
+            background-color: var(--neutral-bg) !important;
+            color: var(--neutral-color) !important;
+            border: 1px solid var(--neutral-border) !important;
+        }
+
+        .tag-portal {
+            background-color: var(--surface-sunken) !important;
+            color: var(--text-secondary) !important;
+            border: 1px solid var(--border-strong) !important;
         }
 
         .breakdowns-row {
@@ -673,14 +714,10 @@
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 1.25rem;
-            background-color: rgba(0, 0, 0, 0.15);
+            background-color: var(--surface-sunken);
             padding: 1.25rem;
             border-radius: 12px;
             border: 1px solid var(--border-color);
-        }
-
-        .light-mode .tender-details-grid {
-            background-color: rgba(255, 255, 255, 0.4);
         }
 
         .detail-item {
@@ -707,13 +744,9 @@
         .tender-analysis-details {
             border: 1px solid var(--border-color);
             border-radius: 8px;
-            background-color: rgba(255, 255, 255, 0.01);
+            background-color: var(--surface-sunken);
             overflow: hidden;
             font-size: 0.85rem;
-        }
-
-        .light-mode .tender-analysis-details {
-            background-color: rgba(0, 0, 0, 0.01);
         }
 
         .tender-analysis-details summary {
@@ -727,7 +760,7 @@
         }
 
         .tender-analysis-details summary:hover {
-            background-color: rgba(255, 255, 255, 0.03);
+            background-color: var(--primary-accent-soft);
             color: var(--text-primary);
         }
 
@@ -788,31 +821,31 @@
             font-weight: 600;
             cursor: pointer;
             border: 1px solid var(--border-color);
-            background: rgba(255, 255, 255, 0.02);
+            background: var(--surface-sunken);
             color: var(--text-secondary);
             transition: all 0.2s;
         }
 
         .btn-override:hover {
             color: var(--text-primary);
-            background: rgba(255, 255, 255, 0.06);
+            background: var(--primary-accent-soft);
         }
 
         .btn-override.active-short {
-            background-color: rgba(16, 185, 129, 0.12);
-            color: #10b981;
-            border-color: rgba(16, 185, 129, 0.25);
+            background-color: var(--success-bg);
+            color: var(--success-color);
+            border-color: var(--success-border);
         }
 
         .btn-override.active-pending {
-            background-color: rgba(245, 158, 11, 0.12);
-            color: #f59e0b;
-            border-color: rgba(245, 158, 11, 0.25);
+            background-color: var(--warning-bg);
+            color: var(--warning-color);
+            border-color: var(--warning-border);
         }
 
         .btn-override.active-rejected {
-            background-color: rgba(239, 68, 68, 0.12);
-            color: #ef4444;
+            background-color: var(--failed-bg);
+            color: var(--failed-color);
             border-color: rgba(239, 68, 68, 0.25);
         }
 
@@ -830,7 +863,7 @@
 
         .state-icon {
             font-size: 3.5rem;
-            filter: drop-shadow(0 4px 10px rgba(139, 92, 246, 0.3));
+            filter: drop-shadow(var(--shadow-sm));
         }
 
         .state-title {
@@ -862,7 +895,7 @@
         .modal-content {
             background: rgba(17, 24, 39, 0.95);
             border: 1px solid var(--border-color);
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 24px 60px -12px rgba(15, 42, 66, 0.35);
             border-radius: 16px;
             width: 90%;
             max-width: 800px;
@@ -887,9 +920,7 @@
         .modal-title {
             font-size: 1.4rem;
             font-weight: 700;
-            background: linear-gradient(135deg, #a78bfa, #22d3ee);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: var(--text-primary);
         }
 
         .close-btn {
@@ -926,12 +957,8 @@
             overflow-y: auto;
             padding: 0.75rem;
             border: 1px solid var(--border-color);
-            background-color: rgba(0, 0, 0, 0.25);
+            background-color: var(--surface-sunken);
             border-radius: 8px;
-        }
-
-        .light-mode .keywords-grid {
-            background-color: rgba(255, 255, 255, 0.5);
         }
 
         .keyword-item {
@@ -949,7 +976,7 @@
 
         .keyword-item:hover {
             color: var(--text-primary);
-            background-color: rgba(255, 255, 255, 0.03);
+            background-color: var(--surface-sunken);
         }
 
         .keyword-item input {
@@ -976,7 +1003,7 @@
 
         .console-logs {
             background: #030712;
-            border: 1px solid rgba(139, 92, 246, 0.15);
+            border: 1px solid var(--border-color);
             border-radius: 8px;
             font-family: 'Courier New', Courier, monospace;
             font-size: 0.8rem;
@@ -993,7 +1020,7 @@
         }
 
         .console-logs::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.15);
+            background: var(--border-strong);
             border-radius: 3px;
         }
 
@@ -1054,15 +1081,11 @@
 
         .breakdown-bar-bg {
             height: 8px;
-            background-color: rgba(255, 255, 255, 0.05);
+            background-color: var(--surface-sunken);
             border-radius: 4px;
             overflow: hidden;
             width: 100%;
             border: 1px solid var(--border-color);
-        }
-
-        .light-mode .breakdown-bar-bg {
-            background-color: rgba(0, 0, 0, 0.05);
         }
 
         .breakdown-bar-fill {
@@ -1089,9 +1112,356 @@
             opacity: 0.55;
             font-weight: 400;
         }
+        /* ==========================================================
+           SPLIT-FLAP TENDER BOARD INTRO
+           Deliberately keeps its own dark palette in both themes: it
+           reads as a physical departure board, and the fade to a light
+           workspace is the reveal.
+           ========================================================== */
+        #splashOverlay {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(ellipse at 50% 38%, #10202c 0%, #08131c 55%, #030a10 100%);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            transition: opacity 0.55s ease, visibility 0.55s ease;
+        }
+
+        #splashOverlay.hide {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .board {
+            background: linear-gradient(180deg, #14212c 0%, #0b141c 100%);
+            border: 1px solid rgba(74, 168, 216, 0.26);
+            border-radius: 18px;
+            padding: 26px 30px 22px;
+            max-width: min(94vw, 660px);
+            box-shadow:
+                0 40px 90px -24px rgba(0, 0, 0, 0.95),
+                inset 0 1px 0 rgba(255, 255, 255, 0.04),
+                0 0 70px rgba(74, 168, 216, 0.08);
+        }
+
+        .board-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            letter-spacing: 0.22em;
+            text-transform: uppercase;
+            color: #6f8194;
+            padding-bottom: 14px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        .board-head .gem-mark { color: #4aa8d8; font-weight: 700; }
+
+        .flap-row {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 7px;
+            perspective: 420px;
+        }
+
+        .flap {
+            width: 30px;
+            height: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-mono);
+            font-size: 23px;
+            font-weight: 700;
+            color: #e6f2fa;
+            background: linear-gradient(180deg,
+                #1e2b38 0%, #16212c 49%, #111a23 51%, #0b131a 100%);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 4px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+            position: relative;
+            transform-origin: center bottom;
+            backface-visibility: hidden;
+        }
+
+        /* The hairline seam where a real split-flap card divides. */
+        .flap::after {
+            content: "";
+            position: absolute;
+            left: 0; right: 0; top: 50%;
+            height: 1px;
+            background: rgba(0, 0, 0, 0.55);
+        }
+
+        .flap.space {
+            width: 14px;
+            background: none;
+            border-color: transparent;
+            box-shadow: none;
+        }
+
+        .flap.space::after { display: none; }
+
+        .flap.ticking { animation: flapTick 0.06s ease-in; }
+
+        .flap.settled {
+            color: #f0b44c;
+            text-shadow: 0 0 14px rgba(240, 180, 76, 0.45);
+        }
+
+        /* Never exceeds 90deg, so no backface is ever shown. */
+        @keyframes flapTick {
+            0%   { transform: rotateX(0deg); }
+            55%  { transform: rotateX(-82deg); }
+            100% { transform: rotateX(0deg); }
+        }
+
+        .board-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 18px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            font-family: var(--font-mono);
+            font-size: 10px;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: #6f8194;
+        }
+
+        .status-lamp {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #f0b44c;
+            box-shadow: 0 0 10px #f0b44c;
+            animation: lampBlink 1.6s steps(1, end) infinite;
+        }
+
+        @keyframes lampBlink {
+            0%, 62%   { opacity: 1; }
+            63%, 100% { opacity: 0.22; }
+        }
+
+        .splash-skip {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: var(--font-mono);
+            font-size: 10px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #46536b;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .flap.ticking { animation: none; }
+            .status-lamp  { animation: none; }
+        }
+
+        /* ==========================================================
+           GROUPED TENDER SECTIONS
+           2,500 tenders in one flat list is not a list, it is a wall.
+           Cards are only built when a section is open, so the initial
+           render is a dozen headers instead of thousands of cards.
+           ========================================================== */
+        .tender-group {
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            background-color: var(--card-bg);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .group-header {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+            width: 100%;
+            padding: 0.9rem 1.15rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+            text-align: left;
+            color: var(--text-primary);
+            font-family: inherit;
+            transition: background-color 0.15s ease;
+        }
+
+        .group-header:hover { background-color: var(--surface-sunken); }
+
+        .group-chevron {
+            flex-shrink: 0;
+            color: var(--text-muted);
+            transition: transform 0.2s ease;
+        }
+
+        .tender-group.open .group-chevron { transform: rotate(90deg); }
+
+        .group-swatch {
+            width: 8px;
+            height: 28px;
+            border-radius: 3px;
+            background-color: var(--group-accent, var(--neutral-color));
+            flex-shrink: 0;
+        }
+
+        .group-label {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+        }
+
+        .group-sub {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.1rem;
+        }
+
+        .group-count {
+            margin-left: auto;
+            flex-shrink: 0;
+            font-size: 0.78rem;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            color: var(--text-secondary);
+            background-color: var(--surface-sunken);
+            border: 1px solid var(--border-color);
+            padding: 0.2rem 0.6rem;
+            border-radius: 999px;
+        }
+
+        .group-body {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            padding: 0 1.15rem 1.15rem;
+            border-top: 1px solid var(--border-color);
+            padding-top: 1.15rem;
+        }
+
+        .tender-group:not(.open) .group-body { display: none; }
+
+        /* Inside a section the cards are already on a card; drop the
+           second elevation so they read as rows, not floating panels. */
+        .group-body .tender-card {
+            border-radius: 12px;
+            padding: 1.35rem;
+            background-color: var(--surface-sunken);
+        }
+
+        .group-more {
+            align-self: center;
+            padding: 0.5rem 1.1rem;
+            border-radius: 8px;
+            border: 1px dashed var(--border-strong);
+            background: none;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .group-more:hover {
+            color: var(--primary-accent);
+            border-color: var(--primary-accent);
+            border-style: solid;
+        }
+
+        /* Portal filter, grouped by portal family. */
+        .filter-group-label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: var(--text-muted);
+            padding: 0.5rem 0.85rem 0.15rem;
+        }
+
+        .kw-cat-chip {
+            padding: 0.25rem 0.6rem;
+            font-size: 0.72rem;
+            font-weight: 600;
+            border-radius: 6px;
+            border: 1px solid var(--border-strong);
+            background: var(--card-bg);
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.15s ease;
+        }
+
+        .kw-cat-chip:hover {
+            color: var(--primary-accent);
+            border-color: var(--primary-accent);
+            background: var(--primary-accent-soft);
+        }
+
+        .kw-cat-chip-accent {
+            color: var(--primary-accent);
+            border-color: var(--accent-border);
+            background: var(--primary-accent-soft);
+        }
+
+        .toolbar-select {
+            background: var(--input-bg);
+            border: 1px solid var(--border-strong);
+            color: var(--text-primary);
+            padding: 0.4rem 0.75rem;
+            border-radius: 8px;
+            font-size: 0.825rem;
+            font-family: inherit;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .toolbar-select:focus {
+            border-color: var(--primary-accent);
+            box-shadow: 0 0 0 3px var(--primary-accent-glow);
+        }
+
+        .toolbar-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
     </style>
 </head>
 <body>
+
+<!-- SPLIT-FLAP TENDER BOARD INTRO -->
+<div id="splashOverlay">
+    <div class="board" role="img" aria-label="GeMSentry Tender Intelligence">
+        <div class="board-head">
+            <span class="gem-mark">&#9670; Government e-Marketplace</span>
+            <span>Bid Radar</span>
+        </div>
+        <div class="flap-row" id="flapRow1"></div>
+        <div class="flap-row" id="flapRow2"></div>
+        <div class="board-status">
+            <span class="status-lamp"></span>
+            <span id="boardStatusText">Multi-Portal &middot; Live &middot; Tender Intelligence</span>
+        </div>
+    </div>
+    <div class="splash-skip">Click or press Esc to skip</div>
+</div>
 
     <!-- Header Section -->
     <header>
@@ -1103,7 +1473,7 @@
             </div>
         </div>
         <div class="header-right">
-            <button class="btn-theme" id="sourcesToggle" onclick="openSourcesModal()" aria-label="Portals Hub" style="padding: 0.5rem 0.85rem; border-color: rgba(99, 102, 241, 0.4); color: #a5b4fc;">
+            <button class="btn-theme" id="sourcesToggle" onclick="openSourcesModal()" aria-label="Portals Hub" style="padding: 0.5rem 0.85rem; border-color: var(--accent-border); color: var(--primary-accent);">
                 <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="10"></circle>
                     <path stroke-linecap="round" stroke-linejoin="round" d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"></path>
@@ -1146,7 +1516,7 @@
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                 </svg>
-                <input type="text" id="searchInput" placeholder="Search title, department, ID..." oninput="filterData()">
+                <input type="text" id="searchInput" placeholder="Search title, department, ID...">
             </div>
 
             <!-- Discovery Date Filter (newest first; "Today" fills live during a scrape) -->
@@ -1238,22 +1608,7 @@
             <div class="filter-section">
                 <span class="filter-title">Procurement Portal</span>
                 <div class="filter-options" id="sourceFilters">
-                    <button class="filter-btn active" id="src-all" onclick="setSourceFilter('all')">
-                        <span>All Portals</span>
-                        <span class="badge-count" id="src-cnt-all">0</span>
-                    </button>
-                    <button class="filter-btn" id="src-gem" onclick="setSourceFilter('gem')">
-                        <span>GeM</span>
-                        <span class="badge-count" id="src-cnt-gem">0</span>
-                    </button>
-                    <button class="filter-btn" id="src-defproc" onclick="setSourceFilter('defproc')">
-                        <span>DefProc</span>
-                        <span class="badge-count" id="src-cnt-defproc">0</span>
-                    </button>
-                    <button class="filter-btn" id="src-srijan" onclick="setSourceFilter('srijan')">
-                        <span>SRIJAN</span>
-                        <span class="badge-count" id="src-cnt-srijan">0</span>
-                    </button>
+                    <!-- Rendered from the portals actually present in the data -->
                 </div>
             </div>
 
@@ -1284,11 +1639,15 @@
             <div class="filter-section">
                 <span class="filter-title">Deadline Window</span>
                 <div class="filter-options" id="deadlineFilters">
-                    <button class="filter-btn active" id="dl-all" onclick="setDeadlineFilter('all')">
+                    <button class="filter-btn active" id="dl-actionable" onclick="setDeadlineFilter('actionable')">
+                        <span>Live &amp; Actionable</span>
+                        <span class="badge-count" id="dl-cnt-actionable">0</span>
+                    </button>
+                    <button class="filter-btn" id="dl-all" onclick="setDeadlineFilter('all')">
                         <span>All Deadlines</span>
                         <span class="badge-count" id="dl-cnt-all">0</span>
                     </button>
-                    <button class="filter-btn" id="dl-15-20" onclick="setDeadlineFilter('15-20')" style="border-color: rgba(99, 102, 241, 0.4);">
+                    <button class="filter-btn" id="dl-15-20" onclick="setDeadlineFilter('15-20')">
                         <span>⏳ 15–20 Days</span>
                         <span class="badge-count" id="dl-cnt-15-20">0</span>
                     </button>
@@ -1338,9 +1697,23 @@
                         Showing <strong id="visible-count">0</strong> of <strong id="total-count">0</strong> tenders
                     </div>
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Sort By</label>
-                        <select id="tendersSortSelect" onchange="filterData()" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem 0.75rem; border-radius: 6px; font-size: 0.825rem; outline: none; cursor: pointer;">
-                            <option value="priority-desc" selected>⭐ Best Match (Priority)</option>
+                        <label class="toolbar-label" for="tendersGroupSelect">Group</label>
+                        <select id="tendersGroupSelect" class="toolbar-select" onchange="onGroupByChange()">
+                            <option value="recommendation" selected>Recommendation</option>
+                            <option value="deadline">Deadline Window</option>
+                            <option value="source">Procurement Portal</option>
+                            <option value="business_line">Business Line</option>
+                            <option value="status">Evaluation Status</option>
+                            <option value="date">Scrape Date</option>
+                            <option value="value">Estimated Value</option>
+                            <option value="none">No grouping (flat list)</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <label class="toolbar-label" for="tendersSortSelect">Sort By</label>
+                        <select id="tendersSortSelect" class="toolbar-select" onchange="filterData()">
+                            <option value="published-newest" selected>Newly Published (then Priority)</option>
+                            <option value="priority-desc">⭐ Best Match (Priority)</option>
                             <option value="none">Default (Scrape Order)</option>
                             <option value="deadline-soonest">Deadline: Soonest First</option>
                             <option value="score-desc">Risk Score: High to Low</option>
@@ -1376,17 +1749,17 @@
                 <span class="filter-title" style="margin-bottom: 0.25rem; display: block;">Select Keywords to Scrape</span>
                 <div class="keywords-toolbar" style="display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.5rem; align-items: center;">
                     <span style="font-size: 0.75rem; color: var(--text-secondary); margin-right: 0.25rem; font-weight: 500;">Quick Presets:</span>
-                    <button class="btn btn-secondary" onclick="selectCategoryKeywords('solar_broad')" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; border-radius: 4px; background: rgba(245, 158, 11, 0.2); border-color: rgba(245, 158, 11, 0.4); color: #fef08a;">☀️ Solar &amp; Panels</button>
-                    <button class="btn btn-secondary" onclick="selectCategoryKeywords('power_electrical')" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; border-radius: 4px; background: rgba(59, 130, 246, 0.2); border-color: rgba(59, 130, 246, 0.4); color: #93c5fd;">⚡ Power &amp; Electricals</button>
-                    <button class="btn btn-secondary" onclick="selectCategoryKeywords('ai_software')" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; border-radius: 4px; background: rgba(168, 85, 247, 0.2); border-color: rgba(168, 85, 247, 0.4); color: #e9d5ff;">🤖 AI &amp; Software</button>
-                    <button class="btn btn-secondary" onclick="selectCategoryKeywords('defence_avionics')" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; border-radius: 4px; background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.4); color: #fca5a5;">🛡️ Defence &amp; Avionics</button>
-                    <button class="btn btn-secondary" onclick="selectCategoryKeywords('battery_storage')" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; border-radius: 4px; background: rgba(16, 185, 129, 0.2); border-color: rgba(16, 185, 129, 0.4); color: #6ee7b7;">🔋 Battery &amp; BESS</button>
-                    <button class="btn btn-secondary" onclick="selectCategoryKeywords('ev_infrastructure')" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; border-radius: 4px; background: rgba(20, 184, 166, 0.2); border-color: rgba(20, 184, 166, 0.4); color: #99f6e4;">🚗 EV Charging</button>
-                    <button class="btn btn-secondary" onclick="selectCategoryKeywords('lighting_mast')" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; border-radius: 4px; background: rgba(251, 191, 36, 0.2); border-color: rgba(251, 191, 36, 0.4); color: #fde68a;">💡 Lighting &amp; High Mast</button>
-                    <button class="btn btn-secondary" onclick="selectCategoryKeywords('pumps_kusum')" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; border-radius: 4px; background: rgba(6, 182, 212, 0.2); border-color: rgba(6, 182, 212, 0.4); color: #a5f3fc;">🌊 Solar Pumps &amp; KUSUM</button>
-                    <button class="btn btn-secondary" onclick="selectCategoryKeywords('all_technical')" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; border-radius: 4px; background: rgba(139, 92, 246, 0.2); border-color: rgba(139, 92, 246, 0.4); color: #c4b5fd; margin-left: auto;">🚀 All Technical</button>
-                    <button class="btn btn-secondary" onclick="selectAllKeywords()" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; border-radius: 4px;">Select All</button>
-                    <button class="btn btn-secondary" onclick="clearAllKeywords()" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; border-radius: 4px;">Clear All</button>
+                    <button class="kw-cat-chip" onclick="selectCategoryKeywords('solar_broad')">☀️ Solar &amp; Panels</button>
+                    <button class="kw-cat-chip" onclick="selectCategoryKeywords('power_electrical')">⚡ Power &amp; Electricals</button>
+                    <button class="kw-cat-chip" onclick="selectCategoryKeywords('ai_software')">🤖 AI &amp; Software</button>
+                    <button class="kw-cat-chip" onclick="selectCategoryKeywords('defence_avionics')">🛡️ Defence &amp; Avionics</button>
+                    <button class="kw-cat-chip" onclick="selectCategoryKeywords('battery_storage')">🔋 Battery &amp; BESS</button>
+                    <button class="kw-cat-chip" onclick="selectCategoryKeywords('ev_infrastructure')">🚗 EV Charging</button>
+                    <button class="kw-cat-chip" onclick="selectCategoryKeywords('lighting_mast')">💡 Lighting &amp; High Mast</button>
+                    <button class="kw-cat-chip" onclick="selectCategoryKeywords('pumps_kusum')">🌊 Solar Pumps &amp; KUSUM</button>
+                    <button class="kw-cat-chip kw-cat-chip-accent" onclick="selectCategoryKeywords('all_technical')" style="margin-left: auto;">🚀 All Technical</button>
+                    <button class="kw-cat-chip" onclick="selectAllKeywords()">Select All</button>
+                    <button class="kw-cat-chip" onclick="clearAllKeywords()">Clear All</button>
                 </div>
                 <div class="keywords-grid" id="modalKeywordsGrid">
                     <!-- Loaded dynamically from /api/keywords -->
@@ -1394,7 +1767,7 @@
             </div>
 
             <!-- Target Goal Finder Option -->
-            <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 0.9rem; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 8px; width: 100%;">
+            <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 0.9rem; background: var(--primary-accent-soft); border: 1px solid var(--accent-border); border-radius: 8px; width: 100%;">
                 <input type="checkbox" id="enableTargetGoal" style="width: 16px; height: 16px; cursor: pointer;">
                 <label for="enableTargetGoal" style="font-size: 0.825rem; color: var(--text-primary); cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
                     <span>🎯 Target Goal: Paginate until at least</span>
@@ -1404,10 +1777,10 @@
             </div>
 
             <!-- Specific Bid Acquisition Section -->
-            <div style="padding: 1rem; border: 1px solid var(--border-color); background-color: rgba(255, 255, 255, 0.02); border-radius: 8px; display: flex; flex-direction: column; gap: 0.75rem; width: 100%;">
+            <div style="padding: 1rem; border: 1px solid var(--border-color); background-color: var(--surface-sunken); border-radius: 8px; display: flex; flex-direction: column; gap: 0.75rem; width: 100%;">
                 <span class="filter-title" style="margin-bottom: 0; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Acquire Specific Bid by ID / Number</span>
                 <div style="display: flex; gap: 0.75rem; width: 100%;">
-                    <input type="text" id="manualBidId" placeholder="e.g., 7610938 or GEM/2026/B/7610938" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.55rem; border-radius: 6px; font-size: 0.85rem; outline: none; flex-grow: 1;">
+                    <input type="text" id="manualBidId" placeholder="e.g., 7610938 or GEM/2026/B/7610938" style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.55rem; border-radius: 6px; font-size: 0.85rem; outline: none; flex-grow: 1;">
                     <button class="btn btn-primary" onclick="triggerManualAcquisition()" style="padding: 0.55rem 1.2rem; font-size: 0.85rem; border-radius: 6px; white-space: nowrap;">
                         Acquire Bid
                     </button>
@@ -1417,7 +1790,7 @@
             <div style="display: flex; gap: 1rem; align-items: center; justify-content: space-between; width: 100%;">
                 <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                     <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">Page Limit (per keyword)</label>
-                    <select id="modalPageLimit" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none; cursor: pointer; width: 180px;">
+                    <select id="modalPageLimit" style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none; cursor: pointer; width: 180px;">
                         <option value="1">1 Page (10 Tenders)</option>
                         <option value="2" selected>2 Pages (20 Tenders)</option>
                         <option value="3">3 Pages (30 Tenders)</option>
@@ -1426,7 +1799,7 @@
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                     <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">GeM Search Sorting</label>
-                    <select id="modalSortOrder" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none; cursor: pointer; width: 220px;">
+                    <select id="modalSortOrder" style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none; cursor: pointer; width: 220px;">
                         <option value="Bid-End-Date-Latest">Bid End Date: Latest First</option>
                         <option value="Bid-End-Date-Oldest">Bid End Date: Oldest First</option>
                         <option value="Bid-Start-Date-Latest" selected>Bid Start Date: Latest First</option>
@@ -1435,9 +1808,9 @@
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                     <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;" title="Skip tenders ending in less than N days during ingestion">Min Days Left</label>
-                    <input type="number" id="modalMinDaysLeft" value="5" min="0" max="30" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none; width: 100px; text-align: center;" title="Only ingest tenders with at least this many days left to bid">
+                    <input type="number" id="modalMinDaysLeft" value="5" min="0" max="30" style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none; width: 100px; text-align: center;" title="Only ingest tenders with at least this many days left to bid">
                 </div>
-                <button class="btn btn-secondary" id="clearWorkspaceBtn" onclick="triggerClearWorkspace()" title="Reset the ACTIVE profile's workspace: delete its tenders, PDFs and report (metadata is backed up first). Other profiles are untouched." style="align-self: flex-end; padding: 0.55rem 1.25rem; border-radius: 8px; margin-left: auto; border-color: #c62828; color: #ef5350;">
+                <button class="btn btn-secondary" id="clearWorkspaceBtn" onclick="triggerClearWorkspace()" title="Reset the ACTIVE profile's workspace: delete its tenders, PDFs and report (metadata is backed up first). Other profiles are untouched." style="align-self: flex-end; padding: 0.55rem 1.25rem; border-radius: 8px; margin-left: auto; border-color: var(--failed-border); color: var(--failed-color);">
                     Clear Workspace
                 </button>
                 <button class="btn btn-secondary" id="rescoreBtn" onclick="triggerRescore()" title="Re-score every tender locally with the current scoring config and company profile — no network, applies config changes instantly" style="align-self: flex-end; padding: 0.55rem 1.25rem; border-radius: 8px;">
@@ -1490,7 +1863,7 @@
                     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-secondary);">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                     </svg>
-                    <input type="text" id="sourceSearchInput" placeholder="Search portals (e.g. DefProc, BEL, CPPP, SRIJAN)..." oninput="renderSourcesList()" style="width: 100%; padding: 0.5rem 0.85rem 0.5rem 2.25rem; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 8px; font-size: 0.85rem; outline: none;">
+                    <input type="text" id="sourceSearchInput" placeholder="Search portals (e.g. DefProc, BEL, CPPP, SRIJAN)..." oninput="renderSourcesList()" style="width: 100%; padding: 0.5rem 0.85rem 0.5rem 2.25rem; background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 8px; font-size: 0.85rem; outline: none;">
                 </div>
                 <div style="display: flex; gap: 0.35rem;" id="sourceCategoryTabs">
                     <button class="btn btn-secondary active" onclick="filterSourceCategory('all', this)" style="padding: 0.4rem 0.75rem; font-size: 0.75rem; border-radius: 6px;">All</button>
@@ -1525,27 +1898,27 @@
                     <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;">
                         <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                             <label style="font-size: 0.75rem; color: var(--text-secondary);">EMD Requirement weight</label>
-                            <input type="number" step="any" min="0" id="weight_emd" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                            <input type="number" step="any" min="0" id="weight_emd" required style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                             <label style="font-size: 0.75rem; color: var(--text-secondary);">Startup Exemption weight</label>
-                            <input type="number" step="any" min="0" id="weight_startup_exemption" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                            <input type="number" step="any" min="0" id="weight_startup_exemption" required style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                             <label style="font-size: 0.75rem; color: var(--text-secondary);">MSE Exemption weight</label>
-                            <input type="number" step="any" min="0" id="weight_mse_exemption" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                            <input type="number" step="any" min="0" id="weight_mse_exemption" required style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                             <label style="font-size: 0.75rem; color: var(--text-secondary);">Pre-Bid Meeting weight</label>
-                            <input type="number" step="any" min="0" id="weight_prebid" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                            <input type="number" step="any" min="0" id="weight_prebid" required style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                             <label style="font-size: 0.75rem; color: var(--text-secondary);">Remaining Days weight</label>
-                            <input type="number" step="any" min="0" id="weight_date_window" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                            <input type="number" step="any" min="0" id="weight_date_window" required style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                             <label style="font-size: 0.75rem; color: var(--text-secondary);">ePBG Guarantee weight</label>
-                            <input type="number" step="any" min="0" id="weight_epbg" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                            <input type="number" step="any" min="0" id="weight_epbg" required style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
                         </div>
                     </div>
                 </div>
@@ -1556,15 +1929,15 @@
                     <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;">
                         <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                             <label style="font-size: 0.75rem; color: var(--text-secondary);">Unknown Exemption subscore (0 to 1)</label>
-                            <input type="number" step="any" min="0" max="1" id="unknown_subscore" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                            <input type="number" step="any" min="0" max="1" id="unknown_subscore" required style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                             <label style="font-size: 0.75rem; color: var(--text-secondary);">Shortlist Min threshold</label>
-                            <input type="number" step="any" min="0" max="100" id="shortlist_min" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                            <input type="number" step="any" min="0" max="100" id="shortlist_min" required style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                             <label style="font-size: 0.75rem; color: var(--text-secondary);">Reject Max threshold</label>
-                            <input type="number" step="any" min="0" max="100" id="reject_max" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                            <input type="number" step="any" min="0" max="100" id="reject_max" required style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
                         </div>
                     </div>
                 </div>
@@ -1575,27 +1948,27 @@
                     <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;">
                         <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                             <label style="font-size: 0.75rem; color: var(--text-secondary);">Relevance weight</label>
-                            <input type="number" step="any" min="0" id="weight_fit_relevance" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                            <input type="number" step="any" min="0" id="weight_fit_relevance" required style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                             <label style="font-size: 0.75rem; color: var(--text-secondary);">Serviceability weight</label>
-                            <input type="number" step="any" min="0" id="weight_fit_serviceability" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                            <input type="number" step="any" min="0" id="weight_fit_serviceability" required style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                             <label style="font-size: 0.75rem; color: var(--text-secondary);">Value Fit weight</label>
-                            <input type="number" step="any" min="0" id="weight_fit_value" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                            <input type="number" step="any" min="0" id="weight_fit_value" required style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                             <label style="font-size: 0.75rem; color: var(--text-secondary);">Buyer Affinity weight</label>
-                            <input type="number" step="any" min="0" id="weight_fit_buyer" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                            <input type="number" step="any" min="0" id="weight_fit_buyer" required style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                             <label style="font-size: 0.75rem; color: var(--text-secondary);">Eligibility weight</label>
-                            <input type="number" step="any" min="0" id="weight_fit_eligibility" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                            <input type="number" step="any" min="0" id="weight_fit_eligibility" required style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                             <label style="font-size: 0.75rem; color: var(--text-secondary);">Fit Minimum threshold</label>
-                            <input type="number" step="any" min="0" max="100" id="fit_min_threshold" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                            <input type="number" step="any" min="0" max="100" id="fit_min_threshold" required style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
                         </div>
                     </div>
                 </div>
@@ -1638,15 +2011,15 @@
                     <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;">
                         <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                             <label style="font-size: 0.75rem; color: var(--text-secondary);">Annual Turnover (INR)</label>
-                            <input type="number" id="profile_turnover" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                            <input type="number" id="profile_turnover" required style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                             <label style="font-size: 0.75rem; color: var(--text-secondary);">Years of Experience</label>
-                            <input type="number" id="profile_experience" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                            <input type="number" id="profile_experience" required style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 0.25rem; grid-column: span 2;">
                             <label style="font-size: 0.75rem; color: var(--text-secondary);">Certifications (Comma-separated)</label>
-                            <input type="text" id="profile_certifications" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                            <input type="text" id="profile_certifications" style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
                         </div>
                     </div>
                     <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin-top: 0.75rem;">
@@ -1675,15 +2048,15 @@
                     <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;">
                         <div style="display: flex; flex-direction: column; gap: 0.25rem; grid-column: span 2;">
                             <label style="font-size: 0.75rem; color: var(--text-secondary);">Soft Avoid States (Comma-separated)</label>
-                            <input type="text" id="profile_soft_avoid_states" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                            <input type="text" id="profile_soft_avoid_states" style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                             <label style="font-size: 0.75rem; color: var(--text-secondary);">Soft Avoid Penalty (0.0 to 1.0)</label>
-                            <input type="number" step="any" min="0" max="1" id="profile_soft_avoid_penalty" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                            <input type="number" step="any" min="0" max="1" id="profile_soft_avoid_penalty" required style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                             <label style="font-size: 0.75rem; color: var(--text-secondary);">Soft Avoid Reason</label>
-                            <input type="text" id="profile_soft_avoid_reason" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                            <input type="text" id="profile_soft_avoid_reason" style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
                         </div>
                     </div>
                 </div>
@@ -1694,11 +2067,11 @@
                     <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;">
                         <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                             <label style="font-size: 0.75rem; color: var(--text-secondary);">Sweet Spot Min (INR)</label>
-                            <input type="number" id="profile_sweet_min" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                            <input type="number" id="profile_sweet_min" required style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                             <label style="font-size: 0.75rem; color: var(--text-secondary);">Sweet Spot Max (INR)</label>
-                            <input type="number" id="profile_sweet_max" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                            <input type="number" id="profile_sweet_max" required style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
                         </div>
                     </div>
                 </div>
@@ -1710,15 +2083,15 @@
                         <div style="display: flex; flex-direction: column; gap: 0.6rem;">
                             <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                                 <label style="font-size: 0.75rem; color: var(--text-secondary);">Drone / UAV Keywords (Comma-sep)</label>
-                                <textarea id="profile_kws_drone" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.8rem; outline: none; resize: vertical; height: 60px;"></textarea>
+                                <textarea id="profile_kws_drone" required style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.8rem; outline: none; resize: vertical; height: 60px;"></textarea>
                             </div>
                             <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                                 <label style="font-size: 0.75rem; color: var(--text-secondary);">Power Supply Keywords (Comma-sep)</label>
-                                <textarea id="profile_kws_power_supply" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.8rem; outline: none; resize: vertical; height: 60px;"></textarea>
+                                <textarea id="profile_kws_power_supply" required style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.8rem; outline: none; resize: vertical; height: 60px;"></textarea>
                             </div>
                             <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                                 <label style="font-size: 0.75rem; color: var(--text-secondary);">AI / IT / Electronics (Comma-sep)</label>
-                                <textarea id="profile_kws_ai_it" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.8rem; outline: none; resize: vertical; height: 60px;"></textarea>
+                                <textarea id="profile_kws_ai_it" required style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.8rem; outline: none; resize: vertical; height: 60px;"></textarea>
                             </div>
                         </div>
                     </div>
@@ -1726,7 +2099,7 @@
                         <h4 style="margin-bottom: 0.75rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.25rem; font-size: 0.9rem; color: var(--text-primary);">Buyer Affinity (Name: Score)</h4>
                         <div style="display: flex; flex-direction: column; gap: 0.25rem; height: 100%;">
                             <label style="font-size: 0.75rem; color: var(--text-secondary);">E.g. DRDO: 0.65 (one per line)</label>
-                            <textarea id="profile_buyer_affinity" required style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.8rem; outline: none; resize: vertical; height: 236px;"></textarea>
+                            <textarea id="profile_buyer_affinity" required style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.8rem; outline: none; resize: vertical; height: 236px;"></textarea>
                         </div>
                     </div>
                 </div>
@@ -1755,8 +2128,9 @@
         let currentRec = 'all';
         let currentBusinessLine = 'all';
         let currentValueBand = 'all';
-        let currentDeadlineBand = 'all';
+        let currentDeadlineBand = 'actionable';
         let currentDate = 'all';   // 'all' | 'YYYY-MM-DD' | 'unknown'
+        let currentSource = 'all'; // 'all' | source_id
         let searchStr = '';
         let tenders = [];
         let pollingInterval = null;
@@ -1765,6 +2139,31 @@
         let knownKeywords = [];
         let scoringConfig = null;
         let companyProfile = null;
+
+        // id -> {name, category} for every configured portal, so the filter can
+        // label a source even when no tender from it has landed yet.
+        let sourceCatalog = {};
+
+        // --- Grouped rendering state -----------------------------------------
+        // The list is sectioned because a flat 2,500-card render is both
+        // unreadable and slow: only open sections build DOM.
+        const GROUP_PAGE_SIZE = 25;
+        let currentGroupBy = 'recommendation';
+        let renderedGroups = [];             // last computed [{key,label,...,items}]
+        const openGroupKeys = new Set();     // section keys the user has expanded
+        const groupLimits = new Map();       // section key -> cards currently shown
+
+        /* Scraped titles and department names are arbitrary text that gets
+           interpolated into HTML. Escape everything that comes from a tender. */
+        function escapeHtml(value) {
+            if (value === null || value === undefined) return '';
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
 
         const DEFAULT_SCORING_CONFIG = {
             version: 1,
@@ -2310,7 +2709,8 @@
             }
         }
 
-        async function reanalyzeBid(bidId) {
+        async function reanalyzeBid(encodedBidId) {
+            const bidId = decodeURIComponent(encodedBidId);
             try {
                 const response = await fetch('/api/scrape/id', {
                     method: 'POST',
@@ -2330,44 +2730,59 @@
             }
         }
 
-        // Check theme cookie/setting
-        if (localStorage.getItem('theme') === 'light') {
-            document.body.classList.add('light-mode');
-            updateThemeButton(true);
+        // Light is the working surface; dark is opt-in and remembered.
+        const SUN_ICON = `<path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M14 12a2 2 0 11-4 0 2 2 0 014 0z" />`;
+        const MOON_ICON = `<path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />`;
+
+        if (localStorage.getItem('theme') === 'dark') {
+            document.body.classList.add('dark-mode');
         }
 
         function toggleTheme() {
-            const isLight = document.body.classList.toggle('light-mode');
-            localStorage.setItem('theme', isLight ? 'light' : 'dark');
-            updateThemeButton(isLight);
+            const isDark = document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            updateThemeButton(isDark);
         }
 
-        function updateThemeButton(isLight) {
+        // The button advertises what a click will do, not what is on screen.
+        function updateThemeButton(isDark) {
             const themeText = document.getElementById('themeText');
             const themeIcon = document.getElementById('themeIcon');
-            if (isLight) {
-                themeText.innerText = 'Light Mode';
-                themeIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M14 12a2 2 0 11-4 0 2 2 0 014 0z" />`;
-            } else {
-                themeText.innerText = 'Dark Mode';
-                themeIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />`;
-            }
+            if (!themeText || !themeIcon) return;
+            themeText.innerText = isDark ? 'Light Mode' : 'Dark Mode';
+            themeIcon.innerHTML = isDark ? SUN_ICON : MOON_ICON;
         }
 
         // Fetch data from local Flask API on load
         window.addEventListener('DOMContentLoaded', () => {
+            updateThemeButton(document.body.classList.contains('dark-mode'));
+            initSearchInput();
+            runSplash();
             loadScoringConfig();
             loadCompanyProfile();
             refreshData();
+            loadSourceCatalog();
             loadKeywordsForModal();
             loadPresets();
         });
+
+        // Every keystroke used to re-filter and re-render the whole list.
+        function initSearchInput() {
+            const input = document.getElementById('searchInput');
+            if (!input) return;
+            let debounce = null;
+            input.addEventListener('input', () => {
+                clearTimeout(debounce);
+                debounce = setTimeout(filterData, 180);
+            });
+        }
 
         async function refreshData() {
             try {
                 const response = await fetch('/api/tenders');
                 const data = await response.json();
                 tenders = data.tenders || [];
+                clearDeadlineCache();
                 initDashboard();
             } catch (err) {
                 console.error("Failed to load tenders from API:", err);
@@ -2779,7 +3194,10 @@
             }
         }
 
-        async function overrideStatus(bidNo, newStatus) {
+        async function overrideStatus(encodedBidNo, newStatus) {
+            // Bid numbers reach the handler URI-encoded so quotes in the value
+            // cannot break out of the onclick attribute.
+            const bidNo = decodeURIComponent(encodedBidNo);
             try {
                 const response = await fetch('/api/tenders/status', {
                     method: 'POST',
@@ -2953,7 +3371,7 @@
                 html += `
                     <button class="filter-btn ${currentDate === d ? 'active' : ''}"
                             onclick="setDateFilter('${d}')"
-                            ${isToday ? 'style="border-color: rgba(99, 102, 241, 0.55);"' : ''}>
+                            ${isToday ? 'style="box-shadow: inset 2px 0 0 var(--primary-accent);"' : ''}>
                         <span>${isToday ? '🟢 ' : ''}${formatSeenDate(d)}</span>
                         <span class="badge-count">${count}</span>
                     </button>
@@ -3009,50 +3427,205 @@
             container.innerHTML = html;
         }
 
+        // --- Procurement portal filter ---------------------------------------
+        // Previously a hardcoded list of three portals wired to a function that
+        // was never defined, so every button was a no-op reading zero. It is now
+        // built from the portals actually present in the loaded data, grouped by
+        // the family each belongs to.
+
+        const PORTAL_FAMILIES = [
+            { id: 'core_procurement',      label: 'Marketplace' },
+            { id: 'defence',               label: 'Defence' },
+            { id: 'defence_psu',           label: 'Defence' },
+            { id: 'defence_indigenization', label: 'Defence' },
+            { id: 'defence_innovation',    label: 'Defence' },
+            { id: 'space_defence',         label: 'Space & Defence' },
+            { id: 'central_gov',           label: 'Central Government' },
+            { id: 'central_psu',           label: 'Central PSU' },
+            { id: 'railways',              label: 'Railways' },
+            { id: 'railways_psu',          label: 'Railways' },
+            { id: 'state_gov',             label: 'State Government' },
+        ];
+
+        function portalFamilyLabel(category) {
+            const found = PORTAL_FAMILIES.find(f => f.id === category);
+            return found ? found.label : 'Other Portals';
+        }
+
+        function portalLabel(sourceId, fallbackName) {
+            const known = sourceCatalog[sourceId];
+            if (known && known.name) return known.name;
+            return fallbackName || sourceId;
+        }
+
+        async function loadSourceCatalog() {
+            try {
+                const response = await fetch('/api/sources');
+                const data = await response.json();
+                const catalog = {};
+                (data.sources || []).forEach(src => {
+                    if (src && src.id) catalog[src.id] = { name: src.name || src.id, category: src.category || '' };
+                });
+                sourceCatalog = catalog;
+            } catch (err) {
+                // Names then fall back to whatever the tender records carry.
+                console.error("Failed to load portal catalog:", err);
+            }
+            renderSourceFilters();
+        }
+
+        function renderSourceFilters() {
+            const container = document.getElementById('sourceFilters');
+            if (!container) return;
+
+            // Portal options honour the date filter for the same reason the
+            // keyword options do: they describe the slice you are looking at.
+            let scoped = tenders;
+            if (currentDate !== 'all') {
+                scoped = scoped.filter(t => {
+                    const seen = t.first_seen || '';
+                    return currentDate === 'unknown' ? !seen : seen === currentDate;
+                });
+            }
+
+            const counts = new Map();
+            scoped.forEach(t => {
+                const id = t.source_id || 'unknown';
+                if (!counts.has(id)) {
+                    counts.set(id, { id: id, name: portalLabel(id, t.source_name), count: 0 });
+                }
+                counts.get(id).count += 1;
+            });
+
+            let html = `
+                <button class="filter-btn ${currentSource === 'all' ? 'active' : ''}" onclick="setSourceFilter('all')">
+                    <span>All Portals</span>
+                    <span class="badge-count">${scoped.length}</span>
+                </button>
+            `;
+
+            // Group by family, families ordered by their biggest portal.
+            const families = new Map();
+            Array.from(counts.values()).forEach(entry => {
+                const category = (sourceCatalog[entry.id] || {}).category || '';
+                const label = portalFamilyLabel(category);
+                if (!families.has(label)) families.set(label, []);
+                families.get(label).push(entry);
+            });
+
+            const orderedFamilies = Array.from(families.entries()).map(([label, entries]) => {
+                entries.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+                return { label: label, entries: entries, total: entries.reduce((s, e) => s + e.count, 0) };
+            }).sort((a, b) => b.total - a.total);
+
+            orderedFamilies.forEach(family => {
+                if (orderedFamilies.length > 1) {
+                    html += `<div class="filter-group-label">${escapeHtml(family.label)}</div>`;
+                }
+                family.entries.forEach(entry => {
+                    html += `
+                        <button class="filter-btn ${currentSource === entry.id ? 'active' : ''}"
+                                onclick="setSourceFilter('${escapeHtml(entry.id)}')"
+                                title="${escapeHtml(entry.name)}">
+                            <span>${escapeHtml(entry.name)}</span>
+                            <span class="badge-count">${entry.count}</span>
+                        </button>
+                    `;
+                });
+            });
+
+            container.innerHTML = html;
+        }
+
+        function setSourceFilter(sourceId) {
+            currentSource = sourceId;
+            renderSourceFilters();
+            filterData();
+        }
+
         function setDateFilter(d) {
             currentDate = d;
             renderDateFilters();
             renderBusinessLineFilters();
+            renderSourceFilters();
             renderKeywordFilters();
             filterData();
         }
 
+        function setBadge(id, value) {
+            const el = document.getElementById(id);
+            if (el) el.innerText = value;
+        }
+
+        /* One pass over the tenders, not fifteen. At 2,500 records the old
+           chain of .filter() calls walked the array ~15 times on every render
+           and re-parsed every deadline five of those times. */
         function updateBadges() {
             renderDateFilters();
             renderBusinessLineFilters();
+            renderSourceFilters();
             renderKeywordFilters();
 
-            // Evaluation status counts
-            document.getElementById('stat-cnt-all').innerText = tenders.length;
-            document.getElementById('stat-cnt-short').innerText = tenders.filter(t => t.status === 'Shortlisted').length;
-            document.getElementById('stat-cnt-pending').innerText = tenders.filter(t => t.status === 'Pending Review' || !t.status).length;
-            document.getElementById('stat-cnt-rejected').innerText = tenders.filter(t => t.status === 'Rejected').length;
+            const counts = {
+                shortlisted: 0, pending: 0, rejected: 0,
+                pursue: 0, review: 0, drop: 0,
+                under5l: 0, sweet: 0, over3cr: 0,
+                dlActionable: 0, dl1520: 0, dlCritical: 0, dlWeek: 0,
+                dl2weeks: 0, dlOver20: 0,
+            };
 
-            // Recommendation counts
-            if (document.getElementById('rec-cnt-all')) {
-                document.getElementById('rec-cnt-all').innerText = tenders.length;
-                document.getElementById('rec-cnt-pursue').innerText = tenders.filter(t => t.analysis && t.analysis.recommendation === 'Pursue').length;
-                document.getElementById('rec-cnt-review').innerText = tenders.filter(t => t.analysis && t.analysis.recommendation === 'Review').length;
-                document.getElementById('rec-cnt-drop').innerText = tenders.filter(t => t.analysis && t.analysis.recommendation === 'Drop').length;
-            }
+            tenders.forEach(t => {
+                const status = t.status || 'Pending Review';
+                if (status === 'Shortlisted') counts.shortlisted++;
+                else if (status === 'Rejected') counts.rejected++;
+                else counts.pending++;
 
-            // Value band counts
-            if (document.getElementById('vb-cnt-all')) {
-                document.getElementById('vb-cnt-all').innerText = tenders.length;
-                document.getElementById('vb-cnt-under-5l').innerText = tenders.filter(t => t.analysis && t.analysis.est_value_inr < 500000 && t.analysis.est_value_inr > 0).length;
-                document.getElementById('vb-cnt-sweet').innerText = tenders.filter(t => t.analysis && t.analysis.est_value_inr >= 500000 && t.analysis.est_value_inr <= 30000000).length;
-                document.getElementById('vb-cnt-over-3cr').innerText = tenders.filter(t => t.analysis && t.analysis.est_value_inr > 30000000).length;
-            }
+                const analysis = t.analysis;
+                if (analysis) {
+                    if (analysis.recommendation === 'Pursue') counts.pursue++;
+                    else if (analysis.recommendation === 'Review') counts.review++;
+                    else if (analysis.recommendation === 'Drop') counts.drop++;
 
-            // Deadline counts
-            if (document.getElementById('dl-cnt-all')) {
-                document.getElementById('dl-cnt-all').innerText = tenders.length;
-                document.getElementById('dl-cnt-15-20').innerText = tenders.filter(t => { const d = gemDaysToDeadline(t.end_date); return d !== null && d >= 15 && d <= 20; }).length;
-                document.getElementById('dl-cnt-critical').innerText = tenders.filter(t => { const d = gemDaysToDeadline(t.end_date); return d !== null && d >= 0 && d <= 3; }).length;
-                document.getElementById('dl-cnt-week').innerText = tenders.filter(t => { const d = gemDaysToDeadline(t.end_date); return d !== null && d >= 4 && d <= 7; }).length;
-                document.getElementById('dl-cnt-2weeks').innerText = tenders.filter(t => { const d = gemDaysToDeadline(t.end_date); return d !== null && d >= 8 && d <= 14; }).length;
-                document.getElementById('dl-cnt-over20').innerText = tenders.filter(t => { const d = gemDaysToDeadline(t.end_date); return d !== null && d > 20; }).length;
-            }
+                    const value = analysis.est_value_inr;
+                    if (value > 0 && value < 500000) counts.under5l++;
+                    else if (value >= 500000 && value <= 30000000) counts.sweet++;
+                    else if (value > 30000000) counts.over3cr++;
+                }
+
+                const days = gemDaysToDeadline(t.end_date);
+                if (days !== null) {
+                    if (days >= actionableMinDays()) counts.dlActionable++;
+                    if (days >= 0 && days <= 3) counts.dlCritical++;
+                    else if (days >= 4 && days <= 7) counts.dlWeek++;
+                    else if (days >= 8 && days <= 14) counts.dl2weeks++;
+                    if (days >= 15 && days <= 20) counts.dl1520++;
+                    else if (days > 20) counts.dlOver20++;
+                }
+            });
+
+            const total = tenders.length;
+            setBadge('stat-cnt-all', total);
+            setBadge('stat-cnt-short', counts.shortlisted);
+            setBadge('stat-cnt-pending', counts.pending);
+            setBadge('stat-cnt-rejected', counts.rejected);
+
+            setBadge('rec-cnt-all', total);
+            setBadge('rec-cnt-pursue', counts.pursue);
+            setBadge('rec-cnt-review', counts.review);
+            setBadge('rec-cnt-drop', counts.drop);
+
+            setBadge('vb-cnt-all', total);
+            setBadge('vb-cnt-under-5l', counts.under5l);
+            setBadge('vb-cnt-sweet', counts.sweet);
+            setBadge('vb-cnt-over-3cr', counts.over3cr);
+
+            setBadge('dl-cnt-all', total);
+            setBadge('dl-cnt-actionable', counts.dlActionable);
+            setBadge('dl-cnt-15-20', counts.dl1520);
+            setBadge('dl-cnt-critical', counts.dlCritical);
+            setBadge('dl-cnt-week', counts.dlWeek);
+            setBadge('dl-cnt-2weeks', counts.dl2weeks);
+            setBadge('dl-cnt-over20', counts.dlOver20);
         }
 
         function setKeywordFilter(kw) {
@@ -3111,7 +3684,8 @@
             const btns = document.querySelectorAll('#deadlineFilters .filter-btn');
             btns.forEach(b => b.classList.remove('active'));
 
-            if (dl === 'all') document.getElementById('dl-all').classList.add('active');
+            if (dl === 'actionable') document.getElementById('dl-actionable').classList.add('active');
+            else if (dl === 'all') document.getElementById('dl-all').classList.add('active');
             else if (dl === '15-20') document.getElementById('dl-15-20').classList.add('active');
             else if (dl === 'critical') document.getElementById('dl-critical').classList.add('active');
             else if (dl === 'week') document.getElementById('dl-week').classList.add('active');
@@ -3122,10 +3696,52 @@
             filterData();
         }
 
+        // Deadline strings repeat heavily across a scrape, and this is called
+        // once per tender per band per render. Cached by string; cleared on
+        // every data refresh so the day count cannot go stale.
+        const deadlineDaysCache = new Map();
+
+        function clearDeadlineCache() {
+            deadlineDaysCache.clear();
+        }
+
+        function actionableMinDays() {
+            const configured = scoringConfig && scoringConfig.date_window
+                ? Number(scoringConfig.date_window.min_days_to_bid)
+                : 5;
+            return Number.isFinite(configured) && configured >= 0 ? configured : 5;
+        }
+
+        function gemDateTimestamp(dateStr) {
+            if (!dateStr) return Number.NEGATIVE_INFINITY;
+            const match = String(dateStr).trim().match(
+                /^(\d{1,2})-(\d{1,2})-(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?)?$/i
+            );
+            if (match) {
+                let hours = Number(match[4] || 0);
+                const meridiem = (match[6] || '').toUpperCase();
+                if (meridiem === 'PM' && hours < 12) hours += 12;
+                if (meridiem === 'AM' && hours === 12) hours = 0;
+                return new Date(
+                    Number(match[3]), Number(match[2]) - 1, Number(match[1]),
+                    hours, Number(match[5] || 0)
+                ).getTime();
+            }
+            const fallback = Date.parse(dateStr);
+            return Number.isNaN(fallback) ? Number.NEGATIVE_INFINITY : fallback;
+        }
+
         // Feature C: parse GeM "DD-MM-YYYY HH:MM AM/PM" end date → whole days from now
         // (negative = already closed). Returns null when the date is unparseable.
         function gemDaysToDeadline(dateStr) {
             if (!dateStr) return null;
+            if (deadlineDaysCache.has(dateStr)) return deadlineDaysCache.get(dateStr);
+            const days = computeDaysToDeadline(dateStr);
+            deadlineDaysCache.set(dateStr, days);
+            return days;
+        }
+
+        function computeDaysToDeadline(dateStr) {
             try {
                 const parts = dateStr.trim().split(' ');
                 if (parts.length < 2) return null;
@@ -3152,19 +3768,21 @@
             searchStr = document.getElementById('searchInput').value.toLowerCase().trim();
 
             let filtered = tenders.filter(t => {
-                const matchKeyword = currentKeyword === 'all' || t.keyword.toLowerCase().includes(currentKeyword);
+                const matchKeyword = currentKeyword === 'all' || (t.keyword || '').toLowerCase().includes(currentKeyword);
                 
                 const tStatus = t.status || 'Pending Review';
                 const matchStatus = currentStatus === 'all' || tStatus === currentStatus;
                 
                 const matchSearch = searchStr === '' ||
-                                    t.title.toLowerCase().includes(searchStr) ||
-                                    t.bid_no.toLowerCase().includes(searchStr) ||
-                                    t.department.toLowerCase().includes(searchStr);
+                                    (t.title || '').toLowerCase().includes(searchStr) ||
+                                    (t.bid_no || '').toLowerCase().includes(searchStr) ||
+                                    (t.department || '').toLowerCase().includes(searchStr);
+
+                const matchSource = currentSource === 'all' || (t.source_id || 'unknown') === currentSource;
 
                 // Phase 2 Filters
                 const analysis = t.analysis || {};
-                
+
                 const matchRec = currentRec === 'all' || (analysis.recommendation && analysis.recommendation === currentRec);
                 const matchBL = currentBusinessLine === 'all' || (analysis.business_line && analysis.business_line.id === currentBusinessLine);
                 
@@ -3185,6 +3803,8 @@
                     const days = gemDaysToDeadline(t.end_date);
                     if (days === null) {
                         matchDeadline = false;
+                    } else if (currentDeadlineBand === 'actionable') {
+                        matchDeadline = days >= actionableMinDays();
                     } else if (currentDeadlineBand === '15-20') {
                         matchDeadline = days >= 15 && days <= 20;
                     } else if (currentDeadlineBand === 'critical') {
@@ -3205,14 +3825,21 @@
                     matchDate = currentDate === 'unknown' ? !seen : seen === currentDate;
                 }
 
-                return matchKeyword && matchStatus && matchSearch && matchRec && matchBL && matchVal && matchDeadline && matchDate;
+                return matchKeyword && matchStatus && matchSearch && matchSource && matchRec
+                    && matchBL && matchVal && matchDeadline && matchDate;
             });
 
             // Sort logic
             const sortVal = document.getElementById('tendersSortSelect') ? document.getElementById('tendersSortSelect').value : 'none';
             if (sortVal !== 'none') {
                 filtered.sort((a, b) => {
-                    if (sortVal === 'priority-desc') {
+                    if (sortVal === 'published-newest') {
+                        const publishedDiff = gemDateTimestamp(b.start_date) - gemDateTimestamp(a.start_date);
+                        if (publishedDiff !== 0) return publishedDiff;
+                        const prA = (a.analysis && a.analysis.priority_score != null) ? a.analysis.priority_score : -1;
+                        const prB = (b.analysis && b.analysis.priority_score != null) ? b.analysis.priority_score : -1;
+                        return prB - prA;
+                    } else if (sortVal === 'priority-desc') {
                         const prA = (a.analysis && a.analysis.priority_score !== undefined && a.analysis.priority_score !== null) ? a.analysis.priority_score : -1;
                         const prB = (b.analysis && b.analysis.priority_score !== undefined && b.analysis.priority_score !== null) ? b.analysis.priority_score : -1;
                         return prB - prA;
@@ -3268,12 +3895,206 @@
             renderTenders(filtered);
         }
 
+        /* ====================================================================
+           GROUPED RENDERING
+
+           A scrape returns thousands of tenders. Rendering them as one flat
+           list produced a page nobody could navigate and a DOM the browser
+           struggled with, so the result set is bucketed into sections and only
+           an open section builds its cards.
+           ==================================================================== */
+
+        // Ordered buckets, so a section that is empty this time still appears
+        // in the same place next time. `keyOf` returns the bucket a tender
+        // belongs to; anything not in `order` is appended alphabetically.
+        const GROUPINGS = {
+            recommendation: {
+                order: ['Pursue', 'Review', 'Drop', 'Unscored'],
+                accents: {
+                    'Pursue': 'var(--success-color)',
+                    'Review': 'var(--warning-color)',
+                    'Drop': 'var(--failed-color)',
+                    'Unscored': 'var(--neutral-color)',
+                },
+                subs: {
+                    'Pursue': 'Strong fit — worth a bid decision',
+                    'Review': 'Needs a human read before deciding',
+                    'Drop': 'Screened out by fit or eligibility',
+                    'Unscored': 'No analysis on record yet',
+                },
+                keyOf: t => (t.analysis && t.analysis.recommendation) || 'Unscored',
+            },
+            status: {
+                order: ['Shortlisted', 'Pending Review', 'Rejected'],
+                accents: {
+                    'Shortlisted': 'var(--success-color)',
+                    'Pending Review': 'var(--warning-color)',
+                    'Rejected': 'var(--failed-color)',
+                },
+                keyOf: t => t.status || 'Pending Review',
+            },
+            deadline: {
+                order: ['🔥 Closing in 3 days', '⏳ 4–7 days', '📆 8–14 days', '📅 15–20 days',
+                        '🚀 More than 20 days', '⌛ Closed', 'No deadline on record'],
+                accents: {
+                    '🔥 Closing in 3 days': 'var(--failed-color)',
+                    '⏳ 4–7 days': 'var(--warning-color)',
+                    '📆 8–14 days': 'var(--primary-accent)',
+                    '📅 15–20 days': 'var(--primary-accent)',
+                    '🚀 More than 20 days': 'var(--success-color)',
+                    '⌛ Closed': 'var(--neutral-color)',
+                    'No deadline on record': 'var(--neutral-color)',
+                },
+                keyOf: t => {
+                    const days = gemDaysToDeadline(t.end_date);
+                    if (days === null) return 'No deadline on record';
+                    if (days < 0) return '⌛ Closed';
+                    if (days <= 3) return '🔥 Closing in 3 days';
+                    if (days <= 7) return '⏳ 4–7 days';
+                    if (days <= 14) return '📆 8–14 days';
+                    if (days <= 20) return '📅 15–20 days';
+                    return '🚀 More than 20 days';
+                },
+            },
+            value: {
+                order: ['Under ₹5 Lakh', '₹5 Lakh – ₹3 Crore', 'Above ₹3 Crore', 'Value not stated'],
+                accents: {
+                    'Under ₹5 Lakh': 'var(--neutral-color)',
+                    '₹5 Lakh – ₹3 Crore': 'var(--success-color)',
+                    'Above ₹3 Crore': 'var(--warning-color)',
+                    'Value not stated': 'var(--neutral-color)',
+                },
+                subs: { '₹5 Lakh – ₹3 Crore': 'The configured sweet spot' },
+                keyOf: t => {
+                    const value = (t.analysis && t.analysis.est_value_inr) || 0;
+                    if (!value) return 'Value not stated';
+                    if (value < 500000) return 'Under ₹5 Lakh';
+                    if (value <= 30000000) return '₹5 Lakh – ₹3 Crore';
+                    return 'Above ₹3 Crore';
+                },
+            },
+            source: {
+                accents: {},
+                keyOf: t => portalLabel(t.source_id || 'unknown', t.source_name),
+            },
+            business_line: {
+                accents: {},
+                keyOf: t => (t.analysis && t.analysis.business_line && t.analysis.business_line.label)
+                    || 'Unclassified',
+            },
+            date: {
+                accents: {},
+                keyOf: t => (t.first_seen ? formatSeenDate(t.first_seen) : 'Undated'),
+                sortKeyOf: t => t.first_seen || '',
+                descending: true,
+            },
+        };
+
+        function buildGroups(items, mode) {
+            const spec = GROUPINGS[mode];
+            if (!spec) return [{ key: 'all', label: '', sub: '', accent: '', items: items }];
+
+            const buckets = new Map();
+            items.forEach(tender => {
+                const key = spec.keyOf(tender);
+                if (!buckets.has(key)) {
+                    buckets.set(key, {
+                        key: key,
+                        label: key,
+                        sub: (spec.subs && spec.subs[key]) || '',
+                        accent: spec.accents[key] || 'var(--primary-accent)',
+                        sortKey: spec.sortKeyOf ? spec.sortKeyOf(tender) : '',
+                        items: [],
+                    });
+                }
+                buckets.get(key).items.push(tender);
+            });
+
+            const groups = Array.from(buckets.values());
+            const order = spec.order || [];
+            groups.sort((a, b) => {
+                const ia = order.indexOf(a.key);
+                const ib = order.indexOf(b.key);
+                if (ia !== -1 || ib !== -1) {
+                    if (ia === -1) return 1;
+                    if (ib === -1) return -1;
+                    return ia - ib;
+                }
+                if (spec.sortKeyOf) {
+                    const cmp = String(a.sortKey).localeCompare(String(b.sortKey));
+                    return spec.descending ? -cmp : cmp;
+                }
+                // Undeclared buckets (portals, business lines): biggest first.
+                return b.items.length - a.items.length || a.label.localeCompare(b.label);
+            });
+            return groups;
+        }
+
+        function onGroupByChange() {
+            const select = document.getElementById('tendersGroupSelect');
+            currentGroupBy = select ? select.value : 'none';
+            // A new grouping means new section keys; start from a clean slate
+            // rather than carrying over an unrelated section's open state.
+            openGroupKeys.clear();
+            groupLimits.clear();
+            filterData();
+        }
+
+        function toggleGroup(encodedKey) {
+            const key = decodeURIComponent(encodedKey);
+            const group = renderedGroups.find(g => g.key === key);
+            if (!group) return;
+
+            const element = document.querySelector(`[data-group-key="${CSS.escape(key)}"]`);
+            if (!element) return;
+
+            if (openGroupKeys.has(key)) {
+                openGroupKeys.delete(key);
+                element.classList.remove('open');
+                element.querySelector('.group-body').innerHTML = '';
+                element.querySelector('.group-header').setAttribute('aria-expanded', 'false');
+                return;
+            }
+
+            openGroupKeys.add(key);
+            element.classList.add('open');
+            element.querySelector('.group-header').setAttribute('aria-expanded', 'true');
+            element.querySelector('.group-body').innerHTML = renderGroupBody(group);
+        }
+
+        function showMoreInGroup(encodedKey) {
+            const key = decodeURIComponent(encodedKey);
+            const group = renderedGroups.find(g => g.key === key);
+            if (!group) return;
+            groupLimits.set(key, (groupLimits.get(key) || GROUP_PAGE_SIZE) + GROUP_PAGE_SIZE);
+            const element = document.querySelector(`[data-group-key="${CSS.escape(key)}"]`);
+            if (element) element.querySelector('.group-body').innerHTML = renderGroupBody(group);
+        }
+
+        function renderGroupBody(group) {
+            const limit = groupLimits.get(group.key) || GROUP_PAGE_SIZE;
+            const visible = group.items.slice(0, limit);
+            let html = visible.map(buildTenderCard).join('');
+
+            const remaining = group.items.length - visible.length;
+            if (remaining > 0) {
+                const encoded = encodeURIComponent(group.key);
+                html += `
+                    <button class="group-more" onclick="showMoreInGroup('${encoded}')">
+                        Show ${Math.min(remaining, GROUP_PAGE_SIZE)} more &middot; ${remaining} remaining
+                    </button>
+                `;
+            }
+            return html;
+        }
+
         function renderTenders(items) {
             const listContainer = document.getElementById('tendersList');
             document.getElementById('visible-count').innerText = items.length;
             document.getElementById('total-count').innerText = tenders.length;
 
             if (items.length === 0) {
+                renderedGroups = [];
                 listContainer.innerHTML = `
                     <div class="state-container" style="margin: 2rem auto; width: 100%;">
                         <div style="font-size: 2.5rem;">🔍</div>
@@ -3284,7 +4105,51 @@
                 return;
             }
 
-            listContainer.innerHTML = items.map(tender => {
+            renderedGroups = buildGroups(items, currentGroupBy);
+
+            if (currentGroupBy === 'none') {
+                const group = renderedGroups[0];
+                groupLimits.set(group.key, groupLimits.get(group.key) || GROUP_PAGE_SIZE);
+                listContainer.innerHTML = renderGroupBody(group);
+                return;
+            }
+
+            // The first section opens by default so the page is never a wall of
+            // collapsed headers. This also has to fire when a filter change
+            // means none of the sections the user had open still exist --
+            // otherwise the results are all there but nothing is showing.
+            const anyOpenStillPresent = renderedGroups.some(g => openGroupKeys.has(g.key));
+            if (!anyOpenStillPresent && renderedGroups.length > 0) {
+                openGroupKeys.add(renderedGroups[0].key);
+            }
+
+            listContainer.innerHTML = renderedGroups.map(group => {
+                const isOpen = openGroupKeys.has(group.key);
+                const encoded = encodeURIComponent(group.key);
+                return `
+                    <section class="tender-group ${isOpen ? 'open' : ''}"
+                             data-group-key="${escapeHtml(group.key)}"
+                             style="--group-accent: ${group.accent};">
+                        <button class="group-header" onclick="toggleGroup('${encoded}')"
+                                aria-expanded="${isOpen ? 'true' : 'false'}">
+                            <svg class="group-chevron" width="14" height="14" fill="none"
+                                 viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                            </svg>
+                            <span class="group-swatch"></span>
+                            <span>
+                                <span class="group-label">${escapeHtml(group.label)}</span>
+                                ${group.sub ? `<span class="group-sub">${escapeHtml(group.sub)}</span>` : ''}
+                            </span>
+                            <span class="group-count">${group.items.length}</span>
+                        </button>
+                        <div class="group-body">${isOpen ? renderGroupBody(group) : ''}</div>
+                    </section>
+                `;
+            }).join('');
+        }
+
+        function buildTenderCard(tender) {
                 // Score Badge and Classification Badge
                 let statusClass = 'status-pending';
                 let statusText = tender.status || 'Pending Review';
@@ -3328,24 +4193,24 @@
                     // Business line tag (Phase 2)
                     if (analysis.business_line) {
                         const mk = analysis.business_line.matched_keywords;
-                        const mkTitle = (mk && mk.length) ? ` title="Matched: ${mk.join(', ')}"` : '';
-                        businessLineTag = `<span class="tag tag-business-line"${mkTitle}>${analysis.business_line.label}</span>`;
+                        const mkTitle = (mk && mk.length) ? ` title="Matched: ${escapeHtml(mk.join(', '))}"` : '';
+                        businessLineTag = `<span class="tag tag-business-line"${mkTitle}>${escapeHtml(analysis.business_line.label)}</span>`;
                     }
 
                     // Eligibility tag (Phase 2)
                     if (analysis.eligibility) {
                         const verdict = analysis.eligibility.verdict;
                         if (verdict === 'turnover_gap') {
-                            eligibilityTag = `<span class="tag tag-eligibility-warning" title="${analysis.eligibility.detail || 'Turnover requirement gap'}">⚠️ Turnover Gap</span>`;
+                            eligibilityTag = `<span class="tag tag-eligibility-warning" title="${escapeHtml(analysis.eligibility.detail) || 'Turnover requirement gap'}">⚠️ Turnover Gap</span>`;
                         } else if (verdict === 'eligible') {
                             eligibilityTag = `<span class="tag tag-eligibility-ok">✓ Eligible</span>`;
                         }
                     }
 
                     if (analysis.analysis_status === 'failed') {
-                        scoreBadge = `<span class="score-badge" style="background: rgba(156, 163, 175, 0.15); color: #9ca3af; border-color: rgba(156, 163, 175, 0.3);">Analysis Failed</span>`;
+                        scoreBadge = `<span class="score-badge" style="background: var(--neutral-bg); color: var(--neutral-color); border-color: var(--neutral-border);">Analysis Failed</span>`;
                         
-                        const reasonsHtml = (analysis.reasons || []).map(r => `<li>${r}</li>`).join('');
+                        const reasonsHtml = (analysis.reasons || []).map(r => `<li>${escapeHtml(r)}</li>`).join('');
                         detailsAccordion = `
                             <details class="tender-analysis-details">
                                 <summary>View Automated RFP Score Details</summary>
@@ -3361,7 +4226,7 @@
                         `;
                         
                         reanalyzeBtn = `
-                            <button class="btn btn-secondary" onclick="reanalyzeBid('${tender.bid_no}')" style="padding: 0.45rem 1rem; font-size: 0.8rem; border-color: var(--primary-accent);">
+                            <button class="btn btn-secondary" onclick="reanalyzeBid('${encodeURIComponent(tender.bid_no)}')" style="padding: 0.45rem 1rem; font-size: 0.8rem; border-color: var(--primary-accent);">
                                 <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17" />
                                 </svg>
@@ -3405,7 +4270,7 @@
                         }
 
                         const riskBadge = cardOnly
-                            ? `<span class="score-badge" style="background: rgba(156, 163, 175, 0.15); color: #9ca3af; border-color: rgba(156, 163, 175, 0.3);" title="No RFP PDF — Fit scored from card metadata; tender terms (Risk) unknown">No PDF</span>`
+                            ? `<span class="score-badge" style="background: var(--neutral-bg); color: var(--neutral-color); border-color: var(--neutral-border);" title="No RFP PDF — Fit scored from card metadata; tender terms (Risk) unknown">No PDF</span>`
                             : `<span class="score-badge ${riskClass}">${scoreText}</span>`;
                         scoreBadge = `
                             <div style="display: flex; gap: 0.35rem; align-items: center;">
@@ -3416,7 +4281,7 @@
                         `;
                         if (cardOnly) {
                             reanalyzeBtn = `
-                                <button class="btn btn-secondary" onclick="reanalyzeBid('${tender.bid_no}')" style="padding: 0.45rem 1rem; font-size: 0.8rem; border-color: var(--primary-accent);">
+                                <button class="btn btn-secondary" onclick="reanalyzeBid('${encodeURIComponent(tender.bid_no)}')" style="padding: 0.45rem 1rem; font-size: 0.8rem; border-color: var(--primary-accent);">
                                     <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17" />
                                     </svg>
@@ -3447,32 +4312,32 @@
                                         const maxPointsFormatted = maxPoints.toFixed(1);
                                         const pct = maxPoints > 0 ? Math.min(100, Math.max(0, (item.points / maxPoints) * 100)) : 0;
                                         
-                                        let barColor = 'var(--primary-accent)';
+                                        let barColor = 'var(--neutral-color)';
                                         if (item.subscore >= 0.7) {
                                             barColor = 'var(--success-color)';
                                         } else if (item.subscore <= 0.4) {
                                             barColor = 'var(--failed-color)';
                                         } else {
-                                            barColor = '#f59e0b';
+                                            barColor = 'var(--warning-color)';
                                         }
                                         
                                         return `
                                             <div class="breakdown-row">
                                                 <div class="breakdown-header">
-                                                    <span class="breakdown-name">${item.criterion} (Weight: ${item.weight})</span>
+                                                    <span class="breakdown-name">${escapeHtml(item.criterion)} (Weight: ${item.weight})</span>
                                                     <span class="breakdown-values">${item.points.toFixed(1)} / ${maxPointsFormatted} pts</span>
                                                 </div>
                                                 <div class="breakdown-bar-bg">
                                                     <div class="breakdown-bar-fill" style="width: ${pct}%; background-color: ${barColor};"></div>
                                                 </div>
-                                                ${item.detail ? `<div class="breakdown-detail">${item.detail}</div>` : ''}
+                                                ${item.detail ? `<div class="breakdown-detail">${escapeHtml(item.detail)}</div>` : ''}
                                             </div>
                                         `;
                                     }).join('')}
                                 </div>
                             `;
                         } else {
-                            const reasonsHtml = (analysis.reasons || []).map(r => `<li>${r}</li>`).join('');
+                            const reasonsHtml = (analysis.reasons || []).map(r => `<li>${escapeHtml(r)}</li>`).join('');
                             breakdownHtml = `
                                 <div class="analysis-reasons">
                                     <strong>Evaluation Analysis:</strong>
@@ -3494,25 +4359,25 @@
                                         const maxPointsFormatted = maxPoints.toFixed(1);
                                         const pct = maxPoints > 0 ? Math.min(100, Math.max(0, (item.points / maxPoints) * 100)) : 0;
                                         
-                                        let barColor = 'var(--primary-accent)';
+                                        let barColor = 'var(--neutral-color)';
                                         if (item.subscore >= 0.7) {
                                             barColor = 'var(--success-color)';
                                         } else if (item.subscore <= 0.4) {
                                             barColor = 'var(--failed-color)';
                                         } else {
-                                            barColor = '#f59e0b';
+                                            barColor = 'var(--warning-color)';
                                         }
                                         
                                         return `
                                             <div class="breakdown-row">
                                                 <div class="breakdown-header">
-                                                    <span class="breakdown-name">${item.criterion} (Weight: ${item.weight})</span>
+                                                    <span class="breakdown-name">${escapeHtml(item.criterion)} (Weight: ${item.weight})</span>
                                                     <span class="breakdown-values">${item.points.toFixed(1)} / ${maxPointsFormatted} pts</span>
                                                 </div>
                                                 <div class="breakdown-bar-bg">
                                                     <div class="breakdown-bar-fill" style="width: ${pct}%; background-color: ${barColor};"></div>
                                                 </div>
-                                                ${item.detail ? `<div class="breakdown-detail">${item.detail}</div>` : ''}
+                                                ${item.detail ? `<div class="breakdown-detail">${escapeHtml(item.detail)}</div>` : ''}
                                             </div>
                                         `;
                                     }).join('')}
@@ -3538,12 +4403,12 @@
                             const eligibilityColor = analysis.eligibility.verdict === 'turnover_gap' ? 'var(--failed-color)' : 'var(--success-color)';
                             const eligibilityVerdictLabel = analysis.eligibility.verdict === 'turnover_gap' ? 'Turnover Gap' : 'Eligible';
                             
-                            const flagsHtml = (analysis.eligibility.flags || []).map(f => `<span class="tag tag-keyword" style="font-size: 0.7rem; padding: 0.1rem 0.4rem;">${f}</span>`).join(' ');
+                            const flagsHtml = (analysis.eligibility.flags || []).map(f => `<span class="tag tag-keyword" style="font-size: 0.7rem; padding: 0.1rem 0.4rem;">${escapeHtml(f)}</span>`).join(' ');
                             
                             eligibilityDetailsHtml = `
                                 <div class="analysis-reasons" style="border-top: 1px solid var(--border-color); padding-top: 0.75rem; margin-top: 0.5rem; width: 100%;">
                                     <strong>Eligibility Verdict:</strong> <span class="${eligibilityClass}" style="font-weight: 700; color: ${eligibilityColor};">${eligibilityVerdictLabel}</span>
-                                    <p style="font-size: 0.775rem; color: var(--text-secondary); margin-top: 0.25rem;">${analysis.eligibility.detail}</p>
+                                    <p style="font-size: 0.775rem; color: var(--text-secondary); margin-top: 0.25rem;">${escapeHtml(analysis.eligibility.detail)}</p>
                                     ${flagsHtml ? `<div style="margin-top: 0.35rem; display: flex; gap: 0.35rem; flex-wrap: wrap;">${flagsHtml}</div>` : ''}
                                 </div>
                             `;
@@ -3554,11 +4419,11 @@
                                 <summary>View Automated RFP Score Details</summary>
                                 <div class="analysis-content">
                                     <div class="analysis-grid">
-                                        <div><strong>EMD Amount:</strong> ${analysis.emd_status || 'N/A'}</div>
-                                        <div><strong>Startup Relaxation:</strong> ${analysis.startup_exemption || 'No'}</div>
-                                        <div><strong>MSE Relaxation:</strong> ${analysis.mse_exemption || 'No'}</div>
-                                        <div><strong>Pre-Bid Meeting:</strong> ${prebidVal}</div>
-                                        <div><strong>ePBG Guarantee:</strong> ${epbgVal}</div>
+                                        <div><strong>EMD Amount:</strong> ${escapeHtml(analysis.emd_status) || 'N/A'}</div>
+                                        <div><strong>Startup Relaxation:</strong> ${escapeHtml(analysis.startup_exemption) || 'No'}</div>
+                                        <div><strong>MSE Relaxation:</strong> ${escapeHtml(analysis.mse_exemption) || 'No'}</div>
+                                        <div><strong>Pre-Bid Meeting:</strong> ${escapeHtml(prebidVal)}</div>
+                                        <div><strong>ePBG Guarantee:</strong> ${escapeHtml(epbgVal)}</div>
                                     </div>
                                     ${breakdownsWrapperHtml}
                                     ${eligibilityDetailsHtml}
@@ -3570,12 +4435,12 @@
                     scoreBadge = `<span class="score-badge score-low" style="background: rgba(255,255,255,0.02); color: var(--text-secondary); border-color: var(--border-color);">Score: --/10</span>`;
                 }
 
-                const localPath = tender.local_pdf_path.startsWith('tenders/') 
+                const localPath = (tender.local_pdf_path || '').startsWith('tenders/')
                     ? tender.local_pdf_path 
                     : `tenders/downloads/${tender.local_pdf_path}`;
                 
                 const actionButtons = tender.downloaded
-                    ? `<a href="${localPath}" target="_blank" class="btn btn-primary" style="padding: 0.45rem 1rem; font-size: 0.8rem;">
+                    ? `<a href="${encodeURI(localPath)}" target="_blank" class="btn btn-primary" style="padding: 0.45rem 1rem; font-size: 0.8rem;">
                             <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
@@ -3584,7 +4449,8 @@
                     : `<span class="state-message" style="font-size: 0.8rem; font-style: italic;">RFP download not available.</span>`;
 
                 // Keywords and tags
-                const keywordsList = tender.keyword.split(',').map(kw => `<span class="tag tag-keyword">${kw.trim()}</span>`).join(' ');
+                const keywordsList = (tender.keyword || '').split(',')
+                    .map(kw => `<span class="tag tag-keyword">${escapeHtml(kw.trim())}</span>`).join(' ');
 
                 // Phase 2 extra grid fields
                 let extraDetailsHtml = '';
@@ -3613,24 +4479,24 @@
                             <span class="detail-value" style="color: var(--secondary-accent); font-weight: 700;">${valStr}${estBadge}</span>
                         </div>`;
                     extraDetailsHtml += `
-                        <div class="detail-item" style="grid-column: span 2;" title="${buyerStr}">
+                        <div class="detail-item" style="grid-column: span 2;" title="${escapeHtml(buyerStr)}">
                             <span class="detail-label">Buyer Detail</span>
-                            <span class="detail-value" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">${buyerStr}</span>
+                            <span class="detail-value" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">${escapeHtml(buyerStr)}</span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Consignee State</span>
-                            <span class="detail-value">${stateStr}</span>
+                            <span class="detail-value">${escapeHtml(stateStr)}</span>
                         </div>
-                        <div class="detail-item" style="grid-column: span 4;" title="${itemStr}">
+                        <div class="detail-item" style="grid-column: span 4;" title="${escapeHtml(itemStr)}">
                             <span class="detail-label">Primary Item / Category</span>
-                            <span class="detail-value" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">${itemStr}</span>
+                            <span class="detail-value" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">${escapeHtml(itemStr)}</span>
                         </div>
                     `;
                 }
 
                 // Source Portal Badge
                 const sourceName = tender.source_name || (tender.source_id ? tender.source_id.toUpperCase() : 'GEM');
-                const sourceBadge = `<span class="tag" style="background: rgba(99, 102, 241, 0.15); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.3); font-weight: 700; font-size: 0.72rem; letter-spacing: 0.03em;">🌐 ${sourceName}</span>`;
+                const sourceBadge = `<span class="tag tag-portal">🌐 ${escapeHtml(sourceName)}</span>`;
 
                 return `
                     <div class="tender-card">
@@ -3638,13 +4504,13 @@
                             <div class="tender-title-area">
                                 <div class="tender-tags">
                                     ${sourceBadge}
-                                    <span class="tag tag-id">${tender.bid_no}</span>
+                                    <span class="tag tag-id">${escapeHtml(tender.bid_no)}</span>
                                     ${keywordsList}
                                     ${businessLineTag}
                                     ${eligibilityTag}
                                     ${urgencyTag}
                                 </div>
-                                <h3 class="tender-title">${tender.title}</h3>
+                                <h3 class="tender-title">${escapeHtml(tender.title)}</h3>
                             </div>
                             <div class="status-area">
                                 <div style="display: flex; gap: 0.35rem; align-items: center;">
@@ -3659,15 +4525,15 @@
                         <div class="tender-details-grid">
                             <div class="detail-item">
                                 <span class="detail-label">Quantity</span>
-                                <span class="detail-value">${tender.quantity || 'N/A'}</span>
+                                <span class="detail-value">${escapeHtml(tender.quantity) || 'N/A'}</span>
                             </div>
                             <div class="detail-item" style="grid-column: span 2;">
                                 <span class="detail-label">Department / Organisation</span>
-                                <span class="detail-value">${tender.department || 'N/A'}</span>
+                                <span class="detail-value">${escapeHtml(tender.department) || 'N/A'}</span>
                             </div>
                             <div class="detail-item">
                                 <span class="detail-label">End Date (Deadline)</span>
-                                <span class="detail-value">${tender.end_date || 'N/A'}</span>
+                                <span class="detail-value">${escapeHtml(tender.end_date) || 'N/A'}</span>
                             </div>
                             ${extraDetailsHtml}
                         </div>
@@ -3677,7 +4543,7 @@
                         <div class="tender-actions">
                             <div style="display: flex; gap: 0.75rem; align-items: center;">
                                 ${actionButtons}
-                                <a href="${tender.pdf_url}" target="_blank" class="btn btn-secondary" style="padding: 0.45rem 1rem; font-size: 0.8rem;">
+                                <a href="${encodeURI(tender.pdf_url || '')}" target="_blank" class="btn btn-secondary" style="padding: 0.45rem 1rem; font-size: 0.8rem;">
                                     <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                                     </svg>
@@ -3687,20 +4553,19 @@
                             </div>
                             
                             <div class="override-controls">
-                                <button class="btn-override ${statusText === 'Shortlisted' ? 'active-short' : ''}" onclick="overrideStatus('${tender.bid_no}', 'Shortlisted')" title="Shortlist Tender">
+                                <button class="btn-override ${statusText === 'Shortlisted' ? 'active-short' : ''}" onclick="overrideStatus('${encodeURIComponent(tender.bid_no)}', 'Shortlisted')" title="Shortlist Tender">
                                     🟢 Shortlist
                                 </button>
-                                <button class="btn-override ${statusText === 'Pending Review' ? 'active-pending' : ''}" onclick="overrideStatus('${tender.bid_no}', 'Pending Review')" title="Mark Pending">
+                                <button class="btn-override ${statusText === 'Pending Review' ? 'active-pending' : ''}" onclick="overrideStatus('${encodeURIComponent(tender.bid_no)}', 'Pending Review')" title="Mark Pending">
                                     🟡 Pending
                                 </button>
-                                <button class="btn-override ${statusText === 'Rejected' ? 'active-rejected' : ''}" onclick="overrideStatus('${tender.bid_no}', 'Rejected')" title="Reject Tender">
+                                <button class="btn-override ${statusText === 'Rejected' ? 'active-rejected' : ''}" onclick="overrideStatus('${encodeURIComponent(tender.bid_no)}', 'Rejected')" title="Reject Tender">
                                     🔴 Reject
                                 </button>
                             </div>
                         </div>
                     </div>
                 `;
-            }).join('');
         }
 
         // Portals Hub Modal Logic
@@ -3775,13 +4640,13 @@
 
                 let statusBadge;
                 if (!isEnabled) {
-                    statusBadge = badge('DISABLED', '#ef4444');
+                    statusBadge = badge('DISABLED', 'var(--failed-color)');
                 } else if (src.native) {
-                    statusBadge = badge('NATIVE', '#818cf8');
+                    statusBadge = badge('NATIVE', 'var(--primary-accent)');
                 } else if (src.supported === false) {
-                    statusBadge = badge('NO ADAPTER', '#f59e0b');
+                    statusBadge = badge('NO ADAPTER', 'var(--warning-color)');
                 } else {
-                    statusBadge = badge('ACTIVE', '#10b981');
+                    statusBadge = badge('ACTIVE', 'var(--success-color)');
                 }
 
                 return `
@@ -3793,16 +4658,16 @@
                             </div>
                             <p style="margin: 0 0 0.4rem 0; font-size: 0.75rem; color: var(--text-secondary); line-height: 1.35;">${src.description || 'Monitored e-Procurement Portal'}</p>
                             <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
-                                <span style="font-size: 0.68rem; font-weight: 600; text-transform: uppercase; background: rgba(99,102,241,0.1); color: #818cf8; padding: 1px 5px; border-radius: 3px;">${src.category}</span>
+                                <span style="font-size: 0.68rem; font-weight: 600; text-transform: uppercase; background: var(--primary-accent-soft); color: var(--primary-accent); padding: 1px 5px; border-radius: 3px;">${src.category}</span>
                                 <span style="font-size: 0.68rem; color: var(--text-secondary);">Engine: <strong>${src.engine}</strong></span>
                             </div>
                             ${(isEnabled && src.supported === false && !src.native)
-                                ? `<p style="margin: 0.35rem 0 0 0; font-size: 0.68rem; color: #f59e0b;">Not scraped: ${src.blocked_reason || `no adapter for the <strong>${src.engine}</strong> engine yet.`}</p>`
+                                ? `<p style="margin: 0.35rem 0 0 0; font-size: 0.68rem; color: var(--warning-color);">Not scraped: ${src.blocked_reason || `no adapter for the <strong>${src.engine}</strong> engine yet.`}</p>`
                                 : ''}
                         </div>
 
                         <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.5rem; margin-top: 0.25rem;">
-                            <a href="${src.url}" target="_blank" style="font-size: 0.75rem; color: #60a5fa; text-decoration: none; display: flex; align-items: center; gap: 0.2rem;">
+                            <a href="${src.url}" target="_blank" style="font-size: 0.75rem; color: var(--primary-accent); text-decoration: none; display: flex; align-items: center; gap: 0.2rem;">
                                 🌐 Open Portal
                             </a>
                             <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; font-size: 0.78rem; color: var(--text-primary); font-weight: 500;">
@@ -3833,6 +4698,95 @@
             } catch (err) {
                 console.error("Error toggling source:", err);
             }
+        }
+
+        /* ====================================================================
+           SPLIT-FLAP TENDER BOARD INTRO
+
+           The letters tick through glyphs and settle one column at a time, the
+           way a mechanical departure board does. Every cell is rebuilt on each
+           call, so the intro can be replayed without a reload.
+           ==================================================================== */
+        const SPLASH_ROWS = ['GEMSENTRY', 'TENDER INTEL'];
+        const FLAP_GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        const FLAP_STAGGER = 40;   // ms between neighbouring cells starting
+        const FLAP_TICK = 60;      // ms per glyph swap
+        const BOARD_HOLD = 700;    // let the settled board actually be seen
+
+        const splashOverlay = document.getElementById('splashOverlay');
+        const splashReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+        let splashTimers = [];
+
+        function clearSplashTimers() {
+            splashTimers.forEach(clearTimeout);
+            splashTimers = [];
+        }
+
+        function buildFlapRow(rowEl, text) {
+            rowEl.innerHTML = '';
+            return Array.from(text).map(ch => {
+                const cell = document.createElement('span');
+                cell.className = ch === ' ' ? 'flap space' : 'flap';
+                rowEl.appendChild(cell);
+                return { cell: cell, target: ch };
+            });
+        }
+
+        function finishSplash() {
+            clearSplashTimers();
+            if (splashOverlay) splashOverlay.classList.add('hide');
+        }
+
+        function runSplash() {
+            if (!splashOverlay) return;
+            clearSplashTimers();
+            splashOverlay.classList.remove('hide');
+
+            const cells = buildFlapRow(document.getElementById('flapRow1'), SPLASH_ROWS[0])
+                .concat(buildFlapRow(document.getElementById('flapRow2'), SPLASH_ROWS[1]));
+
+            if (splashReducedMotion.matches) {
+                cells.forEach(c => {
+                    if (c.target === ' ') return;
+                    c.cell.textContent = c.target;
+                    c.cell.classList.add('settled');
+                });
+                splashTimers.push(setTimeout(finishSplash, 900));
+                return;
+            }
+
+            let lastSettle = 0;
+            cells.forEach((c, i) => {
+                if (c.target === ' ') return;
+                const start = i * FLAP_STAGGER;
+                const settle = start + 320 + Math.floor(Math.random() * 140);
+                lastSettle = Math.max(lastSettle, settle);
+
+                for (let t = start; t < settle; t += FLAP_TICK) {
+                    splashTimers.push(setTimeout(() => {
+                        c.cell.textContent = FLAP_GLYPHS[Math.floor(Math.random() * FLAP_GLYPHS.length)];
+                        c.cell.classList.remove('ticking');
+                        void c.cell.offsetWidth;
+                        c.cell.classList.add('ticking');
+                    }, t));
+                }
+
+                splashTimers.push(setTimeout(() => {
+                    c.cell.textContent = c.target;
+                    c.cell.classList.remove('ticking');
+                    void c.cell.offsetWidth;
+                    c.cell.classList.add('ticking', 'settled');
+                }, settle));
+            });
+
+            splashTimers.push(setTimeout(finishSplash, lastSettle + BOARD_HOLD));
+        }
+
+        if (splashOverlay) {
+            splashOverlay.addEventListener('click', finishSplash);
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !splashOverlay.classList.contains('hide')) finishSplash();
+            });
         }
     </script>
 </body>

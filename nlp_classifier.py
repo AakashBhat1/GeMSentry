@@ -109,13 +109,18 @@ CANONICAL_DOMAINS: Dict[str, Dict[str, Any]] = {
             "anpr",
             "biometric",
             "facial recognition",
+            "facial based",
+            "face based",
+            "facial authentication",
+            "face authentication",
             "fingerprint",
             "iris scanner",
             "ip camera",
             "rfid"
         ],
         "keywords": [
-            "biometric", "facial recognition", "fingerprint", "iris scanner",
+            "biometric", "facial recognition", "facial based", "face based",
+            "facial authentication", "face authentication", "fingerprint", "iris scanner",
             "access control", "cctv", "surveillance", "ip camera",
             "video analytics", "anpr", "rfid", "smart card",
             "turnstile", "boom barrier", "visitor management", "frs",
@@ -339,6 +344,11 @@ WEIGHT_KEYWORD_HINT = 1.0
 WEIGHT_PDF_PER_HIT = 1.0
 MAX_PDF_SCORE_PER_KEYWORD = 3.0
 
+# Item categories often enumerate every accessory in a bundle. Keep their
+# combined vote below a lead-title match so three incidental accessories do
+# not overrule the product named by the tender title.
+MAX_CATEGORY_SCORE_PER_DOMAIN = 3.0
+
 # Total PDF contribution per domain, capped below the title weight. An RFP body
 # is mostly boilerplate -- terms, delivery, inspection, warranty -- that name
 # many domains in passing. Uncapped, 20 keywords x 3.0 let the body outvote the
@@ -363,29 +373,47 @@ def score_domain(keywords, title, category_text, keyword_hint, pdf_text, strong=
     Matching is whole-word: substring matching put 690 bids in AI & Data
     Science because "ai" sits inside maintenance, repair, air, paint and chair.
     """
-    subject_score = 0.0   # title + category: what the bid is actually for
+    title_score = 0.0     # lead title: the strongest subject evidence
+    category_score = 0.0  # bundled category/accessories: capped corroboration
     hint_score = 0.0      # the search term that found it (noisy)
     pdf_score = 0.0       # RFP body: corroboration only
     reasons = []
     strong_terms = {normalize_text(t) for t in strong}
+    normalized_terms = {normalize_text(keyword) for keyword in keywords}
+    seen_families = set()
     for keyword in keywords:
         term = normalize_text(keyword)
         if not term:
             continue
+        # Taxonomies often list both singular and plural aliases. The shared
+        # matcher already treats those as equivalent, so scoring both would
+        # count one occurrence twice (amplifier + amplifiers, cable + cables).
+        family = term
+        if term.endswith("s") and term[:-1] in normalized_terms:
+            family = term[:-1]
+        elif f"{term}s" in normalized_terms:
+            family = term
+        if family in seen_families:
+            continue
+        seen_families.add(family)
 
         in_subject = False
-        if keyword_hit(term, title):
+        in_title = keyword_hit(term, title)
+        if in_title:
             in_subject = True
-            subject_score += WEIGHT_TITLE
+            title_score += WEIGHT_TITLE
             reasons.append(f"Title: '{keyword}'")
 
         if keyword_hit(term, category_text):
             in_subject = True
-            subject_score += WEIGHT_CATEGORY
+            category_score += WEIGHT_CATEGORY
             reasons.append(f"Category: '{keyword}'")
 
-        if in_subject and term in strong_terms:
-            subject_score += STRONG_KEYWORD_BONUS
+        # Strong-product bonus belongs to the lead title only. A strong term
+        # buried in accessories (speaker bid + power amplifier) must not
+        # overrule what the tender is actually buying.
+        if in_title and term in strong_terms:
+            title_score += STRONG_KEYWORD_BONUS
             reasons.append(f"Product term: '{keyword}'")
 
         if keyword_hit(term, keyword_hint):
@@ -401,6 +429,7 @@ def score_domain(keywords, title, category_text, keyword_hint, pdf_text, strong=
     # classify bids whose title says nothing about the domain -- boilerplate
     # put "Toilet Paper Roll type 2" in Medical and "Dig in post 1.6 mtr" in
     # Electronics purely on body text.
+    subject_score = title_score + min(category_score, MAX_CATEGORY_SCORE_PER_DOMAIN)
     if subject_score > 0:
         return subject_score + hint_score + min(pdf_score, MAX_PDF_SCORE_PER_DOMAIN), reasons
     return hint_score, [r for r in reasons if r.startswith("Keyword hint")]
@@ -423,11 +452,25 @@ def classify_tender(
     Weights: title 3.5, category/business line 2.5, search keyword 1.0,
     PDF text 1.0 per hit (capped at 3.0 per keyword).
     """
+    stored_analysis = tender.get("analysis") or {}
+    if not isinstance(stored_analysis, dict):
+        stored_analysis = {}
+
+    def stored_field(name):
+        return tender.get(name) or stored_analysis.get(name) or ""
+
+    business_line = stored_field("business_line")
+    if isinstance(business_line, dict):
+        business_line = " ".join(filter(None, [
+            str(business_line.get("id") or ""),
+            str(business_line.get("label") or ""),
+        ]))
+
     title = normalize_text(tender.get("title", ""))
     category_text = normalize_text(" ".join([
-        str(tender.get("item_category") or ""),
-        str(tender.get("primary_item") or ""),
-        str(tender.get("business_line") or ""),
+        str(stored_field("item_category")),
+        str(stored_field("primary_item")),
+        str(business_line),
     ]))
     keyword_hint = normalize_text(tender.get("keyword", ""))
 
@@ -448,7 +491,20 @@ def classify_tender(
             domain_scores[domain_key] = score
             matched_reasons[domain_key] = reasons
 
-    ranked = sorted(domain_scores.items(), key=lambda kv: kv[1], reverse=True)
+    # Equal totals are common on bundled bids. Prefer the domain that explains
+    # the lead title over one supported only by accessories or the search hint;
+    # falling back to dictionary order recreated the profile-order tie bug.
+    ranked = sorted(
+        domain_scores.items(),
+        key=lambda kv: (
+            kv[1],
+            sum(
+                1 for reason in matched_reasons.get(kv[0], [])
+                if reason.startswith("Title:")
+            ),
+        ),
+        reverse=True,
+    )
     best_domain, best_score = (ranked[0] if ranked else ("uncategorized_general", 0.0))
     runner_up = ranked[1][1] if len(ranked) > 1 else 0.0
 

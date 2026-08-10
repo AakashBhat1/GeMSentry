@@ -18,7 +18,15 @@ def _linear_ramp(value, free_at, zero_at):
     return max(0.0, min(1.0, 1.0 - (value - free_at) / span))
 
 
-def evaluate_date_window(start_date_str, end_date_str, cfg):
+def resolve_min_days_left(requested, cfg):
+    """Return the explicit discovery floor or the configured bid-prep floor."""
+    if requested is not None:
+        return float(requested)
+    date_cfg = cfg.get("date_window", DEFAULT_SCORING_CONFIG["date_window"])
+    return max(0.0, float(date_cfg.get("min_days_to_bid", 5)))
+
+
+def evaluate_date_window(start_date_str, end_date_str, cfg, now=None):
     """
     Graduated date-window sub-score (BE-03).
     Returns dict: is_expired, subscore, reasons, remaining_days, detail.
@@ -32,18 +40,21 @@ def evaluate_date_window(start_date_str, end_date_str, cfg):
 
     start_date_obj = parse_gem_date(start_date_str)
     end_date_obj = parse_gem_date(end_date_str)
-    current_date = datetime.datetime.now()
+    current_date = now or datetime.datetime.now()
     reasons = []
 
     if not end_date_obj:
-        # Unparseable dates: neutral full credit (legacy check_date_policy treated as ok)
+        unknown_subscore = float(cfg.get("unknown_subscore", 0.5))
         return {
             "is_expired": False,
             "auto_reject": False,
-            "subscore": 1.0,
-            "reasons": [],
+            "subscore": unknown_subscore,
+            "reasons": ["Bid end date could not be parsed; verify deadline manually."],
             "remaining_days": None,
-            "detail": "Bid end date not parseable; date window treated as full credit."
+            "detail": (
+                "Bid end date not parseable; date window uses unknown "
+                f"subscore={unknown_subscore}."
+            )
         }
 
     end_day = end_date_obj.date() if hasattr(end_date_obj, "date") else end_date_obj

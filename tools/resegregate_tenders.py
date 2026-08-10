@@ -10,6 +10,7 @@ import sys
 import os
 import shutil
 import argparse
+import datetime
 import json
 import logging
 
@@ -30,6 +31,22 @@ import nlp_classifier
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("gemsentry.resegregate")
+METADATA_FILES = ("metadata.json", "metadata.csv", "metadata.js")
+
+
+def backup_metadata(tenders_dir):
+    """Copy metadata into a timestamped backup before moving any files."""
+    stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_dir = os.path.join(tenders_dir, "backups", stamp)
+    copied = False
+    for name in METADATA_FILES:
+        source = os.path.join(tenders_dir, name)
+        if not os.path.exists(source):
+            continue
+        os.makedirs(backup_dir, exist_ok=True)
+        shutil.copy2(source, os.path.join(backup_dir, name))
+        copied = True
+    return backup_dir if copied else None
 
 
 def clean_empty_directories(root_dir: str):
@@ -52,6 +69,10 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="Preview proposed folder moves without modifying files")
     parser.add_argument("--workspace", type=str, default="main", help="Workspace ('main' or subfolder of tenders/)")
     parser.add_argument("--verbose", action="store_true", help="Print verbose detailed logs per tender")
+    parser.add_argument(
+        "--with-pdf", action="store_true",
+        help="Also extract PDF text (slower; stored structured fields are used by default)",
+    )
 
     args = parser.parse_args()
 
@@ -73,6 +94,11 @@ def main():
     logger.info(f"  Mode:          {'[DRY RUN - PREVIEW ONLY]' if args.dry_run else '[LIVE MIGRATION]'}")
     logger.info(f"=" * 80)
 
+    if not args.dry_run:
+        backup_dir = backup_metadata(tenders_dir)
+        if backup_dir:
+            logger.info("Metadata backup: %s", paths.repo_relative(backup_dir))
+
     domain_counts = {}
     moved_count = 0
     updated_meta_count = 0
@@ -91,7 +117,13 @@ def main():
                 rel_pdf = found_path
 
         # Classify tender using NLP engine
-        classification = nlp_classifier.classify_tender(tender, pdf_path=abs_pdf if abs_pdf and os.path.exists(abs_pdf) else None)
+        classification = nlp_classifier.classify_tender(
+            tender,
+            pdf_path=(
+                abs_pdf if args.with_pdf and abs_pdf and os.path.exists(abs_pdf)
+                else None
+            ),
+        )
         domain = classification["domain"]
         domain_label = classification["domain_label"]
 
