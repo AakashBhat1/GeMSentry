@@ -66,21 +66,33 @@ def extract_bid_signals(text_clean, card_meta=None):
                         signals["est_value_inr"] = amount
                         flags["est_value_inr"] = True
 
-    # Item category / primary item (BE-15)
+    # Item category / primary item (BE-15). The current GeM listing JSON
+    # exposes these fields directly, so preserve that structured evidence
+    # before falling back to PDF label parsing.
+    card_category = str(card_meta.get("item_category") or "").strip()
+    card_primary = str(card_meta.get("primary_item") or "").strip()
+    if card_category and card_category.upper() not in {"N/A", "NA", "NIL"}:
+        signals["item_category"] = card_category
+        flags["item_category"] = True
+    if card_primary and card_primary.upper() not in {"N/A", "NA", "NIL"}:
+        signals["primary_item"] = card_primary
+        flags["primary_item"] = True
+
     stop_item = (
         "GeMARPTS", "MSE Exemption", "Startup Exemption", "Minimum Average",
         "Bidder", "Total Quantity", "Bid Number", "EMD Detail", "ePBG Detail",
         "EMD Amount", "Bid End", "Ministry/State"
     )
     snip, _ = _window_after(text_clean, r'Item\s+Category', window=200)
-    if snip:
+    if not signals["item_category"] and snip:
         cat = _first_ascii_phrase(snip, max_len=120, stop_words=stop_item)
         # Reject bare numbers / single-char noise (e.g. "1 , 2 , 3" category lists)
         if cat and len(cat) >= 3 and not re.match(r'^[\d\s,]+$', cat):
             signals["item_category"] = cat
-            signals["primary_item"] = cat.split(",")[0].strip()[:100]
             flags["item_category"] = True
-            flags["primary_item"] = True
+            if not signals["primary_item"]:
+                signals["primary_item"] = cat.split(",")[0].strip()[:100]
+                flags["primary_item"] = True
     if not signals["primary_item"] and card_meta.get("title"):
         signals["primary_item"] = str(card_meta["title"])[:120]
         flags["primary_item"] = True

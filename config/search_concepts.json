@@ -3,7 +3,7 @@
     "canonical_keyword": "facial recognition",
     "aliases": ["facial recognition", "face recognition", "facial recognition system", "face recognition system", "facial based", "face based", "rcognition"],
     "queries": ["facial recognition", "face recognition", "facial recognition system", "biometric facial recognition", "facial based attendance", "rcognition"],
-    "positive_terms": ["facial recognition", "face recognition", "facial based", "face based", "biometric facial", "facial attendance", "face attendance", "facial authentication", "face authentication", "biometric access control", "frs"],
+    "positive_terms": ["facial recognition", "face recognition", "facial based", "face based", "biometric facial", "facial attendance", "face attendance", "facial authentication", "face authentication", "frs"],
     "exclude_terms": ["facial tissue", "facial tissues", "facial paper"]
   },
   "drone_uav": {

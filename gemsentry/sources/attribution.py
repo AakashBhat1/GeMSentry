@@ -30,7 +30,7 @@ _GEM_SOURCE_ID = "gem"
 _GEM_SOURCE_NAME = "Government e-Marketplace (GeM)"
 
 
-def _normalize_host(url: str) -> str:
+def normalize_host(url: str) -> str:
     """Return the bare lowercase host of ``url`` ('' when unparseable)."""
     if not url:
         return ""
@@ -52,7 +52,7 @@ def build_host_index(sources: Iterable[Dict[str, Any]]) -> Dict[str, Tuple[str, 
     index: Dict[str, Tuple[str, str]] = {}
     for source in sources or []:
         source_id = source.get("id")
-        host = _normalize_host(source.get("url", ""))
+        host = normalize_host(source.get("url", ""))
         if not source_id or not host or host in index:
             continue
         index[host] = (source_id, source.get("name") or source_id)
@@ -89,7 +89,7 @@ def derive_source(
         return explicit_id, record.get("source_name") or explicit_id
 
     for url_field in ("pdf_url", "url"):
-        matched = _match_host(_normalize_host(record.get(url_field) or ""), host_index)
+        matched = _match_host(normalize_host(record.get(url_field) or ""), host_index)
         if matched:
             return matched
 

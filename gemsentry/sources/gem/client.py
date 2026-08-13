@@ -12,7 +12,16 @@ from bs4 import BeautifulSoup
 from gemsentry.constants import logger
 from gemsentry.dateparse import parse_gem_date, parse_iso_date_to_gem
 from gemsentry.search import build_search_plan, matches_search_result
+from gemsentry.sources.attribution import normalize_host
 from gemsentry.textutils import _parse_inr_amount, today_iso
+
+# Every GeM property (bidplus, mkp, ...) is a subdomain of this.
+GEM_HOST = "gem.gov.in"
+
+# Per-request ceiling for a raw-HTTP PDF fetch. A host that never completes
+# the TCP handshake burns this whole budget, so it stays deliberately short;
+# callers override it from download_policy.download_timeout.
+DEFAULT_DOWNLOAD_TIMEOUT = 15
 
 
 def parse_cards(html, keyword):
@@ -102,12 +111,16 @@ def parse_cards(html, keyword):
             results.append({
                 "bid_no": bid_no,
                 "title": title,
+                "primary_item": title.split(",", 1)[0].strip(),
+                "item_category": title,
                 "quantity": quantity,
                 "department": department,
                 "est_value_inr": est_value_inr,
                 "start_date": start_date,
                 "end_date": end_date,
                 "pdf_url": pdf_url,
+                "source_id": "gem",
+                "source_name": "Government e-Marketplace (GeM)",
                 "keyword": keyword,
                 "downloaded": False,
                 "local_pdf_path": "",
@@ -150,27 +163,44 @@ def select_sort_order(page, sort_order="Bid-Start-Date-Latest"):
     return False
 
 
+def is_gem_url(url):
+    """True when ``url`` points at GeM itself (bid documents live on a subdomain).
+
+    Suffix matching is anchored on a dot so a lookalike host such as
+    ``notgem.gov.in`` cannot pass as GeM.
+    """
+    host = normalize_host(url)
+    return host == GEM_HOST or host.endswith("." + GEM_HOST)
+
+
 def download_pdf_http(pdf_url, save_path, cookie_header,
-                      referer="https://bidplus.gem.gov.in/all-bids"):
+                      referer="https://bidplus.gem.gov.in/all-bids",
+                      timeout=DEFAULT_DOWNLOAD_TIMEOUT):
     """
     Fast raw-HTTP PDF download using the harvested browser session cookies
     (BE-27) — ~0.3–1s vs 2–4s for a full Playwright page. Thread-safe.
     Returns True only when the body is a real PDF; callers fall back to
     download_rfp_pdf (browser) on False.
+
+    The session cookie is only ever sent to GeM. A tender record can carry any
+    portal's document URL, and the bidplus session token must not travel to a
+    third-party host just because the record ended up in this code path.
     """
     if not pdf_url:
         return False
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "application/pdf,application/octet-stream,*/*",
+        "Referer": referer,
+    }
+    if cookie_header:
+        if is_gem_url(pdf_url):
+            headers["Cookie"] = cookie_header
+        else:
+            logger.debug("Withholding GeM session cookie from non-GeM host: %s", pdf_url)
     try:
-        req = urllib.request.Request(
-            pdf_url,
-            headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                "Accept": "application/pdf,application/octet-stream,*/*",
-                "Referer": referer,
-                "Cookie": cookie_header or "",
-            },
-        )
-        with urllib.request.urlopen(req, context=_SSL_CTX, timeout=25) as resp:
+        req = urllib.request.Request(pdf_url, headers=headers)
+        with urllib.request.urlopen(req, context=_SSL_CTX, timeout=timeout) as resp:
             body = resp.read()
         if body.startswith(b"%PDF"):
             os.makedirs(os.path.dirname(save_path), exist_ok=True)
@@ -233,37 +263,95 @@ def download_rfp_pdf(context, pdf_url, save_path):
     return False
 
 
+def _first_doc_value(doc, *keys, default=None):
+    """Return the first non-empty scalar from a Solr field's list/scalar shapes."""
+    for key in keys:
+        value = doc.get(key)
+        if isinstance(value, (list, tuple)):
+            value = next((item for item in value if item not in (None, "")), None)
+        if value not in (None, ""):
+            return value
+    return default
+
+
+def _doc_bool(doc, *keys):
+    value = _first_doc_value(doc, *keys)
+    if isinstance(value, str):
+        return value.strip().casefold() in {"1", "true", "yes", "y"}
+    return bool(value)
+
+
+def _doc_estimated_value(doc):
+    """Accept value fields seen across old/new GeM response variants."""
+    value = _first_doc_value(
+        doc,
+        "b_estimated_value",
+        "b_estimated_bid_value",
+        "estimated_bid_value",
+        "b_total_value",
+        "b_bid_value",
+    )
+    amount = _parse_inr_amount(value) if value not in (None, "") else None
+    return amount if amount is not None and amount >= 1000 else None
+
+
 def doc_to_tender(doc, keyword):
-    b_id = doc.get("id") or (doc.get("b_id", [None])[0])
-    bid_no = doc.get("b_bid_number", ["N/A"])[0] if isinstance(doc.get("b_bid_number"), list) else doc.get("b_bid_number", "N/A")
-    
-    title_list = doc.get("bd_category_name") or doc.get("b_category_name") or [""]
-    title = title_list[0] if isinstance(title_list, list) else str(title_list)
-    
-    qty_list = doc.get("b_total_quantity") or ["N/A"]
-    quantity = str(qty_list[0]) if isinstance(qty_list, list) else str(qty_list)
-    
-    dept_min = doc.get("ba_official_details_minName", [""])[0] if isinstance(doc.get("ba_official_details_minName"), list) else ""
-    dept_name = doc.get("ba_official_details_deptName", [""])[0] if isinstance(doc.get("ba_official_details_deptName"), list) else ""
+    """Normalize one current GeM/Solr listing document into a scored record."""
+    result_bid_no = str(_first_doc_value(doc, "b_bid_number", default="N/A"))
+    parent_bid_no = str(_first_doc_value(doc, "b_bid_number_parent", default=""))
+    is_reverse_auction = "/R/" in result_bid_no.upper() and bool(parent_bid_no)
+    bid_no = parent_bid_no if is_reverse_auction else result_bid_no
+
+    result_id = _first_doc_value(doc, "id", "b_id")
+    parent_id = _first_doc_value(doc, "b_id_parent")
+    document_id = parent_id if is_reverse_auction and parent_id is not None else result_id
+
+    summary_category = str(_first_doc_value(
+        doc, "b_category_name", "bd_category_name", default=""
+    )).strip()
+    item_category = str(_first_doc_value(
+        doc, "bd_category_name", "b_category_name", default=summary_category
+    )).strip()
+    title = summary_category or item_category or "N/A"
+    primary_item = (item_category or title).split(",", 1)[0].strip()
+
+    quantity = str(_first_doc_value(doc, "b_total_quantity", default="N/A"))
+    dept_min = str(_first_doc_value(doc, "ba_official_details_minName", default="")).strip()
+    dept_name = str(_first_doc_value(doc, "ba_official_details_deptName", default="")).strip()
     department = " | ".join(filter(None, [dept_min, dept_name])) or "N/A"
-    
-    start_iso = doc.get("final_start_date_sort", [""])[0] if isinstance(doc.get("final_start_date_sort"), list) else ""
-    end_iso = doc.get("final_end_date_sort", [""])[0] if isinstance(doc.get("final_end_date_sort"), list) else ""
-    
-    start_date = parse_iso_date_to_gem(start_iso)
-    end_date = parse_iso_date_to_gem(end_iso)
-    
-    pdf_url = f"https://bidplus.gem.gov.in/showbidDocument/{b_id}"
-    
+
+    start_iso = _first_doc_value(doc, "final_start_date_sort", default="")
+    end_iso = _first_doc_value(doc, "final_end_date_sort", default="")
+    start_date = parse_iso_date_to_gem(str(start_iso))
+    end_date = parse_iso_date_to_gem(str(end_iso))
+
+    pdf_url = (
+        f"https://bidplus.gem.gov.in/showbidDocument/{document_id}"
+        if document_id not in (None, "") else ""
+    )
+
     return {
         "bid_no": bid_no,
+        "gem_result_bid_no": result_bid_no,
+        "gem_parent_bid_no": parent_bid_no or None,
+        "gem_document_id": str(document_id) if document_id not in (None, "") else None,
         "title": title,
+        "primary_item": primary_item,
+        "item_category": item_category,
         "quantity": quantity,
         "department": department,
-        "est_value_inr": None,
+        "est_value_inr": _doc_estimated_value(doc),
         "start_date": start_date,
         "end_date": end_date,
         "pdf_url": pdf_url,
+        "is_reverse_auction": is_reverse_auction,
+        "is_custom_bid": _doc_bool(doc, "b_is_custom_item"),
+        "is_boq": _doc_bool(doc, "bd_details_is_boq", "bd_details_new_boq"),
+        "is_global_tendering": _doc_bool(doc, "ba_is_global_tendering"),
+        "is_single_packet": _doc_bool(doc, "ba_is_single_packet"),
+        "is_high_value": _doc_bool(doc, "is_high_value"),
+        "gem_bid_type": _first_doc_value(doc, "b_bid_type", "b_type"),
+        "gem_status": _first_doc_value(doc, "b_status", "ra_b_status"),
         # Stamped so the marketplace is one portal among many in the dashboard
         # filter, rather than the unlabelled default everything else is not.
         "source_id": "gem",

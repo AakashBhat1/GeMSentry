@@ -471,16 +471,23 @@ def analyze_from_card(tender, scoring_config=None, company_profile=None):
     for r in date_info.get("reasons", []):
         analysis["reasons"].append(r)
 
-    signals = {
+    card_meta = {
+        "title": tender.get("title"),
+        "department": tender.get("department"),
+        "quantity": tender.get("quantity"),
+        "keyword": tender.get("keyword"),
         "est_value_inr": tender.get("est_value_inr"),
-        "primary_item": None,
-        "item_category": None,
-        "buyer_org": tender.get("department"),
-        "buyer_dept": None,
-        "consignee_state": None,
+        "primary_item": tender.get("primary_item"),
+        "item_category": tender.get("item_category"),
     }
-    analysis["est_value_inr"] = signals["est_value_inr"]
-    analysis["buyer_org"] = signals["buyer_org"]
+    signals, signal_flags = extract_bid_signals("", card_meta=card_meta)
+    for key in (
+        "est_value_inr", "primary_item", "item_category",
+        "buyer_org", "buyer_dept", "consignee_state",
+        "mii_required", "mse_pref",
+    ):
+        analysis[key] = signals.get(key)
+    analysis["signal_parsed"] = sum(1 for parsed in signal_flags.values() if parsed)
 
     eligibility = {
         "verdict": "unknown",
@@ -489,12 +496,6 @@ def analyze_from_card(tender, scoring_config=None, company_profile=None):
     }
     analysis["eligibility"] = eligibility
 
-    card_meta = {
-        "title": tender.get("title"),
-        "department": tender.get("department"),
-        "quantity": tender.get("quantity"),
-        "keyword": tender.get("keyword"),
-    }
     fit_score, fit_breakdown, business_line = compute_fit_score(
         analysis, signals, eligibility, profile, cfg, card_meta=card_meta
     )
@@ -551,12 +552,18 @@ def rederive_analysis(tender, analysis, cfg, profile):
         "buyer_org", "buyer_dept", "consignee_state",
         "mii_required", "mse_pref",
     )}
+    for key in ("est_value_inr", "primary_item", "item_category"):
+        if signals.get(key) in (None, ""):
+            signals[key] = tender.get(key)
     eligibility = analysis.get("eligibility") or {"verdict": "unknown"}
     card_meta = {
         "title": tender.get("title"),
         "department": tender.get("department"),
         "quantity": tender.get("quantity"),
         "keyword": tender.get("keyword"),
+        "est_value_inr": tender.get("est_value_inr"),
+        "primary_item": tender.get("primary_item"),
+        "item_category": tender.get("item_category"),
     }
     fit_score, fit_breakdown, business_line = compute_fit_score(
         analysis, signals, eligibility, profile, cfg, card_meta=card_meta
@@ -610,6 +617,8 @@ def rescore_tender(tender, scoring_cfg, profile, reparse=False):
                 "quantity": tender.get("quantity"),
                 "keyword": tender.get("keyword"),
                 "est_value_inr": tender.get("est_value_inr"),
+                "primary_item": tender.get("primary_item"),
+                "item_category": tender.get("item_category"),
             },
         )
         if analysis is not None and analysis.get("analysis_status") == "ok":

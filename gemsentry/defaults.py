@@ -68,7 +68,13 @@ DEFAULT_SCORING_CONFIG = {
         "download_workers": 4,
         # 0 = auto (cpu_count - 1, capped at 4). PDF text extraction is
         # CPU-bound, so this fans out over processes, not threads.
-        "analysis_workers": 0
+        "analysis_workers": 0,
+        # Per-request ceiling for the raw-HTTP PDF fetch. A host that does not
+        # answer at all burns this whole budget, so keep it tight.
+        "download_timeout": 15,
+        # The Playwright fallback is sequential and costs ~15s per failure;
+        # cap it so a degraded portal cannot stall a run for half an hour.
+        "max_browser_fallbacks": 25
     }
 }
 

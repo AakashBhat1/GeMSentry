@@ -66,9 +66,11 @@ from gemsentry.analysis import (
 )
 from gemsentry.sources.gem.client import (
     parse_cards, select_sort_order, download_pdf_http, download_rfp_pdf, doc_to_tender,
-    _SSL_CTX, fetch_keyword_bids_api
+    is_gem_url, _SSL_CTX, fetch_keyword_bids_api
 )
-from gemsentry.pipeline import scrape, scrape_single_bid, ingest_external_tenders
+from gemsentry.pipeline import (
+    scrape, scrape_single_bid, ingest_external_tenders, plan_downloads
+)
 
 __all__ = [
     "COMPANY_PROFILE_PATH", "CRORE_INR", "DEFAULT_COMPANY_PROFILE",
@@ -90,12 +92,12 @@ __all__ = [
     "download_rfp_pdf", "evaluate_date_window", "extract_bid_signals",
     "fetch_keyword_bids_api", "finalize_auto_reject", "find_existing_pdf_file",
     "get_active_workspace", "get_date_folder_name", "get_exemption_label",
-    "get_failed_analysis", "ingest_external_tenders", "load_company_profile",
+    "get_failed_analysis", "ingest_external_tenders", "is_gem_url", "load_company_profile",
     "load_existing_metadata", "load_keywords", "load_scoring_config", "logger",
     "parse_cards", "parse_emd_amount", "parse_emd_required", "parse_epbg_percentage",
     "parse_epbg_required", "parse_exemption_pair", "parse_gem_date",
     "parse_iso_date_to_gem", "parse_prebid_required", "parse_relaxation_block",
-    "parse_yes_no_field", "profile_for_workspace", "rederive_analysis",
+    "parse_yes_no_field", "plan_downloads", "profile_for_workspace", "rederive_analysis",
     "relaxation_granted", "rescore_metadata", "rescore_tender", "sanitize_filename",
     "sanitize_folder_name", "save_company_profile", "save_metadata", "save_scoring_config",
     "scoring_fingerprint", "scrape", "scrape_single_bid", "select_sort_order",

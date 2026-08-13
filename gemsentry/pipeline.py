@@ -7,6 +7,7 @@ import os
 import paths
 import random
 import time
+from collections import Counter
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from playwright.sync_api import sync_playwright
 
@@ -18,9 +19,12 @@ from gemsentry.defaults import DEFAULT_SCORING_CONFIG
 from gemsentry.profile import get_active_workspace, load_company_profile, workspace_paths
 from gemsentry.scoring.dates import evaluate_date_window, resolve_min_days_left
 from gemsentry.scoring.verdict import apply_verdict, finalize_auto_reject
+from gemsentry.sources.attribution import build_host_index, derive_source, normalize_host
 from gemsentry.sources.gem.client import (
-    download_pdf_http, download_rfp_pdf, fetch_keyword_bids_api, parse_cards,
+    DEFAULT_DOWNLOAD_TIMEOUT, download_pdf_http, download_rfp_pdf,
+    fetch_keyword_bids_api, parse_cards,
 )
+from gemsentry.sources.registry import SourceRegistry
 from gemsentry.storage import (
     auto_export_summary, build_pdf_index, find_existing_pdf_file,
     load_existing_metadata, save_metadata,
@@ -35,6 +39,8 @@ def _card_meta(tender):
         "quantity": tender.get("quantity"),
         "keyword": tender.get("keyword"),
         "est_value_inr": tender.get("est_value_inr"),
+        "primary_item": tender.get("primary_item"),
+        "item_category": tender.get("item_category"),
     }
 
 
@@ -110,6 +116,130 @@ def analyze_downloaded_pdfs(jobs, scoring_cfg, company_profile, workers=0):
             apply_verdict(tender, analyze_from_card(tender, scoring_cfg, company_profile))
 
     logger.info("Analyzed %d PDF(s).", len(jobs))
+
+
+def plan_downloads(tenders, scoring_cfg, company_profile, downloads_dir,
+                   pdf_index=None, host_index=None, skip_zero_relevance=True):
+    """Split ``tenders`` into what to fetch and what can be analyzed already.
+
+    Returns ``(to_download, to_analyze)``, both lists of
+    ``(tender, pdf_path, date_info)``. Tenders that will never get a PDF are
+    scored from their listing metadata here and appear in neither list.
+
+    Every skip is a deliberate saving: an expired bid, a bid with no
+    business-line match, and -- since the multi-source refactor -- a bid from a
+    portal this stage cannot read at all.
+    """
+    if pdf_index is None:
+        pdf_index = build_pdf_index(downloads_dir)
+    if host_index is None:
+        # Portal attribution for the download gate. Built once: the same host
+        # index serves every tender in the plan.
+        host_index = build_host_index(SourceRegistry().sources)
+
+    to_analyze = []   # (tender, abs_pdf_path, date_info)
+    to_download = []  # (tender, save_path, date_info)
+    skipped_date = skipped_fit = 0
+    external_portals = Counter()
+
+    for tender in tenders:
+        bid_no = tender["bid_no"]
+
+        # 1. Skip already successfully processed tenders
+        if tender.get("downloaded") and tender.get("analysis") and tender.get("local_pdf_path"):
+            lp = tender["local_pdf_path"]
+            lp_abs = lp if os.path.isabs(lp) else os.path.join(paths.ROOT, lp)
+            if os.path.exists(lp_abs):
+                continue
+
+        sanitized_bid = sanitize_filename(bid_no)
+        date_info = evaluate_date_window(
+            tender.get("start_date"), tender.get("end_date"), scoring_cfg
+        )
+
+        # 2. Reuse a PDF we already have on disk
+        existing_rel = pdf_index.get(f"{sanitized_bid}.pdf")
+        if existing_rel:
+            tender["downloaded"] = True
+            tender["local_pdf_path"] = existing_rel
+            to_analyze.append(
+                (tender, os.path.join(paths.ROOT, existing_rel), date_info)
+            )
+            continue
+
+        # 3. Portal gate — this stage speaks GeM only. Tenders from the other
+        # portals keep their listing-level score and stay visible on the
+        # dashboard as card-only; their documents are laid out nothing like a
+        # GeM RFP, so fetching them buys no signal, and an unreachable portal
+        # would stall the whole run behind its connect timeouts.
+        source_id, source_name = derive_source(tender, host_index)
+        if source_id != "gem":
+            card_analysis = analyze_from_card(tender, scoring_cfg, company_profile)
+            card_analysis.setdefault("reasons", []).append(
+                f"PDF not fetched: {source_name} documents are outside the "
+                f"GeM RFP parser's format; scored from listing metadata only."
+            )
+            tender["downloaded"] = False
+            apply_verdict(tender, card_analysis)
+            external_portals[source_name] += 1
+            continue
+
+        # 4. Date window — never download what auto-rejects anyway
+        if date_info.get("auto_reject"):
+            reason = "expired" if date_info.get("is_expired") else "closing too soon"
+            # debug: repeats for every stale bid on every run — the plan
+            # summary line below reports the aggregate count.
+            logger.debug(f"Skipping download for Bid {bid_no}: auto-reject ({reason}).")
+            tender["downloaded"] = False
+            apply_verdict(
+                tender, analyze_from_card(tender, scoring_cfg, company_profile)
+            )
+            skipped_date += 1
+            continue
+
+        # 5. Fit-first policy — zero card relevance (no business-line keyword
+        # match, or exclusion veto) means the bid Drops no matter what the PDF
+        # says, so skip the download too. The dashboard's "Fetch PDF &
+        # Re-analyze" button is the override.
+        if skip_zero_relevance:
+            card_analysis = analyze_from_card(tender, scoring_cfg, company_profile)
+            if not card_analysis.get("business_line"):
+                card_analysis.setdefault("reasons", []).append(
+                    "Download skipped: no business-line keyword match in "
+                    "card title (fit-first download policy)."
+                )
+                tender["downloaded"] = False
+                apply_verdict(tender, card_analysis)
+                skipped_fit += 1
+                continue
+
+        nlp_res = nlp_classifier.classify_tender(tender)
+        tender["domain"] = nlp_res["domain"]
+        tender["nlp_category"] = nlp_res["domain_label"]
+        domain_folder = nlp_res["domain"]
+        target_dir = os.path.join(
+            downloads_dir, domain_folder, get_date_folder_name(), sanitized_bid
+        )
+        to_download.append(
+            (tender, os.path.join(target_dir, f"{sanitized_bid}.pdf"), date_info)
+        )
+
+    skipped_external = sum(external_portals.values())
+    logger.info(
+        f"Download plan: {len(to_download)} to fetch, {len(to_analyze)} "
+        f"reusable from disk, {skipped_date} skipped (date), "
+        f"{skipped_fit} skipped (zero relevance), "
+        f"{skipped_external} skipped (non-GeM portal)."
+    )
+    if skipped_external:
+        logger.info(
+            "Card-scored only (no PDF parsing for these portals): %s",
+            ", ".join(
+                f"{name} ({count})" for name, count in external_portals.most_common()
+            ),
+        )
+
+    return to_download, to_analyze
 
 
 def scrape(
@@ -232,85 +362,18 @@ def scrape(
             dl_policy = scoring_cfg.get("download_policy") or DEFAULT_SCORING_CONFIG["download_policy"]
             skip_zero_rel = bool(dl_policy.get("skip_zero_relevance_download", True))
             dl_workers = max(1, min(10, int(dl_policy.get("download_workers", 4) or 4)))
+            dl_timeout = max(5, min(60, int(
+                dl_policy.get("download_timeout") or DEFAULT_DOWNLOAD_TIMEOUT
+            )))
+            max_fallbacks = max(0, min(500, int(
+                dl_policy.get("max_browser_fallbacks",
+                              DEFAULT_SCORING_CONFIG["download_policy"]["max_browser_fallbacks"])
+                or 0
+            )))
 
-            # One-pass index of already-downloaded PDFs (O(1) lookups instead
-            # of a full-tree walk per tender).
-            pdf_index = build_pdf_index(downloads_dir)
-
-            to_analyze = []   # (tender, abs_pdf_path, date_info)
-            to_download = []  # (tender, save_path, date_info)
-            skipped_date = skipped_fit = 0
-
-            for tender in tenders_list:
-                bid_no = tender["bid_no"]
-
-                # 1. Skip already successfully processed tenders
-                if tender.get("downloaded") and tender.get("analysis") and tender.get("local_pdf_path"):
-                    lp = tender["local_pdf_path"]
-                    lp_abs = lp if os.path.isabs(lp) else os.path.join(paths.ROOT, lp)
-                    if os.path.exists(lp_abs):
-                        continue
-
-                sanitized_bid = sanitize_filename(bid_no)
-                date_info = evaluate_date_window(
-                    tender.get("start_date"), tender.get("end_date"), scoring_cfg
-                )
-
-                # 2. Reuse a PDF we already have on disk
-                existing_rel = pdf_index.get(f"{sanitized_bid}.pdf")
-                if existing_rel:
-                    tender["downloaded"] = True
-                    tender["local_pdf_path"] = existing_rel
-                    to_analyze.append(
-                        (tender, os.path.join(paths.ROOT, existing_rel), date_info)
-                    )
-                    continue
-
-                # 3. Date window — never download what auto-rejects anyway
-                if date_info.get("auto_reject"):
-                    reason = "expired" if date_info.get("is_expired") else "closing too soon"
-                    # debug: repeats for every stale bid on every run — the
-                    # plan summary line below reports the aggregate count.
-                    logger.debug(f"Skipping download for Bid {bid_no}: auto-reject ({reason}).")
-                    tender["downloaded"] = False
-                    apply_verdict(
-                        tender, analyze_from_card(tender, scoring_cfg, company_profile)
-                    )
-                    skipped_date += 1
-                    continue
-
-                # 4. Fit-first policy — zero card relevance (no business-line
-                # keyword match, or exclusion veto) means the bid Drops no
-                # matter what the PDF says, so skip the download too. The
-                # dashboard's "Fetch PDF & Re-analyze" button is the override.
-                if skip_zero_rel:
-                    card_analysis = analyze_from_card(tender, scoring_cfg, company_profile)
-                    if not card_analysis.get("business_line"):
-                        card_analysis.setdefault("reasons", []).append(
-                            "Download skipped: no business-line keyword match in "
-                            "card title (fit-first download policy)."
-                        )
-                        tender["downloaded"] = False
-                        apply_verdict(tender, card_analysis)
-                        skipped_fit += 1
-                        continue
-
-                nlp_res = nlp_classifier.classify_tender(tender)
-                tender["domain"] = nlp_res["domain"]
-                tender["nlp_category"] = nlp_res["domain_label"]
-                domain_folder = nlp_res["domain"]
-                target_dir = os.path.join(
-                    downloads_dir, domain_folder,
-                    get_date_folder_name(), sanitized_bid
-                )
-                to_download.append(
-                    (tender, os.path.join(target_dir, f"{sanitized_bid}.pdf"), date_info)
-                )
-
-            logger.info(
-                f"Download plan: {len(to_download)} to fetch, {len(to_analyze)} "
-                f"reusable from disk, {skipped_date} skipped (date), "
-                f"{skipped_fit} skipped (zero relevance)."
+            to_download, to_analyze = plan_downloads(
+                tenders_list, scoring_cfg, company_profile, downloads_dir,
+                skip_zero_relevance=skip_zero_rel,
             )
 
             # Parallel raw-HTTP downloads with per-request jitter. Only the
@@ -322,27 +385,63 @@ def scrape(
                     job_tender = job[0]
                     time.sleep(random.uniform(0.3, 0.9))
                     return job, download_pdf_http(
-                        job_tender.get("pdf_url"), job[1], cookie_header
+                        job_tender.get("pdf_url"), job[1], cookie_header,
+                        timeout=dl_timeout,
                     )
 
+                total = len(to_download)
+                ok_count = 0
                 with ThreadPoolExecutor(max_workers=dl_workers) as pool:
                     futures = [pool.submit(fetch_job, j) for j in to_download]
                     for done, future in enumerate(as_completed(futures), 1):
                         job, ok = future.result()
                         tender, save_path, date_info = job
                         if ok:
+                            ok_count += 1
                             tender["downloaded"] = True
                             tender["local_pdf_path"] = paths.repo_relative(save_path)
                             to_analyze.append((tender, save_path, date_info))
-                            logger.info(
-                                f"[{done}/{len(to_download)}] Downloaded (http): {tender['bid_no']}"
-                            )
+                            logger.debug("Downloaded (http): %s", tender["bid_no"])
                         else:
                             failed_http.append(job)
+                        # A heartbeat that counts failures too: a stage whose
+                        # every request fails used to print nothing at all for
+                        # minutes and read as a hang.
+                        if done % 10 == 0 or done == total:
+                            logger.info(
+                                "Downloads: %d/%d (%d ok, %d failed)",
+                                done, total, ok_count, len(failed_http),
+                            )
+
+            if failed_http:
+                # Which host is refusing us is the first thing worth knowing;
+                # the per-URL errors stay at debug level in the log file.
+                by_host = Counter(
+                    normalize_host(job[0].get("pdf_url")) or "?" for job in failed_http
+                )
+                logger.warning(
+                    "HTTP fetch failed for %d document(s): %s",
+                    len(failed_http),
+                    ", ".join(f"{host} ({count})" for host, count in by_host.most_common()),
+                )
 
             # Browser fallback for HTTP failures (Playwright sync API is
-            # single-threaded, so this stays sequential — it should be rare).
-            for tender, save_path, date_info in failed_http:
+            # single-threaded, so this stays sequential). Capped: at ~15s per
+            # attempt an outage on the far end would otherwise stall the run
+            # for as long as the failure list is.
+            if len(failed_http) > max_fallbacks:
+                logger.warning(
+                    "%d HTTP fetch failure(s) exceed the browser-fallback cap of %d; "
+                    "the remaining %d are card-scored this run.",
+                    len(failed_http), max_fallbacks, len(failed_http) - max_fallbacks,
+                )
+            for index, (tender, save_path, date_info) in enumerate(failed_http):
+                if index >= max_fallbacks:
+                    tender["downloaded"] = False
+                    apply_verdict(
+                        tender, analyze_from_card(tender, scoring_cfg, company_profile)
+                    )
+                    continue
                 logger.info(f"HTTP fetch failed; browser fallback for Bid {tender['bid_no']}...")
                 os.makedirs(os.path.dirname(save_path), exist_ok=True)
                 if download_rfp_pdf(context, tender.get("pdf_url"), save_path):
