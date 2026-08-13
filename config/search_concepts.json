@@ -33,5 +33,19 @@
     "queries": ["artificial intelligence", "machine learning", "computer vision", "generative ai", "ai based analytics"],
     "positive_terms": ["artificial intelligence", "machine learning", "deep learning", "computer vision", "generative ai", "ai based", "ai enabled"],
     "exclude_terms": []
+  },
+  "dgps_survey": {
+    "canonical_keyword": "dgps survey",
+    "aliases": ["dgps survey", "dgps", "differential gps", "differential global positioning system", "gnss survey", "rtk survey", "dgps mapping"],
+    "queries": ["dgps survey", "dgps", "differential gps", "gnss survey", "rtk survey", "dgps topographical survey"],
+    "positive_terms": ["dgps", "differential gps", "differential global positioning", "gnss survey", "rtk survey", "dgps survey", "dgps topographical"],
+    "exclude_terms": []
+  },
+  "gis_mapping_survey": {
+    "canonical_keyword": "gis survey",
+    "aliases": ["gis survey", "gis mapping", "geographical information system", "geospatial survey", "geospatial mapping", "cadastral survey", "topographic survey", "topographical survey", "drone survey", "lidar survey", "bathymetric survey", "total station survey", "land survey"],
+    "queries": ["gis survey", "gis mapping", "geospatial survey", "topographic survey", "cadastral survey", "drone survey", "lidar survey", "bathymetric survey", "total station survey", "land survey"],
+    "positive_terms": ["gis survey", "gis mapping", "geospatial", "geographical information system", "topographic survey", "topographical survey", "cadastral survey", "drone survey", "lidar survey", "bathymetric survey", "total station survey", "land survey", "photogrammetry", "orthomosaic", "dem dtm", "ground control points"],
+    "exclude_terms": ["survey monkey", "feedback survey", "customer survey", "satisfaction survey", "manpower survey"]
   }
 }

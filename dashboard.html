@@ -90,6 +90,26 @@
             box-sizing: border-box;
             margin: 0;
             padding: 0;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-strong) transparent;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-strong);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
         }
 
         body {
@@ -884,29 +904,32 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(7, 10, 19, 0.8);
-            backdrop-filter: blur(8px);
+            background-color: rgba(5, 10, 18, 0.78);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             display: none;
             align-items: center;
             justify-content: center;
             z-index: 1000;
+            padding: 1.25rem;
         }
 
         .modal-content {
-            background: rgba(17, 24, 39, 0.95);
+            background: var(--card-bg);
             border: 1px solid var(--border-color);
-            box-shadow: 0 24px 60px -12px rgba(15, 42, 66, 0.35);
+            box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.55);
             border-radius: 16px;
-            width: 90%;
-            max-width: 800px;
-            max-height: 90vh;
+            width: 100%;
+            max-width: 920px;
+            max-height: 88vh;
             overflow-y: auto;
-            padding: 2rem;
+            overflow-x: hidden;
+            padding: 1.75rem;
             position: relative;
             color: var(--text-primary);
             display: flex;
             flex-direction: column;
-            gap: 1.5rem;
+            gap: 1.25rem;
         }
 
         .modal-header {
@@ -918,9 +941,10 @@
         }
 
         .modal-title {
-            font-size: 1.4rem;
+            font-size: 1.35rem;
             font-weight: 700;
             color: var(--text-primary);
+            letter-spacing: -0.01em;
         }
 
         .close-btn {
@@ -929,32 +953,68 @@
             color: var(--text-secondary);
             font-size: 1.75rem;
             cursor: pointer;
-            transition: color 0.2s;
+            transition: color 0.2s, transform 0.2s;
             line-height: 1;
+            padding: 0 0.25rem;
         }
 
         .close-btn:hover {
             color: var(--text-primary);
+            transform: scale(1.1);
+        }
+
+        /* Quick Preset Chips */
+        .kw-cat-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.3rem 0.65rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background: var(--surface-sunken);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+        }
+
+        .kw-cat-chip:hover {
+            background: var(--primary-accent-soft);
+            color: var(--primary-accent);
+            border-color: var(--accent-border);
+            transform: translateY(-1px);
+        }
+
+        .kw-cat-chip-accent {
+            background: var(--primary-accent-soft);
+            color: var(--primary-accent);
+            border-color: var(--accent-border);
+            font-weight: 600;
         }
 
         /* Keywords Grid */
         .keywords-grid-container {
             display: flex;
             flex-direction: column;
-            gap: 0.75rem;
+            gap: 0.65rem;
         }
 
         .keywords-toolbar {
             display: flex;
-            gap: 0.5rem;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+            align-items: center;
         }
 
         .keywords-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-            gap: 0.5rem;
-            max-height: 220px;
+            grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+            gap: 0.35rem;
+            max-height: 190px;
             overflow-y: auto;
+            overflow-x: hidden;
             padding: 0.75rem;
             border: 1px solid var(--border-color);
             background-color: var(--surface-sunken);
@@ -965,25 +1025,173 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             color: var(--text-secondary);
             cursor: pointer;
             user-select: none;
-            padding: 0.25rem;
-            border-radius: 4px;
-            transition: background-color 0.15s;
+            padding: 0.3rem 0.5rem;
+            border-radius: 5px;
+            transition: background-color 0.15s, color 0.15s;
+            border: 1px solid transparent;
         }
 
         .keyword-item:hover {
             color: var(--text-primary);
-            background-color: var(--surface-sunken);
+            background-color: var(--card-bg);
+            border-color: var(--border-color);
         }
 
         .keyword-item input {
             accent-color: var(--primary-accent);
             cursor: pointer;
-            width: 1rem;
-            height: 1rem;
+            width: 0.95rem;
+            height: 0.95rem;
+            flex-shrink: 0;
+        }
+
+        .keyword-item span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Target Goal & Specific Bid Boxes */
+        .target-goal-box {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 0.9rem;
+            background: var(--primary-accent-soft);
+            border: 1px solid var(--accent-border);
+            border-radius: 8px;
+            width: 100%;
+        }
+
+        .target-goal-box input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--primary-accent);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .target-goal-box label {
+            font-size: 0.825rem;
+            color: var(--text-primary);
+            cursor: pointer;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            flex-wrap: wrap;
+        }
+
+        .target-goal-box input[type="number"] {
+            width: 48px;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            text-align: center;
+            border-radius: 4px;
+            padding: 2px 4px;
+            font-size: 0.8rem;
+            outline: none;
+        }
+
+        .specific-bid-box {
+            padding: 0.85rem 1rem;
+            border: 1px solid var(--border-color);
+            background-color: var(--surface-sunken);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+            width: 100%;
+        }
+
+        /* Scraper Controls Bar */
+        .scraper-controls-bar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 1rem;
+            width: 100%;
+            padding-top: 0.5rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .scraper-params-group {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            gap: 0.75rem;
+            flex: 1 1 auto;
+        }
+
+        .param-field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+
+        .param-field label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .param-field select,
+        .param-field input {
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.45rem 0.65rem;
+            border-radius: 6px;
+            font-size: 0.825rem;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .param-field select:focus,
+        .param-field input:focus {
+            border-color: var(--primary-accent);
+            box-shadow: 0 0 0 2px var(--primary-accent-glow);
+        }
+
+        .param-field select {
+            cursor: pointer;
+            min-width: 160px;
+        }
+
+        .param-field-small input {
+            width: 85px;
+            text-align: center;
+        }
+
+        .scraper-actions-group {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-clear {
+            border-color: var(--failed-border);
+            color: var(--failed-color);
+        }
+
+        .btn-clear:hover {
+            background-color: var(--failed-bg);
+            border-color: var(--failed-color);
+        }
+
+        .btn-scrape-launch {
+            padding: 0.6rem 1.4rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
         }
 
         /* Console logs */
@@ -994,7 +1202,7 @@
         }
 
         .console-title {
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             font-weight: 600;
             color: var(--text-secondary);
             text-transform: uppercase;
@@ -1002,26 +1210,20 @@
         }
 
         .console-logs {
-            background: #030712;
+            background: #040810;
             border: 1px solid var(--border-color);
             border-radius: 8px;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 0.8rem;
-            padding: 1rem;
+            font-family: var(--font-mono);
+            font-size: 0.775rem;
+            padding: 0.85rem 1rem;
             color: #34d399;
-            height: 180px;
+            height: 150px;
             overflow-y: auto;
+            overflow-x: hidden;
             white-space: pre-wrap;
-            box-shadow: inset 0 2px 8px rgba(0,0,0,0.8);
-        }
-
-        .console-logs::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .console-logs::-webkit-scrollbar-thumb {
-            background: var(--border-strong);
-            border-radius: 3px;
+            word-break: break-all;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.6);
+            line-height: 1.45;
         }
 
         /* Responsive */
@@ -1753,6 +1955,7 @@
                     <button class="kw-cat-chip" onclick="selectCategoryKeywords('power_electrical')">⚡ Power &amp; Electricals</button>
                     <button class="kw-cat-chip" onclick="selectCategoryKeywords('ai_software')">🤖 AI &amp; Software</button>
                     <button class="kw-cat-chip" onclick="selectCategoryKeywords('defence_avionics')">🛡️ Defence &amp; Avionics</button>
+                    <button class="kw-cat-chip" onclick="selectCategoryKeywords('dgps_gis_survey')">🛰️ DGPS &amp; GIS Survey</button>
                     <button class="kw-cat-chip" onclick="selectCategoryKeywords('battery_storage')">🔋 Battery &amp; BESS</button>
                     <button class="kw-cat-chip" onclick="selectCategoryKeywords('ev_infrastructure')">🚗 EV Charging</button>
                     <button class="kw-cat-chip" onclick="selectCategoryKeywords('lighting_mast')">💡 Lighting &amp; High Mast</button>
@@ -1767,58 +1970,63 @@
             </div>
 
             <!-- Target Goal Finder Option -->
-            <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 0.9rem; background: var(--primary-accent-soft); border: 1px solid var(--accent-border); border-radius: 8px; width: 100%;">
-                <input type="checkbox" id="enableTargetGoal" style="width: 16px; height: 16px; cursor: pointer;">
-                <label for="enableTargetGoal" style="font-size: 0.825rem; color: var(--text-primary); cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
+            <div class="target-goal-box">
+                <input type="checkbox" id="enableTargetGoal">
+                <label for="enableTargetGoal">
                     <span>🎯 Target Goal: Paginate until at least</span>
-                    <input type="number" id="targetCountInput" value="20" min="1" max="100" style="width: 45px; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); color: var(--text-primary); text-align: center; border-radius: 4px; padding: 2px 4px; font-size: 0.8rem;">
+                    <input type="number" id="targetCountInput" value="20" min="1" max="100">
                     <span>tenders per keyword ending in <strong>15–20 Days</strong> of current date are found</span>
                 </label>
             </div>
 
             <!-- Specific Bid Acquisition Section -->
-            <div style="padding: 1rem; border: 1px solid var(--border-color); background-color: var(--surface-sunken); border-radius: 8px; display: flex; flex-direction: column; gap: 0.75rem; width: 100%;">
-                <span class="filter-title" style="margin-bottom: 0; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Acquire Specific Bid by ID / Number</span>
+            <div class="specific-bid-box">
+                <span class="filter-title" style="margin-bottom: 0;">Acquire Specific Bid by ID / Number</span>
                 <div style="display: flex; gap: 0.75rem; width: 100%;">
-                    <input type="text" id="manualBidId" placeholder="e.g., 7610938 or GEM/2026/B/7610938" style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.55rem; border-radius: 6px; font-size: 0.85rem; outline: none; flex-grow: 1;">
-                    <button class="btn btn-primary" onclick="triggerManualAcquisition()" style="padding: 0.55rem 1.2rem; font-size: 0.85rem; border-radius: 6px; white-space: nowrap;">
+                    <input type="text" id="manualBidId" placeholder="e.g., 7610938 or GEM/2026/B/7610938" style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.55rem 0.75rem; border-radius: 6px; font-size: 0.85rem; outline: none; flex-grow: 1;">
+                    <button class="btn btn-primary" onclick="triggerManualAcquisition()" style="padding: 0.55rem 1.25rem; font-size: 0.85rem; border-radius: 6px; white-space: nowrap;">
                         Acquire Bid
                     </button>
                 </div>
             </div>
 
-            <div style="display: flex; gap: 1rem; align-items: center; justify-content: space-between; width: 100%;">
-                <div style="display: flex; flex-direction: column; gap: 0.25rem;">
-                    <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">Page Limit (per keyword)</label>
-                    <select id="modalPageLimit" style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none; cursor: pointer; width: 180px;">
-                        <option value="1">1 Page (10 Tenders)</option>
-                        <option value="2" selected>2 Pages (20 Tenders)</option>
-                        <option value="3">3 Pages (30 Tenders)</option>
-                        <option value="5">5 Pages (50 Tenders)</option>
-                    </select>
+            <!-- Scraper Controls & Actions -->
+            <div class="scraper-controls-bar">
+                <div class="scraper-params-group">
+                    <div class="param-field">
+                        <label>Page Limit</label>
+                        <select id="modalPageLimit">
+                            <option value="1">1 Page (10 Tenders)</option>
+                            <option value="2" selected>2 Pages (20 Tenders)</option>
+                            <option value="3">3 Pages (30 Tenders)</option>
+                            <option value="5">5 Pages (50 Tenders)</option>
+                        </select>
+                    </div>
+                    <div class="param-field">
+                        <label>GeM Sorting</label>
+                        <select id="modalSortOrder">
+                            <option value="Bid-End-Date-Latest">Bid End Date: Latest First</option>
+                            <option value="Bid-End-Date-Oldest">Bid End Date: Oldest First</option>
+                            <option value="Bid-Start-Date-Latest" selected>Bid Start Date: Latest First</option>
+                            <option value="Bid-Start-Date-Oldest">Bid Start Date: Oldest First</option>
+                        </select>
+                    </div>
+                    <div class="param-field param-field-small">
+                        <label title="Skip tenders ending in less than N days during ingestion">Min Days</label>
+                        <input type="number" id="modalMinDaysLeft" value="5" min="0" max="30" title="Only ingest tenders with at least this many days left to bid">
+                    </div>
                 </div>
-                <div style="display: flex; flex-direction: column; gap: 0.25rem;">
-                    <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;">GeM Search Sorting</label>
-                    <select id="modalSortOrder" style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none; cursor: pointer; width: 220px;">
-                        <option value="Bid-End-Date-Latest">Bid End Date: Latest First</option>
-                        <option value="Bid-End-Date-Oldest">Bid End Date: Oldest First</option>
-                        <option value="Bid-Start-Date-Latest" selected>Bid Start Date: Latest First</option>
-                        <option value="Bid-Start-Date-Oldest">Bid Start Date: Oldest First</option>
-                    </select>
+                <div class="scraper-actions-group">
+                    <button class="btn btn-secondary btn-clear" id="clearWorkspaceBtn" onclick="triggerClearWorkspace()" title="Reset the ACTIVE profile's workspace: delete its tenders, PDFs and report (metadata is backed up first). Other profiles are untouched.">
+                        Clear Workspace
+                    </button>
+                    <button class="btn btn-secondary" id="rescoreBtn" onclick="triggerRescore()" title="Re-score every tender locally with the current scoring config and company profile — no network, applies config changes instantly">
+                        Rescore (local)
+                    </button>
+                    <button class="btn btn-primary btn-scrape-launch" id="startScrapeBtn" onclick="triggerScrape()">
+                        🚀 Start Scraper
+                    </button>
                 </div>
-                <div style="display: flex; flex-direction: column; gap: 0.25rem;">
-                    <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;" title="Skip tenders ending in less than N days during ingestion">Min Days Left</label>
-                    <input type="number" id="modalMinDaysLeft" value="5" min="0" max="30" style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none; width: 100px; text-align: center;" title="Only ingest tenders with at least this many days left to bid">
-                </div>
-                <button class="btn btn-secondary" id="clearWorkspaceBtn" onclick="triggerClearWorkspace()" title="Reset the ACTIVE profile's workspace: delete its tenders, PDFs and report (metadata is backed up first). Other profiles are untouched." style="align-self: flex-end; padding: 0.55rem 1.25rem; border-radius: 8px; margin-left: auto; border-color: var(--failed-border); color: var(--failed-color);">
-                    Clear Workspace
-                </button>
-                <button class="btn btn-secondary" id="rescoreBtn" onclick="triggerRescore()" title="Re-score every tender locally with the current scoring config and company profile — no network, applies config changes instantly" style="align-self: flex-end; padding: 0.55rem 1.25rem; border-radius: 8px;">
-                    Rescore (local)
-                </button>
-                <button class="btn btn-primary" id="startScrapeBtn" onclick="triggerScrape()" style="align-self: flex-end; padding: 0.55rem 1.75rem; border-radius: 8px;">
-                    Start Scraper
-                </button>
             </div>
 
             <div class="console-container">
@@ -2237,7 +2445,8 @@
             business_lines: [
                 { id: "drone", label: "Drone / UAV", priority: 1.0, keywords: ["drone", "drones", "uav", "unmanned aerial", "multirotor", "quadcopter", "aerostat", "gis", "mapping", "surveillance", "reconnaissance"] },
                 { id: "power_supply", label: "Power Supply / Electrical", priority: 1.0, keywords: ["power supply", "ac-dc", "ac dc", "rectifier", "alternator", "amplifier", "ups", "voltage regulator", "lvpsu", "hvpsu", "power unit", "static convertor", "power conversion", "battery charger", "solid state power amplifier", "power system", "psu"] },
-                { id: "ai_it", label: "AI / IT / Electronics", priority: 1.0, keywords: ["artificial intelligence", "ai based", "ai-based", "software", "server", "radar", "cctv", "camera", "connectors", "harness", "rugged laptop", "military grade", "repairing", "electronics", "data acquisition", "network switch", "router", "display", "laptop", "notebook"] }
+                { id: "ai_it", label: "AI / IT / Electronics", priority: 1.0, keywords: ["artificial intelligence", "ai based", "ai-based", "software", "server", "radar", "cctv", "camera", "connectors", "harness", "rugged laptop", "military grade", "repairing", "electronics", "data acquisition", "network switch", "router", "display", "laptop", "notebook"] },
+                { id: "gis_dgps_survey", label: "DGPS & GIS Survey / Geospatial", priority: 1.0, keywords: ["dgps", "dgps survey", "gis survey", "gis mapping", "topographic survey", "cadastral survey", "drone survey", "lidar survey", "total station survey", "geospatial survey", "land survey", "contour survey", "rtk survey", "gnss survey"] }
             ],
             buyer_affinity: {
                 "INDIAN AIR FORCE": 1.0,
@@ -2912,6 +3121,19 @@
                 "unmanned aerial vehicles (uavs)", "multirotor", "quadcopter", "gis", 
                 "mapping", "cctv", "data aquisition", "indigenous & development", "design", 
                 "mechanical", "repair", "avionics"
+            ],
+            dgps_gis_survey: [
+                "dgps", "dgps survey", "differential gps", "gis", "gis survey", "gis mapping", 
+                "geographical information system", "geospatial", "geospatial survey", 
+                "geospatial mapping", "topographic survey", "topographical survey", 
+                "cadastral survey", "drone survey", "uav survey", "aerial survey", 
+                "lidar survey", "airborne lidar", "bathymetric survey", "hydrographic survey", 
+                "total station survey", "total station", "contour survey", "land survey", 
+                "boundary survey", "georeferencing", "orthomosaic", "photogrammetry", 
+                "digital elevation model", "dem", "dtm", "dsm", "ground control points", 
+                "gcp", "rtk survey", "gnss survey", "subsurface utility engineering", 
+                "sue survey", "utility mapping", "thematic mapping", "remote sensing", 
+                "satellite imagery", "as-built survey", "geotechnical survey", "geophysical survey"
             ],
             battery_storage: [
                 "battery", "bess", "battery energy storage system", "lithium battery", 

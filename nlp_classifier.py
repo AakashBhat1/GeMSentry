@@ -299,6 +299,28 @@ CANONICAL_DOMAINS: Dict[str, Dict[str, Any]] = {
             "tv", "television", "smart tv", "led tv", "set top box", "monitor"
         ]
     },
+    "gis_and_dgps_survey": {
+        "label": "GIS & DGPS Survey / Geospatial",
+        "description": "DGPS Survey, GIS Mapping, Topographic Survey, Drone/LIDAR Survey, Cadastral & Land Survey",
+        "strong": [
+            "dgps survey", "gis survey", "dgps", "gis mapping", "topographic survey",
+            "topographical survey", "cadastral survey", "drone survey", "lidar survey",
+            "bathymetric survey", "hydrographic survey", "total station survey",
+            "geospatial survey", "contour survey", "aerial survey", "rtk survey", "gnss survey"
+        ],
+        "keywords": [
+            "dgps survey", "gis survey", "dgps", "gis mapping", "gis", "differential gps",
+            "geospatial", "geospatial survey", "geospatial mapping", "topographic survey",
+            "topographical survey", "cadastral survey", "drone survey", "uav survey",
+            "aerial survey", "lidar survey", "airborne lidar", "bathymetric survey",
+            "hydrographic survey", "total station survey", "total station", "contour survey",
+            "land survey", "boundary survey", "georeferencing", "orthomosaic",
+            "photogrammetry", "digital elevation model", "ground control points", "gcp",
+            "remote sensing", "satellite imagery", "utility mapping", "subsurface utility",
+            "gnss survey", "rtk survey", "geotechnical survey", "geophysical survey",
+            "as-built survey", "thematic mapping"
+        ]
+    },
     "uncategorized_general": {
         "label": "General / Uncategorized",
         "description": "General Tenders or Tenders without strong domain specific matches",

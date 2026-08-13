@@ -163,6 +163,10 @@ class TestBusinessLineCoverage(unittest.TestCase):
         ("Wall Mount Speaker", "audio_video_and_display"),
         ("Chairman Unit Microphone", "audio_video_and_display"),
         ("SITC of Chip on Board LED Video Wall", "audio_video_and_display"),
+        ("Topographical and DGPS Survey of Mining Lease Area", "gis_and_dgps_survey"),
+        ("GIS Mapping and Cadastral Survey using DGPS and Drone", "gis_and_dgps_survey"),
+        ("Airborne LiDAR and Aerial Photogrammetry Survey", "gis_and_dgps_survey"),
+        ("Total Station Survey and Boundary Demarcation", "gis_and_dgps_survey"),
     ]
 
     def test_new_domains_classify_real_downloaded_bids(self):
@@ -173,7 +177,8 @@ class TestBusinessLineCoverage(unittest.TestCase):
         """No business line should have to fall back to uncategorized."""
         for title in ("Surveillance Drone for defence", "Online UPS 10 KVA",
                       "CCTV IP Camera", "Rooftop Solar PV plant",
-                      "Smart Energy Meter DLMS", "Supply of cable and connectors"):
+                      "Smart Energy Meter DLMS", "Supply of cable and connectors",
+                      "DGPS Topographic Survey for Pipeline", "GIS Base Map Creation"):
             self.assertNotEqual(classify(title)["domain"], "uncategorized_general", title)
 
     def test_plural_keyword_matches_singular(self):

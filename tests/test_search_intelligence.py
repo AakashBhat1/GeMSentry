@@ -274,6 +274,40 @@ def test_card_only_analysis_uses_structured_gem_item_fields():
     assert analysis["signal_parsed"] >= 4
 
 
+def test_dgps_and_gis_survey_search_concepts():
+    dgps_plan = build_search_plan("dgps survey")
+    gis_plan = build_search_plan("gis survey")
+
+    assert dgps_plan.concept_id == "dgps_survey"
+    assert "dgps" in dgps_plan.queries
+    assert "differential gps" in dgps_plan.queries
+
+    assert gis_plan.concept_id == "gis_mapping_survey"
+    assert "topographic survey" in gis_plan.queries
+    assert "drone survey" in gis_plan.queries
+
+
+def test_dgps_survey_analysis_scores_as_gis_dgps_survey():
+    tender = {
+        "bid_no": "GEM/2026/B/8888",
+        "title": "Topographical and DGPS Survey for Transmission Line",
+        "primary_item": "DGPS Survey",
+        "item_category": "Topographical Survey, DGPS Survey, GIS Mapping",
+        "department": "Power Grid Corporation of India",
+        "quantity": "1",
+        "keyword": "dgps survey",
+        "est_value_inr": 2500000,
+        "start_date": "12-08-2030 11:00 AM",
+        "end_date": "30-08-2030 11:00 AM",
+    }
+
+    profile = scraper.load_company_profile()
+    analysis = scraper.analyze_from_card(tender, CFG, profile)
+
+    assert analysis["business_line"]["id"] == "gis_dgps_survey"
+    assert analysis["est_value_inr"] == 2500000
+
+
 def test_pdf_analysis_prefers_structured_gem_item_fields_over_title_fallback():
     signals, flags = extract_bid_signals(
         "PDF text without a parseable item category label",
