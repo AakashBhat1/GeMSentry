@@ -668,10 +668,10 @@
     "STATE ELECTRICITY BOARD": 0.85
   },
   "value_preference": {
-    "sweet_min_inr": 500000,
-    "sweet_max_inr": 50000000
+    "sweet_min_inr": 60000,
+    "sweet_max_inr": 200000
   },
-  "active_preset": "main",
+  "active_preset": "small_supply",
   "value_presets": {
     "main": {
       "label": "Main (\u20b95L\u2013\u20b95Cr)",

@@ -1,7 +1,13 @@
 [project]
 name = "gem"
 version = "0.1.0"
-description = "Add your description here"
+description = "GeMSentry: Smart RFP Acquisition System"
 readme = "README.md"
-requires-python = ">=3.13"
-dependencies = []
+requires-python = ">=3.12"
+dependencies = [
+    "playwright>=1.40.0",
+    "beautifulsoup4>=4.12.0",
+    "pypdf>=4.0.0",
+    "flask>=3.0.0",
+    "openpyxl>=3.1.0",
+]
