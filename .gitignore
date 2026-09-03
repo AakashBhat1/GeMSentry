@@ -59,3 +59,4 @@ logs/**
 !logs/.gitkeep
 !logs/scrapes/
 !logs/scrapes/.gitkeep
+.agents
