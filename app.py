@@ -22,6 +22,71 @@ source_registry = SourceRegistry()
 
 app = Flask(__name__, static_folder=".", static_url_path="")
 
+
+def is_auth_enabled() -> bool:
+    cfg = paths.load_server_config()
+    return bool(cfg.get("auth_token", "").strip())
+
+
+def check_auth(token_to_test: str | None) -> bool:
+    if not is_auth_enabled():
+        return True
+    expected = paths.load_server_config().get("auth_token", "").strip()
+    return bool(token_to_test and token_to_test.strip() == expected)
+
+
+@app.before_request
+def enforce_auth():
+    if not is_auth_enabled():
+        return None
+    # Paths accessible without authentication
+    public_exact = {"/", "/favicon.ico", "/api/auth/status", "/api/auth/verify"}
+    if request.path in public_exact or request.path.endswith(".png"):
+        return None
+
+    # Check Authorization header, cookie, or query param
+    auth_header = request.headers.get("Authorization", "")
+    token = None
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:].strip()
+    if not token:
+        token = request.cookies.get("gemsentry_token")
+    if not token:
+        token = request.args.get("token")
+
+    if not check_auth(token):
+        return jsonify({
+            "error": "Unauthorized: Authentication required.",
+            "auth_required": True
+        }), 401
+
+
+@app.route("/api/auth/status", methods=["GET"])
+def get_auth_status():
+    """Return whether authentication is currently active on the server."""
+    return jsonify({"auth_required": is_auth_enabled()})
+
+
+@app.route("/api/auth/verify", methods=["POST"])
+def verify_auth_token():
+    """Validate token and return an authentication session cookie."""
+    data = request.json or {}
+    token = (data.get("token") or "").strip()
+    if not is_auth_enabled():
+        return jsonify({"valid": True, "message": "Authentication disabled."})
+    if check_auth(token):
+        resp = jsonify({"valid": True, "message": "Authentication successful."})
+        resp.set_cookie(
+            "gemsentry_token",
+            token,
+            max_age=86400 * 30,
+            httponly=False,
+            samesite="Lax"
+        )
+        return resp
+    return jsonify({"valid": False, "error": "Invalid company access key."}), 401
+
+
 # Threading and status control
 status_lock = threading.Lock()
 scrape_status = {
@@ -504,18 +569,58 @@ def serve_pdf(filename):
     return send_from_directory(paths.TENDERS_DIR, safe_path)
 
 
+@app.route("/api/export/summary.xlsx", methods=["GET"])
+def download_summary_excel():
+    """Generate (if needed) and stream the latest tender_summary Excel workbook."""
+    try:
+        active_profile = scraper.load_company_profile()
+        workspace = scraper.get_active_workspace(active_profile) or "main"
+        tenders_dir, _ = scraper.workspace_paths(workspace)
+        label = scraper.workspace_label(tenders_dir)
+        reports_dir = os.path.join(paths.TENDERS_DIR, "reports")
+        os.makedirs(reports_dir, exist_ok=True)
+
+        # Refresh the Excel workbook
+        scraper.auto_export_summary(tenders_dir)
+
+        report_file = os.path.join(reports_dir, f"tender_summary_{label}.xlsx")
+        if not os.path.exists(report_file):
+            report_file = os.path.join(reports_dir, "tender_summary_main.xlsx")
+
+        if os.path.exists(report_file):
+            stamp = datetime.date.today().isoformat()
+            return send_from_directory(
+                os.path.dirname(report_file),
+                os.path.basename(report_file),
+                as_attachment=True,
+                download_name=f"tender_summary_{label}_{stamp}.xlsx",
+                mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        return jsonify({"error": "No summary workbook generated yet. Please scrape tenders first."}), 404
+    except Exception as e:
+        logger.error(f"Error serving summary Excel: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == "__main__":
-    port = 5000
-    logger.info("=" * 58)
-    logger.info("GeMSentry RFP Acquisition Dashboard Running on Local Server")
-    logger.info("Access dashboard at: http://localhost:%s", port)
-    logger.info("=" * 58)
+    server_cfg = paths.load_server_config()
+    host = server_cfg.get("host", "0.0.0.0")
+    port = int(server_cfg.get("port", 5000))
+    auth_on = is_auth_enabled()
+
+    logger.info("=" * 60)
+    logger.info("GeMSentry RFP Acquisition Dashboard Running on Dedicated Server")
+    logger.info("Host: %s | Port: %d | Auth: %s", host, port, "ENABLED" if auth_on else "DISABLED")
+    logger.info("Local access:   http://localhost:%s", port)
+    logger.info("Network access: http://<desktop-ip>:%s", port)
+    logger.info("=" * 60)
 
     def open_browser():
         time.sleep(1.5)
         webbrowser.open(f"http://localhost:{port}")
 
     import time
-    threading.Thread(target=open_browser, daemon=True).start()
+    if host in ("127.0.0.1", "localhost", "0.0.0.0"):
+        threading.Thread(target=open_browser, daemon=True).start()
 
-    app.run(host="127.0.0.1", port=port, debug=False)
+    app.run(host=host, port=port, debug=False)

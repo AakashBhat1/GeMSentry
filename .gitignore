@@ -60,3 +60,8 @@ logs/**
 !logs/scrapes/
 !logs/scrapes/.gitkeep
 .agents
+
+# Server auth config & cloudflared binaries
+config/server_config.json
+tools/cloudflared.exe
+.cloudflared/
