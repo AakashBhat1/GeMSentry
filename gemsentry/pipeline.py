@@ -7,7 +7,7 @@ import os
 import paths
 import random
 import time
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed, wait
 from playwright.sync_api import sync_playwright
 
 from gemsentry.analysis import analyze_from_card, analyze_rfp_pdf
@@ -19,7 +19,9 @@ from gemsentry.profile import get_active_workspace, load_company_profile, worksp
 from gemsentry.scoring.dates import evaluate_date_window
 from gemsentry.scoring.verdict import apply_verdict, finalize_auto_reject
 from gemsentry.sources.gem.client import (
-    download_pdf_http, download_rfp_pdf, fetch_keyword_bids_api, parse_cards,
+    DEFAULT_DOWNLOAD_TIMEOUT, DEFAULT_KEYWORD_DEADLINE, download_pdf_http,
+    download_rfp_pdf, fetch_keyword_bids_api, is_pdf_file, looks_like_pdf_url,
+    parse_cards,
 )
 from gemsentry.storage import (
     auto_export_summary, build_pdf_index, find_existing_pdf_file,
@@ -193,9 +195,23 @@ def scrape(
                 )
                 return kw, tenders
 
-            with ThreadPoolExecutor(max_workers=5) as executor:
-                future_to_kw = {executor.submit(process_keyword, kw): kw for kw in KEYWORDS}
-                for future in as_completed(future_to_kw):
+            keyword_deadline = DEFAULT_KEYWORD_DEADLINE
+            pool = ThreadPoolExecutor(max_workers=5)
+            try:
+                future_to_kw = {pool.submit(process_keyword, kw): kw for kw in KEYWORDS}
+                pending = set(future_to_kw)
+                # One shared ceiling for the pool: a single hung keyword (IOT
+                # ENERGY METER on a stalled GeM page) must not block the run.
+                pool_timeout = keyword_deadline * max(1, (len(KEYWORDS) + 4) // 5)
+                done, pending = wait(pending, timeout=pool_timeout)
+                for future in pending:
+                    kw = future_to_kw[future]
+                    logger.error(
+                        "Keyword '%s' exceeded the %ss pool deadline; abandoning.",
+                        kw, pool_timeout,
+                    )
+                    future.cancel()
+                for future in done:
                     kw = future_to_kw[future]
                     try:
                         kw, tenders = future.result()
@@ -215,6 +231,8 @@ def scrape(
                                     existing["keyword"] += f", {kw}"
                     except Exception as e:
                         logger.error(f"Error processing keyword '{kw}': {e}")
+            finally:
+                pool.shutdown(wait=False, cancel_futures=True)
 
             if new_tenders_count == 0:
                 logger.warning(f"\nFor today ({get_date_folder_name()}), no new tenders could be found.")
@@ -237,7 +255,7 @@ def scrape(
 
             to_analyze = []   # (tender, abs_pdf_path, date_info)
             to_download = []  # (tender, save_path, date_info)
-            skipped_date = skipped_fit = 0
+            skipped_date = skipped_fit = skipped_html = 0
 
             for tender in tenders_list:
                 bid_no = tender["bid_no"]
@@ -254,15 +272,21 @@ def scrape(
                     tender.get("start_date"), tender.get("end_date"), scoring_cfg
                 )
 
-                # 2. Reuse a PDF we already have on disk
+                # 2. Reuse a PDF we already have on disk — but only if it is
+                # actually a PDF. A previous run that saved a BHEL HTML
+                # interstitial as ``.pdf`` must not be treated as cached.
                 existing_rel = pdf_index.get(f"{sanitized_bid}.pdf")
                 if existing_rel:
-                    tender["downloaded"] = True
-                    tender["local_pdf_path"] = existing_rel
-                    to_analyze.append(
-                        (tender, os.path.join(paths.ROOT, existing_rel), date_info)
+                    existing_abs = os.path.join(paths.ROOT, existing_rel)
+                    if is_pdf_file(existing_abs):
+                        tender["downloaded"] = True
+                        tender["local_pdf_path"] = existing_rel
+                        to_analyze.append((tender, existing_abs, date_info))
+                        continue
+                    logger.warning(
+                        "Ignoring non-PDF cache at %s for Bid %s.",
+                        existing_rel, bid_no,
                     )
-                    continue
 
                 # 3. Date window — never download what auto-rejects anyway
                 if date_info.get("auto_reject"):
@@ -290,8 +314,21 @@ def scrape(
                         )
                         tender["downloaded"] = False
                         apply_verdict(tender, card_analysis)
-                        skipped_fit += 1
-                        continue
+                    skipped_fit += 1
+                    continue
+
+                # 5. Portal / URL gate — listing HTML (BHEL Drupal pages, etc.)
+                # is not an RFP PDF. Fetching it would save HTML under .pdf.
+                if not looks_like_pdf_url(tender.get("pdf_url")):
+                    card_analysis = analyze_from_card(tender, scoring_cfg, company_profile)
+                    card_analysis.setdefault("reasons", []).append(
+                        "PDF not fetched: document URL is an HTML listing page, "
+                        "not a bid PDF."
+                    )
+                    tender["downloaded"] = False
+                    apply_verdict(tender, card_analysis)
+                    skipped_html += 1
+                    continue
 
                 nlp_res = nlp_classifier.classify_tender(tender)
                 tender["domain"] = nlp_res["domain"]
@@ -308,19 +345,24 @@ def scrape(
             logger.info(
                 f"Download plan: {len(to_download)} to fetch, {len(to_analyze)} "
                 f"reusable from disk, {skipped_date} skipped (date), "
-                f"{skipped_fit} skipped (zero relevance)."
+                f"{skipped_fit} skipped (zero relevance), "
+                f"{skipped_html} skipped (HTML listing, not PDF)."
             )
 
             # Parallel raw-HTTP downloads with per-request jitter. Only the
             # network fetch runs in workers; tender dicts are mutated on the
             # main thread as results complete.
+            dl_timeout = max(5, min(60, int(
+                dl_policy.get("download_timeout") or DEFAULT_DOWNLOAD_TIMEOUT
+            )))
             failed_http = []
             if to_download:
                 def fetch_job(job):
                     job_tender = job[0]
                     time.sleep(random.uniform(0.3, 0.9))
                     return job, download_pdf_http(
-                        job_tender.get("pdf_url"), job[1], cookie_header
+                        job_tender.get("pdf_url"), job[1], cookie_header,
+                        timeout=dl_timeout,
                     )
 
                 with ThreadPoolExecutor(max_workers=dl_workers) as pool:

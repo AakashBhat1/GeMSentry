@@ -194,6 +194,13 @@ def validate_scoring_config(payload):
             # 0 means "pick a sensible number from the CPU count".
             if not (0 <= a <= 16):
                 return "download_policy.analysis_workers must be in [0, 16]."
+        if "download_timeout" in dp and dp["download_timeout"] is not None:
+            try:
+                t = int(dp["download_timeout"])
+            except (TypeError, ValueError):
+                return "download_policy.download_timeout must be an integer."
+            if not (5 <= t <= 60):
+                return "download_policy.download_timeout must be in [5, 60]."
 
     return None
 
