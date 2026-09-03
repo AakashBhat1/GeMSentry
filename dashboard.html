@@ -1644,6 +1644,246 @@
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
+
+        /* ==========================================================
+           Live Excel Curation HUD & Today's Triage Bar
+           ========================================================== */
+        .live-excel-hud {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 0.85rem 1.25rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+            box-shadow: var(--shadow-sm);
+            transition: all 0.25s ease;
+        }
+
+        .live-excel-hud.is-active {
+            border-color: var(--primary-accent);
+            box-shadow: 0 4px 16px -2px var(--primary-accent-glow);
+            background: linear-gradient(135deg, var(--card-bg) 0%, var(--primary-accent-soft) 100%);
+        }
+
+        .live-excel-status-info {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+            flex-wrap: wrap;
+        }
+
+        .live-pulse-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--neutral-color);
+            display: inline-block;
+            transition: all 0.2s ease;
+        }
+
+        .live-excel-hud.is-active .live-pulse-indicator {
+            background: var(--success-color);
+            box-shadow: 0 0 0 0 rgba(15, 122, 85, 0.7);
+            animation: pulse-green 1.8s infinite;
+        }
+
+        @keyframes pulse-green {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(15, 122, 85, 0.7);
+            }
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 6px rgba(15, 122, 85, 0);
+            }
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(15, 122, 85, 0);
+            }
+        }
+
+        .live-countdown-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.25rem 0.65rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-family: var(--font-mono);
+            font-weight: 700;
+            background: var(--surface-sunken);
+            border: 1px solid var(--border-strong);
+            color: var(--text-primary);
+        }
+
+        .live-excel-hud.is-active .live-countdown-badge {
+            background: var(--warning-bg);
+            border-color: var(--warning-border);
+            color: var(--warning-color);
+        }
+
+        .live-excel-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-hud-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.45rem 0.9rem;
+            border-radius: 8px;
+            font-size: 0.825rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid var(--border-strong);
+            background: var(--card-bg);
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .btn-hud-action:hover:not(:disabled) {
+            border-color: var(--primary-accent);
+            color: var(--primary-accent);
+            transform: translateY(-1px);
+        }
+
+        .btn-hud-action.primary {
+            background: var(--primary-accent);
+            color: #ffffff;
+            border-color: var(--primary-accent);
+        }
+
+        .btn-hud-action.primary:hover:not(:disabled) {
+            opacity: 0.92;
+            color: #ffffff;
+        }
+
+        .btn-hud-action:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        /* Today's Triage Segmented Bar */
+        .today-triage-panel {
+            background: var(--surface-sunken);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 0.75rem 1.1rem;
+            margin-bottom: 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .today-triage-pills {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            flex-wrap: wrap;
+        }
+
+        .triage-pill {
+            padding: 0.35rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.825rem;
+            font-weight: 600;
+            border: 1px solid var(--border-color);
+            background: var(--card-bg);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: all 0.18s ease;
+        }
+
+        .triage-pill:hover {
+            border-color: var(--border-strong);
+            color: var(--text-primary);
+        }
+
+        .triage-pill.active {
+            background: var(--primary-accent-soft);
+            border-color: var(--primary-accent);
+            color: var(--primary-accent);
+        }
+
+        .triage-pill.active-proceed {
+            background: var(--success-bg);
+            border-color: var(--success-color);
+            color: var(--success-color);
+        }
+
+        .triage-pill.active-preview {
+            background: var(--warning-bg);
+            border-color: var(--warning-color);
+            color: var(--warning-color);
+        }
+
+        .triage-pill.active-reject {
+            background: var(--failed-bg);
+            border-color: var(--failed-color);
+            color: var(--failed-color);
+        }
+
+        .triage-pill .badge {
+            background: rgba(15, 42, 66, 0.08);
+            border-radius: 10px;
+            padding: 0.1rem 0.45rem;
+            font-size: 0.75rem;
+        }
+
+        .dark-mode .triage-pill .badge {
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        /* Card Live Excel Clicker */
+        .btn-live-excel {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.42rem 0.85rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            border: 1px solid var(--border-strong);
+            background: var(--card-bg);
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-live-excel:hover {
+            border-color: var(--primary-accent);
+            background: var(--primary-accent-soft);
+            color: var(--primary-accent);
+            transform: translateY(-1px);
+        }
+
+        .btn-live-excel.in-excel {
+            background: var(--success-bg);
+            border-color: var(--success-border);
+            color: var(--success-color);
+            box-shadow: 0 0 0 1px var(--success-border);
+        }
+
+        .btn-live-excel.in-excel:hover {
+            background: var(--failed-bg);
+            border-color: var(--failed-border);
+            color: var(--failed-color);
+        }
     </style>
 </head>
 <body>
@@ -1888,6 +2128,66 @@
                 <div class="metric-card">
                     <span class="metric-title">Acceptance Ratio</span>
                     <span class="metric-value" id="metric-ratio">0%</span>
+                </div>
+            </div>
+
+            <!-- Live Excel Curation HUD -->
+            <div class="live-excel-hud" id="liveExcelHud">
+                <div class="live-excel-status-info">
+                    <span class="live-pulse-indicator" id="livePulseIndicator"></span>
+                    <div>
+                        <strong id="liveExcelTitle" style="font-size: 0.95rem;">Live Excel: Idle</strong>
+                        <div style="font-size: 0.775rem; color: var(--text-secondary);" id="liveExcelSubtitle">
+                            Auto-starts on next scrape, or click ➕ Move to Excel on any card to curate.
+                        </div>
+                    </div>
+                    <div class="live-countdown-badge" id="liveExcelCountdownBadge" title="Time remaining before auto-save/cleanup">
+                        ⏳ <span id="liveExcelTimerText">--:--</span>
+                    </div>
+                    <span class="tag tag-neutral" id="liveExcelCountTag">No Active Session</span>
+                </div>
+                <div class="live-excel-actions">
+                    <a href="/api/live-excel/download/live" class="btn-hud-action primary" id="btnDownloadLiveExcel" style="display: none;" title="Download current live Excel workbook">
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Download Live Excel
+                    </a>
+                    <button class="btn-hud-action" id="btnCloseLiveExcel" style="display: none;" onclick="confirmCloseLiveExcel(true)" title="Save and finalize workbook now without waiting">
+                        💾 Save &amp; Close
+                    </button>
+                    <button class="btn-hud-action" id="btnSavedExcelsModal" onclick="openSavedExcelsModal()" title="View previously exported daily Excels">
+                        📁 Saved Excels (<span id="savedExcelsCount">0</span>)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Today's Scrapes Triage Panel -->
+            <div class="today-triage-panel" id="todayTriagePanel">
+                <div style="display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 0.4rem;">
+                        <span style="font-size: 1.1rem;">⚡</span>
+                        <strong style="font-size: 0.9rem;">Today's Triage:</strong>
+                    </div>
+                    <div class="today-triage-pills">
+                        <button class="triage-pill active" id="pill-today-all" onclick="setTodayTriage('all')">
+                            All Today <span class="badge" id="cnt-today-all">0</span>
+                        </button>
+                        <button class="triage-pill" id="pill-today-proceed" onclick="setTodayTriage('proceed')">
+                            🟢 Proceed <span class="badge" id="cnt-today-proceed">0</span>
+                        </button>
+                        <button class="triage-pill" id="pill-today-preview" onclick="setTodayTriage('preview')">
+                            🟡 Preview <span class="badge" id="cnt-today-preview">0</span>
+                        </button>
+                        <button class="triage-pill" id="pill-today-reject" onclick="setTodayTriage('reject')">
+                            🔴 Reject <span class="badge" id="cnt-today-reject">0</span>
+                        </button>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <button class="btn btn-secondary" onclick="addTodayProceedToLiveExcel()" id="btnAddProceedToLive" style="padding: 0.4rem 0.85rem; font-size: 0.8rem;" title="Add all today's Proceed tenders to the active Excel">
+                        ➕ Add All Proceed to Live Excel
+                    </button>
                 </div>
             </div>
 
@@ -2328,6 +2628,25 @@
         </div>
     </div>
 
+    <!-- Saved Daily Excels Modal Overlay -->
+    <div id="savedExcelsModal" class="modal">
+        <div class="modal-content" style="max-width: 680px; max-height: 80vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; margin-bottom: 0.75rem;">
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <span style="font-size: 1.4rem;">📁</span>
+                    <div>
+                        <h3 class="modal-title" style="margin: 0;">Exported Daily Excels</h3>
+                        <span style="font-size: 0.75rem; color: var(--text-secondary);">Saved automatically after 10m inactivity with today's date &amp; sequence number</span>
+                    </div>
+                </div>
+                <button class="close-btn" onclick="closeSavedExcelsModal()">&times;</button>
+            </div>
+            <div id="savedExcelsList" style="overflow-y: auto; max-height: 52vh; display: flex; flex-direction: column; gap: 0.6rem; padding: 0.5rem 0;">
+                <!-- Dynamically populated -->
+            </div>
+        </div>
+    </div>
+
     <!-- Script loading and dynamic injector -->
     <script>
         // Default filters state
@@ -2347,6 +2666,20 @@
         let knownKeywords = [];
         let scoringConfig = null;
         let companyProfile = null;
+
+        // --- Live Excel & Today's Triage state -------------------------------
+        let currentTodayTriage = 'all'; // 'all' | 'proceed' | 'preview' | 'reject'
+        let liveExcelState = {
+            isActive: false,
+            status: 'idle',
+            secondsRemaining: 0,
+            timeoutSeconds: 600,
+            updateCount: 0,
+            tenderBids: new Set(),
+            lastSavedFilename: null,
+            todaySavedFiles: [],
+            lastMessage: ''
+        };
 
         // id -> {name, category} for every configured portal, so the filter can
         // label a source even when no tender from it has landed yet.
@@ -2973,6 +3306,8 @@
             loadSourceCatalog();
             loadKeywordsForModal();
             loadPresets();
+            fetchLiveExcelStatus();
+            startLiveExcelTicker();
         });
 
         // Every keystroke used to re-filter and re-render the whole list.
@@ -3245,6 +3580,10 @@
                 const currentStatus = (data && data.status) || 'idle';
                 if (previousStatus === 'running' && currentStatus === 'idle') {
                     refreshLogTail(true);
+                    setTimeout(() => {
+                        setTodayTriage('all');
+                        fetchLiveExcelStatus();
+                    }, 500);
                 }
                 previousStatus = currentStatus;
             } catch (err) {
@@ -3443,6 +3782,344 @@
             }
         }
 
+        // ==========================================================
+        // Live Excel Curation & 10-Minute Activity Engine
+        // ==========================================================
+
+        function formatTimer(seconds) {
+            if (seconds <= 0) return "00:00";
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+
+        function updateLiveExcelHUD() {
+            const hud = document.getElementById('liveExcelHud');
+            const title = document.getElementById('liveExcelTitle');
+            const subtitle = document.getElementById('liveExcelSubtitle');
+            const timerText = document.getElementById('liveExcelTimerText');
+            const countTag = document.getElementById('liveExcelCountTag');
+            const btnDownload = document.getElementById('btnDownloadLiveExcel');
+            const btnClose = document.getElementById('btnCloseLiveExcel');
+            const savedCount = document.getElementById('savedExcelsCount');
+
+            if (!hud) return;
+
+            if (savedCount) {
+                savedCount.innerText = (liveExcelState.todaySavedFiles || []).length;
+            }
+
+            if (liveExcelState.isActive) {
+                hud.classList.add('is-active');
+                if (title) title.innerText = 'Live Excel Curation Session (Active)';
+                if (subtitle) {
+                    subtitle.innerText = liveExcelState.updateCount > 0
+                        ? `${liveExcelState.updateCount} change(s) recorded. Resets on new change. Auto-saves at 00:00.`
+                        : 'Session started. 10m window open — select tenders or it will be removed on timeout.';
+                }
+                if (timerText) timerText.innerText = formatTimer(liveExcelState.secondsRemaining);
+                if (countTag) {
+                    countTag.innerText = `${liveExcelState.tenderBids.size} Tender(s) in Workbook`;
+                    countTag.className = liveExcelState.tenderBids.size > 0 ? 'tag tag-success' : 'tag tag-neutral';
+                }
+                if (btnDownload) {
+                    btnDownload.style.display = 'inline-flex';
+                    btnDownload.disabled = false;
+                }
+                if (btnClose) {
+                    btnClose.style.display = 'inline-flex';
+                    btnClose.disabled = liveExcelState.tenderBids.size === 0;
+                }
+            } else {
+                hud.classList.remove('is-active');
+                if (title) {
+                    if (liveExcelState.status === 'saved' && liveExcelState.lastSavedFilename) {
+                        title.innerText = `Live Excel Finalized: ${liveExcelState.lastSavedFilename}`;
+                    } else if (liveExcelState.status === 'removed') {
+                        title.innerText = 'Live Excel Expired & Removed (0 Updates)';
+                    } else {
+                        title.innerText = 'Live Excel: Idle';
+                    }
+                }
+                if (subtitle) {
+                    subtitle.innerText = 'Starts automatically after a scrape, or click ➕ Move to Excel on any card to curate.';
+                }
+                if (timerText) timerText.innerText = '--:--';
+                if (countTag) {
+                    countTag.innerText = 'No Active Session';
+                    countTag.className = 'tag tag-neutral';
+                }
+                if (btnDownload) {
+                    btnDownload.style.display = 'none';
+                }
+                if (btnClose) {
+                    btnClose.style.display = 'none';
+                }
+            }
+        }
+
+        function updateCardLiveExcelButtons() {
+            document.querySelectorAll('.btn-live-excel').forEach(btn => {
+                const bidNo = decodeURIComponent(btn.getAttribute('data-bid-no') || '');
+                if (!bidNo) return;
+                const inExcel = liveExcelState.tenderBids.has(bidNo);
+                if (inExcel) {
+                    btn.classList.add('in-excel');
+                    btn.innerHTML = '<span>📊 In Live Excel ✓</span>';
+                    btn.title = 'Click to remove from Live Excel';
+                } else {
+                    btn.classList.remove('in-excel');
+                    btn.innerHTML = '<span>➕ Move to Excel</span>';
+                    btn.title = 'Move tender to Live Excel summary';
+                }
+            });
+        }
+
+        function updateLiveExcelFromAPI(data) {
+            if (!data) return;
+            liveExcelState.isActive = Boolean(data.is_active);
+            liveExcelState.status = data.status || 'idle';
+            liveExcelState.secondsRemaining = data.seconds_remaining || 0;
+            liveExcelState.timeoutSeconds = data.timeout_seconds || 600;
+            liveExcelState.updateCount = data.update_count || 0;
+            liveExcelState.tenderBids = new Set(data.tender_bids || []);
+            liveExcelState.lastSavedFilename = data.last_saved_filename || null;
+            liveExcelState.todaySavedFiles = data.today_saved_files || [];
+            liveExcelState.lastMessage = data.last_message || '';
+
+            updateLiveExcelHUD();
+            updateCardLiveExcelButtons();
+        }
+
+        async function fetchLiveExcelStatus() {
+            try {
+                const res = await fetch('/api/live-excel');
+                if (!res.ok) return;
+                const data = await res.json();
+                updateLiveExcelFromAPI(data);
+            } catch (err) {
+                console.error("Error fetching live excel status:", err);
+            }
+        }
+
+        async function toggleLiveExcel(encodedBidNo) {
+            const bidNo = decodeURIComponent(encodedBidNo);
+            try {
+                const res = await fetch('/api/live-excel/toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bid_no: bidNo })
+                });
+                const data = await res.json();
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                if (data.status) {
+                    updateLiveExcelFromAPI(data.status);
+                } else {
+                    await fetchLiveExcelStatus();
+                }
+            } catch (err) {
+                console.error("Error toggling live excel:", err);
+            }
+        }
+
+        async function confirmCloseLiveExcel(save = true) {
+            if (save && liveExcelState.tenderBids.size === 0) {
+                alert("No tenders in active Excel to save.");
+                return;
+            }
+            const msg = save
+                ? "Close and permanently save current Live Excel workbook now?"
+                : "Discard current Live Excel session?";
+            if (!confirm(msg)) return;
+
+            try {
+                const res = await fetch('/api/live-excel/close', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ save: save })
+                });
+                const data = await res.json();
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                if (data.status) {
+                    updateLiveExcelFromAPI(data.status);
+                } else {
+                    await fetchLiveExcelStatus();
+                }
+                if (save && data.filename) {
+                    alert(`Workbook saved successfully as ${data.filename}!`);
+                }
+            } catch (err) {
+                console.error("Error closing live excel:", err);
+            }
+        }
+
+        function openSavedExcelsModal() {
+            const modal = document.getElementById('savedExcelsModal');
+            if (!modal) return;
+            renderSavedExcelsList();
+            modal.style.display = 'flex';
+        }
+
+        function closeSavedExcelsModal() {
+            const modal = document.getElementById('savedExcelsModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function renderSavedExcelsList() {
+            const container = document.getElementById('savedExcelsList');
+            if (!container) return;
+            const files = liveExcelState.todaySavedFiles || [];
+            if (files.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                        <div style="font-size: 2rem; margin-bottom: 0.5rem;">📄</div>
+                        <div>No daily Excels exported yet today.</div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = files.map(f => `
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--surface-sunken); gap: 1rem;">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <span style="font-size: 1.5rem;">📊</span>
+                        <div>
+                            <strong style="font-size: 0.9rem; color: var(--text-primary);">${escapeHtml(f.filename)}</strong>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary);">
+                                ${f.is_today ? '🟢 Today' : ''} • Saved at ${escapeHtml(f.modified || '')} • ${(f.size_bytes / 1024).toFixed(1)} KB
+                            </div>
+                        </div>
+                    </div>
+                    <a href="${f.url}" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; text-decoration: none;" download>
+                        ⬇️ Download
+                    </a>
+                </div>
+            `).join('');
+        }
+
+        let tickerStarted = false;
+        function startLiveExcelTicker() {
+            if (tickerStarted) return;
+            tickerStarted = true;
+            setInterval(() => {
+                if (liveExcelState.isActive && liveExcelState.secondsRemaining > 0) {
+                    liveExcelState.secondsRemaining -= 1;
+                    const timerText = document.getElementById('liveExcelTimerText');
+                    if (timerText) timerText.innerText = formatTimer(liveExcelState.secondsRemaining);
+                    if (liveExcelState.secondsRemaining === 0) {
+                        setTimeout(fetchLiveExcelStatus, 800);
+                    }
+                }
+            }, 1000);
+
+            // Periodic poll every 8s
+            setInterval(fetchLiveExcelStatus, 8000);
+        }
+
+        // ==========================================================
+        // Today's Scrapes Triage Logic
+        // ==========================================================
+
+        function updateTodayTriageCounts() {
+            const today = localTodayISO();
+            const todayTenders = tenders.filter(t => (t.first_seen || '') === today);
+            
+            let proceedCount = 0;
+            let previewCount = 0;
+            let rejectCount = 0;
+
+            todayTenders.forEach(t => {
+                const rec = (t.analysis && t.analysis.recommendation) || '';
+                const st = t.status || 'Pending Review';
+                if (st === 'Shortlisted' || rec === 'Pursue') {
+                    proceedCount++;
+                } else if (st === 'Rejected' || rec === 'Drop') {
+                    rejectCount++;
+                } else {
+                    previewCount++;
+                }
+            });
+
+            const cntAll = document.getElementById('cnt-today-all');
+            const cntProceed = document.getElementById('cnt-today-proceed');
+            const cntPreview = document.getElementById('cnt-today-preview');
+            const cntReject = document.getElementById('cnt-today-reject');
+
+            if (cntAll) cntAll.innerText = todayTenders.length;
+            if (cntProceed) cntProceed.innerText = proceedCount;
+            if (cntPreview) cntPreview.innerText = previewCount;
+            if (cntReject) cntReject.innerText = rejectCount;
+        }
+
+        function setTodayTriage(triageCategory) {
+            currentTodayTriage = triageCategory;
+            const today = localTodayISO();
+
+            // Set date filter to today
+            currentDate = today;
+            renderDateFilters();
+
+            // Update pill active classes
+            const pills = {
+                'all': document.getElementById('pill-today-all'),
+                'proceed': document.getElementById('pill-today-proceed'),
+                'preview': document.getElementById('pill-today-preview'),
+                'reject': document.getElementById('pill-today-reject'),
+            };
+            Object.keys(pills).forEach(k => {
+                if (pills[k]) {
+                    pills[k].classList.remove('active', 'active-proceed', 'active-preview', 'active-reject');
+                    if (k === triageCategory) {
+                        if (k === 'proceed') pills[k].classList.add('active-proceed');
+                        else if (k === 'preview') pills[k].classList.add('active-preview');
+                        else if (k === 'reject') pills[k].classList.add('active-reject');
+                        else pills[k].classList.add('active');
+                    }
+                }
+            });
+
+            filterData();
+        }
+
+        async function addTodayProceedToLiveExcel() {
+            const today = localTodayISO();
+            const todayProceed = tenders.filter(t => {
+                if ((t.first_seen || '') !== today) return false;
+                const rec = (t.analysis && t.analysis.recommendation) || '';
+                const st = t.status || 'Pending Review';
+                return st === 'Shortlisted' || rec === 'Pursue';
+            });
+
+            if (todayProceed.length === 0) {
+                alert("No Proceed/Shortlisted tenders found for today.");
+                return;
+            }
+
+            const bidNos = todayProceed.map(t => t.bid_no);
+            try {
+                const res = await fetch('/api/live-excel/add-batch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bid_nos: bidNos })
+                });
+                const data = await res.json();
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                updateLiveExcelFromAPI(data);
+                alert(`Added ${bidNos.length} Proceed tenders to the Live Excel session! 10m countdown reset.`);
+            } catch (e) {
+                console.error("Error adding proceed tenders to live excel:", e);
+            }
+        }
+
         function showSetupState() {
             const container = document.getElementById('mainContainer');
             container.innerHTML = `
@@ -3479,6 +4156,8 @@
 
             // Populate badges and render filters
             updateBadges();
+            updateTodayTriageCounts();
+            updateLiveExcelHUD();
             filterData();
         }
 
@@ -3767,6 +4446,17 @@
 
         function setDateFilter(d) {
             currentDate = d;
+            if (d !== localTodayISO()) {
+                currentTodayTriage = 'all';
+                const pills = ['pill-today-all', 'pill-today-proceed', 'pill-today-preview', 'pill-today-reject'];
+                pills.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.classList.remove('active', 'active-proceed', 'active-preview', 'active-reject');
+                });
+            } else {
+                const pillAll = document.getElementById('pill-today-all');
+                if (pillAll && currentTodayTriage === 'all') pillAll.classList.add('active');
+            }
             renderDateFilters();
             renderBusinessLineFilters();
             renderSourceFilters();
@@ -4047,8 +4737,21 @@
                     matchDate = currentDate === 'unknown' ? !seen : seen === currentDate;
                 }
 
+                // Today's Scrapes Triage Filter (Proceed, Preview, Reject)
+                let matchTodayTriage = true;
+                if (currentTodayTriage !== 'all' && currentDate === localTodayISO()) {
+                    const rec = (analysis.recommendation || '');
+                    if (currentTodayTriage === 'proceed') {
+                        matchTodayTriage = (tStatus === 'Shortlisted' || rec === 'Pursue');
+                    } else if (currentTodayTriage === 'preview') {
+                        matchTodayTriage = (tStatus === 'Pending Review' || rec === 'Review');
+                    } else if (currentTodayTriage === 'reject') {
+                        matchTodayTriage = (tStatus === 'Rejected' || rec === 'Drop');
+                    }
+                }
+
                 return matchKeyword && matchStatus && matchSearch && matchSource && matchRec
-                    && matchBL && matchVal && matchDeadline && matchDate;
+                    && matchBL && matchVal && matchDeadline && matchDate && matchTodayTriage;
             });
 
             // Sort logic
@@ -4115,6 +4818,8 @@
             }
 
             renderTenders(filtered);
+            updateTodayTriageCounts();
+            updateCardLiveExcelButtons();
         }
 
         /* ====================================================================
@@ -4398,6 +5103,9 @@
                         urgencyTag = `<span class="tag tag-urgency-soon" title="Closes in ${daysToDeadline} day(s)">⏳ Soon (${daysToDeadline}d)</span>`;
                     }
                 }
+
+                const isInLiveExcel = Boolean(liveExcelState && liveExcelState.tenderBids && liveExcelState.tenderBids.has(tender.bid_no));
+                let liveExcelTag = isInLiveExcel ? `<span class="tag tag-in-excel" style="background: var(--success-bg); color: var(--success-color); border: 1px solid var(--success-border); font-weight: 700;">📊 In Live Excel</span>` : '';
 
                 const analysis = tender.analysis;
 
@@ -4738,6 +5446,7 @@
                                     ${businessLineTag}
                                     ${eligibilityTag}
                                     ${urgencyTag}
+                                    ${liveExcelTag}
                                 </div>
                                 <h3 class="tender-title">${escapeHtml(tender.title)}</h3>
                             </div>
@@ -4770,7 +5479,7 @@
                         ${detailsAccordion}
 
                         <div class="tender-actions">
-                            <div style="display: flex; gap: 0.75rem; align-items: center;">
+                            <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
                                 ${actionButtons}
                                 <a href="${encodeURI(tender.pdf_url || '')}" target="_blank" class="btn btn-secondary" style="padding: 0.45rem 1rem; font-size: 0.8rem;">
                                     <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -4779,6 +5488,12 @@
                                     GeM Link
                                 </a>
                                 ${reanalyzeBtn}
+                                <button class="btn-live-excel ${isInLiveExcel ? 'in-excel' : ''}"
+                                        data-bid-no="${encodeURIComponent(tender.bid_no)}"
+                                        onclick="toggleLiveExcel('${encodeURIComponent(tender.bid_no)}')"
+                                        title="${isInLiveExcel ? 'Click to remove from Live Excel' : 'Move tender to Live Excel summary'}">
+                                    ${isInLiveExcel ? '<span>📊 In Live Excel ✓</span>' : '<span>➕ Move to Excel</span>'}
+                                </button>
                             </div>
                             
                             <div class="override-controls">

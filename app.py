@@ -3,7 +3,7 @@ import threading
 import datetime
 import webbrowser
 import logging
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, send_file
 
 import paths
 import logging_setup
@@ -15,6 +15,7 @@ logging_setup.setup_logging()
 import scraper  # noqa: E402
 from gemsentry.search import expand_keywords  # noqa: E402
 from gemsentry.sources import SourceRegistry, annotate_sources  # noqa: E402
+from gemsentry.live_excel import live_excel_manager  # noqa: E402
 
 logger = logging.getLogger("gemsentry")
 
@@ -170,6 +171,12 @@ def run_scraper_thread(keywords, max_pages, sort_order, target_count=None, min_d
                 scrape_status["log_session_path"] = paths.repo_relative(sess)
 
         add_log(f"Scraping completed. Discovered {new_count} total new tenders across all portals.")
+        try:
+            live_excel_manager.on_scrape_completed()
+            add_log("Live Excel session started after scrape (10-minute curation window open).")
+        except Exception as le_err:
+            logger.warning("Could not initiate live excel session after scrape: %s", le_err)
+
         with status_lock:
             scrape_status["status"] = "idle"
             scrape_status["new_count"] = new_count
@@ -199,6 +206,10 @@ def run_scraper_id_thread(bid_id):
             add_log(f"Acquisition completed. Tender {tender['bid_no']} successfully imported.")
             with status_lock:
                 scrape_status["new_count"] = 1
+            try:
+                live_excel_manager.on_scrape_completed()
+            except Exception:
+                pass
         else:
             add_log(f"Acquisition failed. No tender was imported for ID: '{bid_id}'.")
             with status_lock:
@@ -583,6 +594,92 @@ def serve_pdf(filename):
     # subfolders (e.g. tenders/personel/downloads/...) resolve too.
     safe_path = filename.replace("\\", "/")
     return send_from_directory(paths.TENDERS_DIR, safe_path)
+
+
+# -------------------------------------------------------------------------
+# Live Excel Session & Curation Endpoints
+# -------------------------------------------------------------------------
+
+@app.route("/api/live-excel", methods=["GET"])
+def get_live_excel_status():
+    """Read-only live Excel session status. Does NOT reset inactivity timer."""
+    try:
+        return jsonify(live_excel_manager.get_status(touch=False))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/live-excel/toggle", methods=["POST"])
+def toggle_live_excel_tender():
+    """Toggle a tender in the live Excel session (resets 10m timer; starts session if idle)."""
+    try:
+        data = request.json or {}
+        bid_no = data.get("bid_no")
+        if not bid_no:
+            return jsonify({"error": "Missing bid_no in request."}), 400
+        res = live_excel_manager.toggle_tender(bid_no)
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/live-excel/add-batch", methods=["POST"])
+def add_batch_live_excel():
+    """Add multiple tenders at once to the live Excel session (resets 10m timer)."""
+    try:
+        data = request.json or {}
+        bid_nos = data.get("bid_nos", [])
+        if not isinstance(bid_nos, list):
+            return jsonify({"error": "bid_nos must be a list."}), 400
+        res = live_excel_manager.add_batch(bid_nos)
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/live-excel/download/live", methods=["GET"])
+def download_live_excel():
+    """Download current live working Excel file. Does NOT reset inactivity timer."""
+    try:
+        live_path = live_excel_manager.live_excel_path
+        if not os.path.exists(live_path):
+            return jsonify({"error": "No active live Excel file currently on disk."}), 404
+        today = datetime.date.today().isoformat()
+        return send_file(
+            live_path,
+            as_attachment=True,
+            download_name=f"tenders_live_curation_{today}.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/live-excel/download/saved/<path:filename>", methods=["GET"])
+def download_saved_daily_excel(filename):
+    """Download a previously finalized daily export (e.g. 2026-09-04_1.xlsx)."""
+    try:
+        safe_name = os.path.basename(filename)
+        return send_from_directory(
+            live_excel_manager.daily_dir,
+            safe_name,
+            as_attachment=True,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/live-excel/close", methods=["POST"])
+def close_live_excel():
+    """Manually save & close or discard the active session."""
+    try:
+        data = request.json or {}
+        save = bool(data.get("save", True))
+        res = live_excel_manager.manual_close(save=save)
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
