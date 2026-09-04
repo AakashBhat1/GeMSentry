@@ -68,7 +68,8 @@ DEFAULT_SCORING_CONFIG = {
         "download_workers": 4,
         # 0 = auto (cpu_count - 1, capped at 4). PDF text extraction is
         # CPU-bound, so this fans out over processes, not threads.
-        "analysis_workers": 0
+        "analysis_workers": 0,
+        "download_timeout": 15,
     }
 }
 

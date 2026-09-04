@@ -170,7 +170,7 @@
       "category": "state_gov",
       "engine": "gepnic",
       "enabled": true,
-      "description": "Maharashtra eProcurement Portal"
+      "description": "Maharashtra eProcurement Portal (TLS cert SAN is apex-only: mahatenders.gov.in, not www.)"
     },
     {
       "id": "state_mp",
