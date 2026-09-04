@@ -3,6 +3,7 @@
 Runs offline against a stub adapter and a temporary workspace. Set
 GEMSENTRY_LIVE_PORTALS=1 to additionally hit the real portals.
 """
+import datetime
 import os
 import shutil
 import sys
@@ -40,6 +41,9 @@ class StubAdapter(BaseAdapter):
 
 
 def _stub_registry():
+    d1 = (datetime.datetime.now() + datetime.timedelta(days=15)).strftime("%d-%b-%Y")
+    d2 = (datetime.datetime.now() + datetime.timedelta(days=20)).strftime("%d-%b-%Y")
+    d3 = (datetime.datetime.now() + datetime.timedelta(days=25)).strftime("%d-%b-%Y")
     registry = SourceRegistry.__new__(SourceRegistry)
     registry.sources = [
         {"id": "p1", "name": "Portal One", "url": "https://one.example/nicgep/app",
@@ -50,16 +54,16 @@ def _stub_registry():
     registry.adapters = {
         "p1": StubAdapter(registry.sources[0], [
             {"tender_id": "2026_SOLAR_1", "title": "Supply of solar panels",
-             "buyer_org": "NTPC", "closing_date": "20-Aug-2026"},
+             "buyer_org": "NTPC", "closing_date": d1},
             {"tender_id": "2026_CIVIL_9", "title": "Boundary wall civil works",
-             "buyer_org": "MES", "closing_date": "21-Aug-2026"},
+             "buyer_org": "MES", "closing_date": d2},
         ]),
         # Publishes the same solar tender as p1 -- cross-portal duplicate.
         "p2": StubAdapter(registry.sources[1], [
             {"tender_id": "2026_SOLAR_1", "title": "Supply of solar panels",
-             "buyer_org": "NTPC", "closing_date": "20-Aug-2026"},
+             "buyer_org": "NTPC", "closing_date": d1},
             {"tender_id": "2026_SOLAR_2", "title": "Solar rooftop installation",
-             "buyer_org": "BEL", "closing_date": "25-Aug-2026"},
+             "buyer_org": "BEL", "closing_date": d3},
         ]),
     }
     return registry

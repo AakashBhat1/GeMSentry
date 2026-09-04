@@ -16,7 +16,7 @@ from bs4 import BeautifulSoup
 
 from gemsentry.constants import logger
 from gemsentry.sources.base import BaseAdapter
-from gemsentry.sources.http import USER_AGENT, fetch_html
+from gemsentry.sources.http import USER_AGENT, fetch_html, canonicalize_request_url
 
 DATE_LIST_QUERY = "page=FrontEndListTendersbyDate&service=page"
 DEFAULT_APP_PATH = "/nicgep/app"
@@ -64,7 +64,7 @@ class GePNICAdapter(BaseAdapter):
         ``/epublish/app`` on the e-publish portal. Honour whatever the source
         config points at instead of assuming one of them.
         """
-        parsed = urllib.parse.urlparse(configured_url)
+        parsed = urllib.parse.urlparse(canonicalize_request_url(configured_url))
         base = f"{parsed.scheme or 'https'}://{parsed.netloc}"
         path = (parsed.path or "").rstrip("/")
         if path.endswith("/app"):
@@ -75,7 +75,7 @@ class GePNICAdapter(BaseAdapter):
         keywords_lower = [k.lower().strip() for k in (keywords or []) if k and k.strip()]
         logger.info("[%s] fetching %s", self.source_id, self.date_list_url)
 
-        html = fetch_html(self.date_list_url, label=self.source_id)
+        html = fetch_html(self.date_list_url, label=self.source_id, verify_tls=self.verify_tls)
         tenders = self.parse_listing(html, keywords_lower) if html else []
 
         if not tenders:
@@ -85,6 +85,11 @@ class GePNICAdapter(BaseAdapter):
 
         logger.info("[%s] %d matching tender(s) for %s", self.source_id, len(tenders), keywords_lower or "*")
         return tenders
+
+    @property
+    def verify_tls(self) -> bool:
+        """Per-source TLS opt-out; default on. See HtmlTableAdapter.verify_tls."""
+        return bool(self.config.get("verify_tls", True))
 
     def _browser_fetch(self) -> Optional[str]:
         """Render the listing in Chromium; the 'closing soon' tabs need JS."""
@@ -100,7 +105,11 @@ class GePNICAdapter(BaseAdapter):
                     browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
                     try:
                         page = browser.new_page(user_agent=USER_AGENT)
-                        page.goto(self.date_list_url, timeout=30000, wait_until="domcontentloaded")
+                        page.goto(
+                            canonicalize_request_url(self.date_list_url),
+                            timeout=30000,
+                            wait_until="domcontentloaded",
+                        )
                         page.wait_for_timeout(1000)
                         for label in ("Closing within 14 days", "Closing within 7 days", "Closing Today"):
                             if page.query_selector(f"text={label}"):
@@ -234,4 +243,5 @@ class GePNICAdapter(BaseAdapter):
     def _row_url(self, title_cell, row) -> str:
         link = (title_cell.find("a") if title_cell else None) or row.find("a")
         href = link.get("href") if link else None
-        return urllib.parse.urljoin(self.app_url, href) if href else self.url
+        url = urllib.parse.urljoin(self.app_url, href) if href else self.url
+        return canonicalize_request_url(url)

@@ -1008,11 +1008,69 @@
             align-items: center;
         }
 
+        /* Search + counter row above the checkbox grid. With 300+ keywords the
+           bare scrolling grid was unusable — you could not find a term without
+           scrolling the whole list. */
+        .keywords-searchbar {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.4rem;
+        }
+
+        .keywords-searchbar input[type="search"] {
+            flex: 1 1 220px;
+            min-width: 180px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.4rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.82rem;
+            outline: none;
+        }
+
+        .keywords-searchbar input[type="search"]:focus {
+            border-color: var(--primary-accent);
+        }
+
+        .light-mode .keywords-searchbar input[type="search"] {
+            background: rgba(255, 255, 255, 0.7);
+        }
+
+        .keywords-searchbar .kw-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        .keywords-searchbar .kw-toggle input {
+            accent-color: var(--primary-accent);
+            cursor: pointer;
+        }
+
+        .kw-count {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .kw-count strong {
+            color: var(--primary-accent);
+        }
+
         .keywords-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-            gap: 0.35rem;
-            max-height: 190px;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 0.4rem;
+            max-height: 240px;
             overflow-y: auto;
             overflow-x: hidden;
             padding: 0.75rem;
@@ -1021,6 +1079,21 @@
             border-radius: 8px;
         }
 
+        .keyword-item.kw-hidden {
+            display: none;
+        }
+
+        .kw-empty {
+            grid-column: 1 / -1;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            padding: 0.5rem;
+            text-align: center;
+        }
+
+        .light-mode .keywords-grid {
+            background-color: rgba(255, 255, 255, 0.5);
+        }
         .keyword-item {
             display: flex;
             align-items: center;
@@ -1935,6 +2008,19 @@
                 </svg>
                 <span>Scoring Config</span>
             </button>
+            <button class="btn btn-secondary" id="exportExcelBtn" onclick="downloadSummaryExcel()" aria-label="Export Excel Summary" style="padding: 0.5rem 0.85rem; border-color: rgba(16, 185, 129, 0.4); color: #34d399;">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span>Export Excel</span>
+            </button>
+            <button class="btn-theme" id="authKeyBtn" onclick="openAuthModal()" aria-label="Security Key" style="display: none; padding: 0.5rem 0.85rem; border-color: rgba(139, 92, 246, 0.4); color: #c4b5fd;">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 11V7a5 5 0 0110 0v4"></path>
+                </svg>
+                <span id="authKeyStatusText">Access Key</span>
+            </button>
             <button class="btn btn-primary" onclick="openScraperModal()">
                 <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -2257,12 +2343,22 @@
                     <button class="kw-cat-chip" onclick="selectCategoryKeywords('defence_avionics')">🛡️ Defence &amp; Avionics</button>
                     <button class="kw-cat-chip" onclick="selectCategoryKeywords('dgps_gis_survey')">🛰️ DGPS &amp; GIS Survey</button>
                     <button class="kw-cat-chip" onclick="selectCategoryKeywords('battery_storage')">🔋 Battery &amp; BESS</button>
+                    <button class="kw-cat-chip" onclick="selectCategoryKeywords('lead_acid')">🪫 Lead-Acid &amp; VRLA</button>
                     <button class="kw-cat-chip" onclick="selectCategoryKeywords('ev_infrastructure')">🚗 EV Charging</button>
                     <button class="kw-cat-chip" onclick="selectCategoryKeywords('lighting_mast')">💡 Lighting &amp; High Mast</button>
                     <button class="kw-cat-chip" onclick="selectCategoryKeywords('pumps_kusum')">🌊 Solar Pumps &amp; KUSUM</button>
                     <button class="kw-cat-chip kw-cat-chip-accent" onclick="selectCategoryKeywords('all_technical')" style="margin-left: auto;">🚀 All Technical</button>
                     <button class="kw-cat-chip" onclick="selectAllKeywords()">Select All</button>
                     <button class="kw-cat-chip" onclick="clearAllKeywords()">Clear All</button>
+                </div>
+                <div class="keywords-searchbar">
+                    <input type="search" id="keywordSearch" placeholder="Search keywords… (e.g. lead acid, vrla, tubular)"
+                           oninput="applyKeywordSearch()" autocomplete="off">
+                    <label class="kw-toggle" title="Show only the keywords you have ticked">
+                        <input type="checkbox" id="keywordShowSelected" onchange="applyKeywordSearch()">
+                        <span>Selected only</span>
+                    </label>
+                    <span class="kw-count" id="keywordCount"></span>
                 </div>
                 <div class="keywords-grid" id="modalKeywordsGrid">
                     <!-- Loaded dynamically from /api/keywords -->
@@ -2647,8 +2743,192 @@
         </div>
     </div>
 
+    <!-- Company Access Token Modal -->
+    <div id="authModal" class="modal">
+        <div class="modal-content" style="max-width: 460px; text-align: center;">
+            <div class="modal-header" style="justify-content: center; position: relative; border-bottom: none; padding-bottom: 0;">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 0.5rem; width: 100%;">
+                    <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(139, 92, 246, 0.15); border: 1px solid var(--primary-accent); display: flex; align-items: center; justify-content: center; color: var(--primary-accent);">
+                        <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M7 11V7a5 5 0 0110 0v4"></path>
+                        </svg>
+                    </div>
+                    <h3 class="modal-title" style="font-size: 1.2rem;">Company Authentication</h3>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: -0.25rem;">Enter your company access key to unlock the dashboard and run searches.</p>
+                </div>
+                <button class="close-btn" id="authCloseBtn" onclick="closeAuthModal()" style="position: absolute; right: 0; top: 0; display: none;">&times;</button>
+            </div>
+            
+            <div id="authFeedback" style="display: none; padding: 0.65rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 500; margin: 0.75rem 0;"></div>
+            
+            <form id="authForm" onsubmit="submitAuthToken(event)" style="display: flex; flex-direction: column; gap: 1rem; margin-top: 0.75rem;">
+                <div style="text-align: left;">
+                    <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 0.4rem;">Access Key</label>
+                    <input type="password" id="authTokenInput" placeholder="Enter company access token..." required style="width: 100%; padding: 0.75rem 1rem; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 0.95rem; outline: none; transition: border-color 0.2s;">
+                </div>
+                <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 0.25rem;">
+                    <button type="button" class="btn btn-secondary" id="authForgetBtn" onclick="forgetAuthToken()" style="display: none; font-size: 0.85rem;">Forget Key</button>
+                    <button type="submit" class="btn btn-primary" id="authSubmitBtn" style="flex: 1; justify-content: center; padding: 0.75rem;">Unlock Portal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Script loading and dynamic injector -->
     <script>
+        // Global Fetch Interceptor for Token Authentication
+        const originalFetch = window.fetch;
+        window.fetch = async function(url, options = {}) {
+            options = options || {};
+            options.headers = options.headers || {};
+            const token = localStorage.getItem('gemsentry_auth_token');
+            if (token) {
+                if (options.headers instanceof Headers) {
+                    options.headers.set('Authorization', `Bearer ${token}`);
+                } else {
+                    options.headers['Authorization'] = `Bearer ${token}`;
+                }
+            }
+            const res = await originalFetch(url, options);
+            if (res.status === 401 && typeof url === 'string' && !url.includes('/api/auth/')) {
+                openAuthModal(true);
+            }
+            return res;
+        };
+
+        function downloadSummaryExcel() {
+            const token = localStorage.getItem('gemsentry_auth_token');
+            const url = token ? `/api/export/summary.xlsx?token=${encodeURIComponent(token)}` : '/api/export/summary.xlsx';
+            window.location.href = url;
+        }
+
+        async function checkAuthRequirement() {
+            try {
+                const res = await originalFetch('/api/auth/status');
+                const data = await res.json();
+                const authBtn = document.getElementById('authKeyBtn');
+                if (data.auth_required) {
+                    if (authBtn) authBtn.style.display = 'flex';
+                    const stored = localStorage.getItem('gemsentry_auth_token');
+                    if (!stored) {
+                        openAuthModal(true);
+                    } else {
+                        const verifyRes = await originalFetch('/api/auth/verify', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({token: stored})
+                        });
+                        if (!verifyRes.ok) {
+                            openAuthModal(true);
+                        }
+                    }
+                } else {
+                    if (authBtn) authBtn.style.display = 'none';
+                }
+            } catch (err) {
+                console.warn("Could not check auth status:", err);
+            }
+        }
+
+        function openAuthModal(forced = false) {
+            const modal = document.getElementById('authModal');
+            const closeBtn = document.getElementById('authCloseBtn');
+            const forgetBtn = document.getElementById('authForgetBtn');
+            const input = document.getElementById('authTokenInput');
+            const feedback = document.getElementById('authFeedback');
+            if (!modal) return;
+            if (feedback) feedback.style.display = 'none';
+            if (input) {
+                input.value = localStorage.getItem('gemsentry_auth_token') || '';
+            }
+            if (closeBtn) closeBtn.style.display = forced ? 'none' : 'block';
+            if (forgetBtn) forgetBtn.style.display = localStorage.getItem('gemsentry_auth_token') ? 'inline-flex' : 'none';
+            modal.style.display = 'flex';
+            if (input) setTimeout(() => input.focus(), 100);
+        }
+
+        function closeAuthModal() {
+            const modal = document.getElementById('authModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        async function submitAuthToken(event) {
+            event.preventDefault();
+            const input = document.getElementById('authTokenInput');
+            const feedback = document.getElementById('authFeedback');
+            const submitBtn = document.getElementById('authSubmitBtn');
+            const token = (input ? input.value : '').trim();
+            if (!token) return;
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Verifying...';
+            }
+
+            try {
+                const res = await originalFetch('/api/auth/verify', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({token: token})
+                });
+                const data = await res.json();
+                if (res.ok && data.valid) {
+                    localStorage.setItem('gemsentry_auth_token', token);
+                    document.cookie = `gemsentry_token=${encodeURIComponent(token)}; path=/; max-age=2592000; SameSite=Lax`;
+                    if (feedback) {
+                        feedback.style.display = 'block';
+                        feedback.style.background = 'rgba(16, 185, 129, 0.15)';
+                        feedback.style.color = '#34d399';
+                        feedback.textContent = 'Access granted! Loading dashboard...';
+                    }
+                    setTimeout(() => {
+                        closeAuthModal();
+                        refreshData();
+                        loadKeywordsForModal();
+                        loadPresets();
+                        loadScoringConfig();
+                        loadCompanyProfile();
+                    }, 400);
+                } else {
+                    if (feedback) {
+                        feedback.style.display = 'block';
+                        feedback.style.background = 'rgba(239, 68, 68, 0.15)';
+                        feedback.style.color = '#f87171';
+                        feedback.textContent = data.error || 'Invalid access key.';
+                    }
+                }
+            } catch (err) {
+                if (feedback) {
+                    feedback.style.display = 'block';
+                    feedback.style.background = 'rgba(239, 68, 68, 0.15)';
+                    feedback.style.color = '#f87171';
+                    feedback.textContent = 'Connection error. Please try again.';
+                }
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Unlock Portal';
+                }
+            }
+        }
+
+        function forgetAuthToken() {
+            localStorage.removeItem('gemsentry_auth_token');
+            document.cookie = 'gemsentry_token=; path=/; max-age=0;';
+            const input = document.getElementById('authTokenInput');
+            if (input) input.value = '';
+            const feedback = document.getElementById('authFeedback');
+            if (feedback) {
+                feedback.style.display = 'block';
+                feedback.style.background = 'rgba(239, 68, 68, 0.15)';
+                feedback.style.color = '#f87171';
+                feedback.textContent = 'Saved access key removed.';
+            }
+            const forgetBtn = document.getElementById('authForgetBtn');
+            if (forgetBtn) forgetBtn.style.display = 'none';
+        }
+
         // Default filters state
         let currentKeyword = 'all';
         let currentStatus = 'all';
@@ -3143,11 +3423,23 @@
                 buyerAffinity[k] = v;
             }
 
-            // Preserve exclude_keywords (edited only via config file, not this form)
-            const existingExcludes = (lineId) => {
-                const lines = (companyProfile && companyProfile.business_lines) || [];
-                const found = lines.find(l => l && l.id === lineId);
-                return (found && found.exclude_keywords) || [];
+            // This form only edits three of the business lines. Everything else on
+            // a line (strong_keywords, exclude_keywords, priority) and every line
+            // the form does not render (components, smart metering, batteries,
+            // solar, biometrics) must survive the save untouched — rebuilding the
+            // array from the three form fields silently deleted them.
+            const mergeBusinessLines = (edits) => {
+                const existing = (companyProfile && companyProfile.business_lines) || [];
+                const edited = new Map(edits.map(e => [e.id, e]));
+                const merged = existing.map(line => {
+                    const patch = edited.get(line && line.id);
+                    if (!patch) return line;               // untouched line, kept verbatim
+                    edited.delete(line.id);
+                    return { ...line, ...patch };          // keep strong/exclude keywords
+                });
+                // A line the form knows about but the stored profile lacks (first run).
+                edited.forEach(patch => merged.push(patch));
+                return merged;
             };
 
             const payload = {
@@ -3177,11 +3469,11 @@
                     soft_avoid_penalty: softAvoidPenalty,
                     soft_avoid_reason: softAvoidReason
                 },
-                business_lines: [
-                    { id: "drone", label: "Drone / UAV", priority: 1.0, keywords: kwsDrone, exclude_keywords: existingExcludes("drone") },
-                    { id: "power_supply", label: "Power Supply / Electrical", priority: 1.0, keywords: kwsPower, exclude_keywords: existingExcludes("power_supply") },
-                    { id: "ai_it", label: "AI / IT / Electronics", priority: 1.0, keywords: kwsAi, exclude_keywords: existingExcludes("ai_it") }
-                ],
+                business_lines: mergeBusinessLines([
+                    { id: "drone", label: "Drone / UAV", priority: 1.0, keywords: kwsDrone },
+                    { id: "power_supply", label: "Power Supply / Electrical", priority: 1.0, keywords: kwsPower },
+                    { id: "ai_it", label: "AI / IT / Electronics", priority: 1.0, keywords: kwsAi }
+                ]),
                 buyer_affinity: buyerAffinity,
                 value_preference: {
                     sweet_min_inr: sweetMin,
@@ -3300,6 +3592,7 @@
             updateThemeButton(document.body.classList.contains('dark-mode'));
             initSearchInput();
             runSplash();
+            checkAuthRequirement();
             loadScoringConfig();
             loadCompanyProfile();
             refreshData();
@@ -3342,14 +3635,71 @@
                 
                 const grid = document.getElementById('modalKeywordsGrid');
                 grid.innerHTML = knownKeywords.map(kw => `
-                    <label class="keyword-item">
+                    <label class="keyword-item" data-kw="${kw.toLowerCase()}">
                         <input type="checkbox" name="keywordCheckbox" value="${kw}">
                         <span>${kw}</span>
                     </label>
-                `).join('');
+                `).join('') + '<div class="kw-empty" id="kwEmpty" style="display:none;">No keyword matches that search.</div>';
+
+                // One delegated listener beats 300 inline handlers.
+                grid.addEventListener('change', updateKeywordCount);
+
+                const search = document.getElementById('keywordSearch');
+                if (search) {
+                    search.placeholder = `Search ${knownKeywords.length} keywords… (e.g. lead acid, vrla, tubular)`;
+                }
+                applyKeywordSearch();
             } catch (err) {
                 console.error("Failed to load keywords for modal:", err);
             }
+        }
+
+        // --- Keyword picker: search, counter, and visible-scoped bulk actions ---
+        // The grid holds 300+ terms. Without a filter, finding "vrla battery"
+        // meant scrolling the entire list; and "Select All" over 300 keywords
+        // is never what you want mid-search.
+
+        function visibleKeywordBoxes() {
+            return Array.from(document.getElementsByName('keywordCheckbox'))
+                .filter(b => !b.closest('.keyword-item').classList.contains('kw-hidden'));
+        }
+
+        function applyKeywordSearch() {
+            const searchEl = document.getElementById('keywordSearch');
+            const selectedOnlyEl = document.getElementById('keywordShowSelected');
+            const q = (searchEl ? searchEl.value : '').trim().toLowerCase();
+            const selectedOnly = selectedOnlyEl ? selectedOnlyEl.checked : false;
+
+            // Space-separated words all have to appear, in any order, so
+            // "acid lead" and "lead acid" both find LEAD ACID BATTERY.
+            const terms = q ? q.split(/\s+/) : [];
+
+            let shown = 0;
+            document.querySelectorAll('#modalKeywordsGrid .keyword-item').forEach(item => {
+                const hay = item.dataset.kw || '';
+                const box = item.querySelector('input');
+                const matchesQuery = terms.every(t => hay.includes(t));
+                const matchesSelected = !selectedOnly || (box && box.checked);
+                const visible = matchesQuery && matchesSelected;
+                item.classList.toggle('kw-hidden', !visible);
+                if (visible) shown++;
+            });
+
+            const empty = document.getElementById('kwEmpty');
+            if (empty) empty.style.display = shown === 0 ? 'block' : 'none';
+            updateKeywordCount();
+        }
+
+        function updateKeywordCount() {
+            const el = document.getElementById('keywordCount');
+            if (!el) return;
+            const all = Array.from(document.getElementsByName('keywordCheckbox'));
+            const selected = all.filter(b => b.checked).length;
+            const visible = visibleKeywordBoxes().length;
+            const scope = visible === all.length
+                ? `${all.length} keywords`
+                : `${visible} shown of ${all.length}`;
+            el.innerHTML = `<strong>${selected}</strong> selected · ${scope}`;
         }
 
         let loadedPresets = {};
@@ -3402,6 +3752,7 @@
                 if (wanted.length) {
                     const boxes = document.getElementsByName('keywordCheckbox');
                     boxes.forEach(b => { b.checked = wanted.includes(b.value.toLowerCase()); });
+                    if (typeof applyKeywordSearch === 'function') { applyKeywordSearch(); }
                 }
                 // Each preset has its own isolated inventory — reload the list.
                 if (typeof refreshData === 'function') { refreshData(); }
@@ -3431,7 +3782,7 @@
                 "substation", "switchgear", "gis substation", "discom", "power distribution", 
                 "electrical testing", "electrical commissioning", "solid state power amplifier", 
                 "amplifier", "resistors", "cables", "cable", "rectifiers", "harness", 
-                "relay", "connectors", "repairing (electronics)", "supply", "meter", 
+                "relay", "connectors", "repairing (electronics)", "supply", "meter", "metering", 
                 "smart meter", "energy meter", "ht equipment", "lt equipment", "ht/lt equipment"
             ],
             ai_software: [
@@ -3441,7 +3792,7 @@
                 "predictive analytics", "data analytics", "data science", "big data", 
                 "image recognition", "speech recognition", "software", "development", 
                 "cloud computing", "cloud migration", "cybersecurity", "firewall", 
-                "endpoint security", "penetration testing", "vulnerability assessment", 
+                "endpoint security", "security", "penetration testing", "vulnerability assessment", 
                 "erp", "crm", "enterprise software", "database", "data warehouse", 
                 "business intelligence", "iot", "internet of things", "smart city", 
                 "edge computing", "embedded system", "embedded software", "scada", 
@@ -3455,7 +3806,7 @@
                 "defence", "military", "military grade", "radar", "drone", "drones", 
                 "unmanned aerial vehicles (uavs)", "multirotor", "quadcopter", "gis", 
                 "mapping", "cctv", "data aquisition", "indigenous & development", "design", 
-                "mechanical", "repair", "avionics"
+                "mechanical", "repair", "repairing", "avionics"
             ],
             dgps_gis_survey: [
                 "dgps", "dgps survey", "differential gps", "gis", "gis survey", "gis mapping", 
@@ -3471,8 +3822,33 @@
                 "satellite imagery", "as-built survey", "geotechnical survey", "geophysical survey"
             ],
             battery_storage: [
-                "battery", "bess", "battery energy storage system", "lithium battery", 
-                "solar battery", "cell", "charger", "storage"
+                "battery", "bess", "battery energy storage system", "energy storage",
+                "energy storage system", "lithium battery", "lithium ion battery",
+                "lithium iron phosphate", "lifepo4 battery", "lfp battery",
+                "solar battery", "battery pack", "battery bank", "battery set",
+                "battery charger", "battery charging system",
+                "battery management system", "battery container", "battery rack",
+                "battery stand", "battery cable", "battery terminal",
+                "battery tester", "battery load tester", "battery replacement",
+                "battery maintenance", "battery amc", "battery disposal",
+                "battery buyback", "scrap battery"
+            ],
+            lead_acid: [
+                "lead acid battery", "lead-acid battery", "sealed lead acid battery",
+                "smf battery", "sealed maintenance free battery", "vrla battery",
+                "valve regulated lead acid battery", "tubular battery",
+                "tubular lead acid battery", "flooded lead acid battery",
+                "flat plate battery", "plante battery", "stationary battery",
+                "stationary lead acid battery", "traction battery",
+                "motive power battery", "inverter battery", "ups battery",
+                "solar tubular battery", "deep cycle battery", "gel battery",
+                "agm battery", "absorbent glass mat battery",
+                "nickel cadmium battery", "ni-cd battery", "telecom battery",
+                "dg set battery", "automotive battery", "sli battery",
+                "2v lead acid cell", "2v battery cell", "12v battery",
+                "12v 100ah battery", "100ah battery", "150ah battery",
+                "200ah battery", "c10 rating battery", "battery electrolyte",
+                "lead scrap"
             ],
             ev_infrastructure: [
                 "ev", "ev charging", "electric vehicle charger", "charging station"
@@ -3487,33 +3863,77 @@
             ]
         };
 
+        // Mirrors gemsentry/textmatch.py:keyword_hit. Raw substring matching made
+        // a preset tick half the list: "ai" sits inside "maintenance", "ev" inside
+        // "development", so 🪫 Lead-Acid also selected SOLAR, POWER, AI and CABLE.
+        // Implemented with indexOf rather than lookbehind so no term needs escaping.
+        function isKwWordChar(ch) {
+            return /[a-z0-9_]/i.test(ch);
+        }
+
+        function termMatchesKeyword(term, keyword) {
+            const hay = String(keyword || '').toLowerCase().trim();
+            const needle = String(term || '').toLowerCase().trim();
+            if (!hay || !needle) return false;
+            if (hay === needle) return true;
+
+            // Tolerate a trailing plural s ("connector" hits "connectors"), but not
+            // on a term that already ends in s — that would let "ups" match "up".
+            const allowPlural = isKwWordChar(needle[needle.length - 1]) && !needle.endsWith('s');
+
+            let from = 0;
+            for (;;) {
+                const i = hay.indexOf(needle, from);
+                if (i === -1) return false;
+                from = i + 1;
+                const before = i > 0 ? hay[i - 1] : '';
+                if (before && isKwWordChar(before) && isKwWordChar(needle[0])) continue;
+                let end = i + needle.length;
+                if (allowPlural && hay[end] === 's') end++;
+                const after = end < hay.length ? hay[end] : '';
+                if (after && isKwWordChar(after)) continue;
+                return true;
+            }
+        }
+
         function selectCategoryKeywords(categoryKey) {
+            // A preset ticks boxes across the whole list, so drop any active
+            // search — otherwise the ticks land on rows the user cannot see.
+            const search = document.getElementById('keywordSearch');
+            if (search) search.value = '';
+            const selectedOnly = document.getElementById('keywordShowSelected');
+            if (selectedOnly) selectedOnly.checked = false;
+
             const boxes = document.getElementsByName('keywordCheckbox');
             if (categoryKey === 'all_technical') {
                 const allTech = Object.values(TECHNICAL_CATEGORIES).flat();
                 boxes.forEach(b => {
                     const val = b.value.toLowerCase().trim();
-                    b.checked = allTech.some(t => val.includes(t) || t.includes(val));
+                    b.checked = allTech.some(t => termMatchesKeyword(t, val));
                 });
+                applyKeywordSearch();
                 return;
             }
             const targetTerms = TECHNICAL_CATEGORIES[categoryKey] || [];
             boxes.forEach(b => {
                 const val = b.value.toLowerCase().trim();
-                if (targetTerms.some(t => val.includes(t) || t.includes(val))) {
+                if (targetTerms.some(t => termMatchesKeyword(t, val))) {
                     b.checked = true;
                 }
             });
+            applyKeywordSearch();
         }
 
+        // Scoped to what is on screen: with a search active, "Select All" means
+        // "select these matches", not "select all 300 keywords".
         function selectAllKeywords() {
-            const boxes = document.getElementsByName('keywordCheckbox');
-            boxes.forEach(b => b.checked = true);
+            visibleKeywordBoxes().forEach(b => b.checked = true);
+            updateKeywordCount();
         }
 
         function clearAllKeywords() {
-            const boxes = document.getElementsByName('keywordCheckbox');
-            boxes.forEach(b => b.checked = false);
+            visibleKeywordBoxes().forEach(b => b.checked = false);
+            applyKeywordSearch();  // "Selected only" view must drop what was cleared
         }
 
         function openScraperModal() {

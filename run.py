@@ -25,11 +25,15 @@ def main():
         logger.error("Please run: pip install -r requirements.txt")
         sys.exit(1)
 
-    # 2. Start the local server
-    logger.info("Starting GeMSentry Dashboard and Scraper Backend Server...")
+    # 2. Start the server
+    server_cfg = paths.load_server_config()
+    host = server_cfg.get("host", "0.0.0.0")
+    port = int(server_cfg.get("port", 5000))
+    auth_on = bool(server_cfg.get("auth_token", "").strip())
+    logger.info("Starting GeMSentry Server on %s:%s (Auth: %s)...", host, port, "ENABLED" if auth_on else "DISABLED")
     try:
         from app import app
-        app.run(host="127.0.0.1", port=5000, debug=False)
+        app.run(host=host, port=port, debug=False)
     except Exception as e:
         logger.error("Server failed to start: %s", e)
         sys.exit(1)

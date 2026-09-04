@@ -31,6 +31,14 @@ class SearchPlan:
     exclude_terms: Tuple[str, ...] = ()
 
 
+_HYPHEN_AS_SEPARATOR = re.compile(r"(?<=[A-Za-z0-9])-(?=[A-Za-z0-9])")
+
+
+def _clean_keyword_casing(keyword: str) -> str:
+    text = " ".join(str(keyword or "").split())
+    return _HYPHEN_AS_SEPARATOR.sub(" ", text).strip()
+
+
 def _normalize(value) -> str:
     text = str(value or "").casefold().strip()
     text = re.sub(r"[^a-z0-9]+", " ", text)
@@ -179,14 +187,21 @@ def _profile_search_plan(clean_keyword: str, profile: dict) -> Optional[SearchPl
         return None
 
     line, canonical = selected
+    clean_norm = _clean_keyword_casing(clean_keyword)
+    is_exact = _normalize(clean_norm) == _normalize(canonical)
+    if is_exact:
+        canonical = clean_norm
     related = _related_profile_terms(canonical, line)
     positive_terms = _dedupe([canonical, *related])[:_MAX_PROFILE_POSITIVE_TERMS]
-    queries = _dedupe([
-        canonical,
-        clean_keyword,
-        *_query_anchors(canonical),
-        *related,
-    ])[:_MAX_PROFILE_QUERIES]
+    if is_exact:
+        queries = (canonical,)
+    else:
+        queries = _dedupe([
+            canonical,
+            clean_keyword,
+            *_query_anchors(canonical),
+            *related,
+        ])[:_MAX_PROFILE_QUERIES]
     concept_slug = re.sub(r"[^a-z0-9]+", "_", _normalize(canonical)).strip("_")
     return SearchPlan(
         canonical_keyword=str(canonical),
@@ -240,6 +255,9 @@ def build_search_plan(
         )
 
     canonical = str(selected.get("canonical_keyword") or clean_keyword).strip()
+    clean_norm = _clean_keyword_casing(clean_keyword)
+    if _normalize(clean_norm) == _normalize(canonical):
+        canonical = clean_norm
     queries = _dedupe([
         canonical,
         *(selected.get("queries") or []),

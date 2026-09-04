@@ -7,7 +7,8 @@ dist/
 wheels/
 *.egg-info
 *.egg
-
+/lead
+lead
 # Test / tooling caches
 .pytest_cache/
 .ruff_cache/
@@ -58,3 +59,9 @@ logs/**
 !logs/.gitkeep
 !logs/scrapes/
 !logs/scrapes/.gitkeep
+.agents
+
+# Server auth config & cloudflared binaries
+config/server_config.json
+tools/cloudflared.exe
+.cloudflared/

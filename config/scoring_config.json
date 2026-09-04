@@ -1,11 +1,11 @@
 {
   "version": 1,
   "weights": {
-    "emd": 2.0,
+    "emd": 1,
     "startup_exemption": 1.5,
     "mse_exemption": 1.5,
-    "prebid": 0.0,
-    "date_window": 1.0,
+    "prebid": 0,
+    "date_window": 1,
     "epbg": 0.5
   },
   "emd": {
@@ -14,41 +14,30 @@
     "value_multiplier": 20
   },
   "date_window": {
-    "min_days": 7,
     "full_credit_days": 14,
+    "min_days": 7,
     "min_days_to_bid": 5
   },
   "epbg": {
-    "free_threshold_pct": 3.0,
-    "max_penalty_pct": 10.0
+    "free_threshold_pct": 3,
+    "max_penalty_pct": 10
   },
   "unknown_subscore": 0.5,
-  "no_relaxation_floor": 0.5,
   "status_thresholds": {
     "shortlist_min": 75,
     "reject_max": 40
   },
   "fit": {
     "weights": {
-      "relevance": 3.0,
-      "serviceability": 1.0,
-      "value_fit": 1.0,
-      "buyer_affinity": 0.0,
-      "eligibility_factor": 2.0
+      "relevance": 3,
+      "serviceability": 1,
+      "value_fit": 1,
+      "buyer_affinity": 0,
+      "eligibility_factor": 2
     },
     "fit_min": 65,
-    "review_band": 8,
     "unknown_buyer_subscore": 0.4,
     "turnover_gap_subscore": 0.3,
     "weak_relevance_subscore": 0.5
-  },
-  "priority": {
-    "fit_weight": 0.6,
-    "risk_weight": 0.4,
-    "exemption_boost": 1.1
-  },
-  "download_policy": {
-    "skip_zero_relevance_download": true,
-    "download_workers": 4
   }
 }

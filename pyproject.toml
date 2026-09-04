@@ -1,8 +1,9 @@
 [project]
-name = "gem"
+name = "gemsentry"
 version = "0.1.0"
-description = "GeMSentry: Smart RFP Acquisition System"
+description = "Smart RFP acquisition and scoring pipeline for Indian government e-procurement portals"
 readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.12"
 dependencies = [
     "playwright>=1.40.0",
@@ -10,4 +11,17 @@ dependencies = [
     "pypdf>=4.0.0",
     "flask>=3.0.0",
     "openpyxl>=3.1.0",
+    "certifi>=2024.0.0",
 ]
+
+[project.optional-dependencies]
+# Optional Tkinter desktop widget (desktop_widget.pyw) — needs Pillow for the
+# blurred glass background. Not required by run.py.
+widget = ["pillow>=10.0.0"]
+
+[tool.uv]
+# Run from the source tree (`python run.py`); the top-level modules
+# (run, app, paths, scraper, ...) live outside the gemsentry/ package,
+# so there is nothing to build or install.
+package = false
+
