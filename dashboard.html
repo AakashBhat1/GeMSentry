@@ -1952,10 +1952,199 @@
             box-shadow: 0 0 0 1px var(--success-border);
         }
 
-        .btn-live-excel.in-excel:hover {
+        /* Finalize Button & Master Sheet Styling */
+        .btn-finalize {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.42rem 0.85rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            border: 1px solid rgba(245, 158, 11, 0.45);
+            background: rgba(245, 158, 11, 0.08);
+            color: #d97706;
+            transition: all 0.2s ease;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .dark-mode .btn-finalize {
+            color: #fbbf24;
+            background: rgba(245, 158, 11, 0.12);
+            border-color: rgba(245, 158, 11, 0.4);
+        }
+
+        .btn-finalize:hover {
+            border-color: #f59e0b;
+            background: rgba(245, 158, 11, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .btn-finalize.is-finalized {
+            background: #f59e0b;
+            color: #111827;
+            border-color: #d97706;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.35);
+        }
+
+        .btn-finalize.is-finalized:hover {
+            background: #d97706;
+            color: #ffffff;
+            border-color: #b45309;
+        }
+
+        .tag-finalized {
+            background: rgba(245, 158, 11, 0.14) !important;
+            color: #d97706 !important;
+            border: 1px solid rgba(245, 158, 11, 0.35) !important;
+            font-weight: 700 !important;
+        }
+
+        .dark-mode .tag-finalized {
+            color: #fbbf24 !important;
+            background: rgba(245, 158, 11, 0.18) !important;
+        }
+
+        /* Master Sheet Tracker Modal Tabs & Table */
+        .finalized-tabs {
+            display: flex;
+            gap: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .tab-pill {
+            padding: 0.45rem 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border: 1px solid transparent;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .tab-pill:hover {
+            color: var(--text-primary);
+            background: var(--surface-sunken);
+        }
+
+        .tab-pill.active {
+            background: var(--primary-accent-soft);
+            color: var(--primary-accent);
+            border-color: var(--accent-border);
+        }
+
+        .master-sheet-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.92rem;
+            text-align: left;
+            line-height: 1.45;
+        }
+
+        .master-sheet-table th {
+            background: var(--surface-sunken);
+            color: var(--text-primary);
+            padding: 0.9rem 0.85rem;
+            font-weight: 700;
+            font-size: 0.85rem;
+            border-bottom: 2px solid var(--border-color);
+            white-space: nowrap;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+        }
+
+        .master-sheet-table td {
+            padding: 0.85rem 0.85rem;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: middle;
+            font-size: 0.9rem;
+        }
+
+        .master-sheet-table tr:hover td {
+            background: rgba(11, 106, 148, 0.05);
+        }
+
+        .badge-sl {
+            display: inline-block;
+            padding: 0.25rem 0.65rem;
+            border-radius: 6px;
+            background: #f59e0b;
+            color: #111827;
+            font-weight: 800;
+            font-size: 0.82rem;
+            letter-spacing: 0.02em;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .gdrive-link-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            background: rgba(37, 99, 235, 0.1);
+            color: #2563eb;
+            border: 1px solid rgba(37, 99, 235, 0.3);
+            padding: 0.3rem 0.65rem;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 0.82rem;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .dark-mode .gdrive-link-badge {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+            border-color: rgba(59, 130, 246, 0.4);
+        }
+
+        .gdrive-link-badge:hover {
+            background: #2563eb;
+            color: #ffffff;
+            text-decoration: none;
+            box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+        }
+
+        .chip-won {
+            background: var(--success-bg);
+            color: var(--success-color);
+            border: 1px solid var(--success-border);
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 0.75rem;
+            display: inline-block;
+        }
+
+        .chip-lost {
             background: var(--failed-bg);
-            border-color: var(--failed-border);
             color: var(--failed-color);
+            border: 1px solid var(--failed-border);
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 0.75rem;
+            display: inline-block;
+        }
+
+        .chip-study {
+            background: rgba(14, 124, 107, 0.12);
+            color: var(--secondary-accent);
+            border: 1px solid rgba(14, 124, 107, 0.3);
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            display: inline-block;
         }
     </style>
 </head>
@@ -2013,6 +2202,13 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 <span>Export Excel</span>
+            </button>
+            <button class="btn-theme" id="masterSheetBtn" onclick="openFinalizedModal()" aria-label="Master Sheet Tracker" style="padding: 0.5rem 0.85rem; border-color: rgba(245, 158, 11, 0.5); color: #f59e0b; font-weight: 600;">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+                <span>Google Sheet Tracker</span>
+                <span id="finalizedCountBadge" style="background: #f59e0b; color: #111; font-weight: 800; border-radius: 999px; padding: 0.1rem 0.45rem; font-size: 0.72rem; margin-left: 0.35rem;">0</span>
             </button>
             <button class="btn-theme" id="authKeyBtn" onclick="openAuthModal()" aria-label="Security Key" style="display: none; padding: 0.5rem 0.85rem; border-color: rgba(139, 92, 246, 0.4); color: #c4b5fd;">
                 <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -2772,6 +2968,289 @@
                     <button type="submit" class="btn btn-primary" id="authSubmitBtn" style="flex: 1; justify-content: center; padding: 0.75rem;">Unlock Portal</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Quick Finalize Confirmation Modal -->
+    <div id="finalizeConfirmModal" class="modal">
+        <div class="modal-content" style="max-width: 540px;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <span style="font-size: 1.4rem;">⭐</span>
+                    <h3 class="modal-title">Finalize Tender to Master Sheet</h3>
+                </div>
+                <button class="close-btn" onclick="closeQuickFinalize()">&times;</button>
+            </div>
+            <form id="finalizeForm" onsubmit="submitFinalize(event)" style="display: flex; flex-direction: column; gap: 1rem; margin-top: 0.5rem;">
+                <input type="hidden" id="finalizeBidNo">
+                <div style="background: var(--surface-sunken); padding: 0.85rem; border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 0.35rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 700; font-family: var(--font-mono); color: var(--primary-accent);" id="finalizeBidNoDisplay"></span>
+                        <span class="badge-sl" id="finalizeNextSlBadge">Next SL. NO: #---</span>
+                    </div>
+                    <div style="font-size: 0.88rem; font-weight: 600;" id="finalizeTitleDisplay"></div>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);" id="finalizeOrgDisplay"></div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                    <div>
+                        <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; display: block; margin-bottom: 0.35rem;">Target Sheet</label>
+                        <select id="finalizeTargetSheet" style="width: 100%; padding: 0.6rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.85rem;">
+                            <option value="UNDER DETAILED STUDY" selected>UNDER DETAILED STUDY (Default)</option>
+                            <option value="MASTER">MASTER</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; display: block; margin-bottom: 0.35rem;">Work Category</label>
+                        <select id="finalizeWorkCategory" style="width: 100%; padding: 0.6rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.85rem;">
+                            <option value="SUPPLY" selected>SUPPLY</option>
+                            <option value="LAB">LAB</option>
+                            <option value="DEVELOPMENT">DEVELOPMENT</option>
+                            <option value="SERVICE">SERVICE</option>
+                            <option value="DRONES">DRONES</option>
+                            <option value="POWER SUPPLY">POWER SUPPLY</option>
+                            <option value="SOFTWARE">SOFTWARE</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                    <div>
+                        <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; display: block; margin-bottom: 0.35rem;">Approval Status</label>
+                        <input type="text" id="finalizeApproval" value="TO BE SUBMIT" placeholder="e.g. TO BE SUBMIT, UNDER STUDY" style="width: 100%; padding: 0.6rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.85rem;">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; display: block; margin-bottom: 0.35rem;">OEM Authorization</label>
+                        <select id="finalizeOemAuth" style="width: 100%; padding: 0.6rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.85rem;">
+                            <option value="YES" selected>YES</option>
+                            <option value="NO">NO</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; display: block; margin-bottom: 0.35rem;">Remarks / Notes (Optional)</label>
+                    <input type="text" id="finalizeRemarks" placeholder="Optional notes, pre-bid info..." style="width: 100%; padding: 0.6rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.85rem;">
+                </div>
+
+                <div id="finalizeSyncStatusNotice" style="font-size: 0.76rem; padding: 0.6rem 0.85rem; border-radius: 6px; display: none; line-height: 1.4;"></div>
+
+                <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 0.5rem;">
+                    <button type="button" class="btn btn-secondary" onclick="closeQuickFinalize()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btnSubmitFinalize" style="background: #f59e0b; border-color: #d97706; color: #111827; font-weight: 700;">
+                        <span>⭐ Finalize & Save to Sheet</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Move to Participated Sheet Modal -->
+    <div id="participatedTransitionModal" class="modal">
+        <div class="modal-content" style="max-width: 560px;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <span style="font-size: 1.4rem;">🏆</span>
+                    <h3 class="modal-title">Move to Participated Sheet</h3>
+                </div>
+                <button class="close-btn" onclick="closeParticipatedModal()">&times;</button>
+            </div>
+            <form id="participatedForm" onsubmit="submitParticipatedMove(event)" style="display: flex; flex-direction: column; gap: 1rem; margin-top: 0.5rem;">
+                <input type="hidden" id="partBidNo">
+                <div style="background: var(--surface-sunken); padding: 0.85rem; border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 0.35rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 700; font-family: var(--font-mono); color: var(--primary-accent);" id="partBidNoDisplay"></span>
+                        <span class="badge-sl" id="partSlBadge">SL. NO: #---</span>
+                    </div>
+                    <div style="font-size: 0.88rem; font-weight: 600;" id="partTitleDisplay"></div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                    <div>
+                        <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; display: block; margin-bottom: 0.35rem;">Result / Outcome</label>
+                        <select id="partWonLost" style="width: 100%; padding: 0.6rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.85rem; font-weight: 700;">
+                            <option value="WON L - 1" selected>WON L - 1</option>
+                            <option value="WON L - 2">WON L - 2</option>
+                            <option value="PARTICIPATING / IN PROGRESS">PARTICIPATING / IN PROGRESS</option>
+                            <option value="LOST L - 2">LOST L - 2</option>
+                            <option value="LOST L - 3">LOST L - 3</option>
+                            <option value="LOST L - 4">LOST L - 4</option>
+                            <option value="DISQUALIFIED">DISQUALIFIED</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; display: block; margin-bottom: 0.35rem;">Submission Status</label>
+                        <select id="partSubmissionStatus" style="width: 100%; padding: 0.6rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.85rem;">
+                            <option value="SUBMITTED" selected>SUBMITTED</option>
+                            <option value="UNDER PREPARATION">UNDER PREPARATION</option>
+                            <option value="RE-TENDERED">RE-TENDERED</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                    <div>
+                        <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; display: block; margin-bottom: 0.35rem;">Tender Value (₹ INR)</label>
+                        <input type="text" id="partTenderValue" placeholder="e.g. 3925000" style="width: 100%; padding: 0.6rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.85rem;">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; display: block; margin-bottom: 0.35rem;">SO / DO Status</label>
+                        <select id="partSoStatus" style="width: 100%; padding: 0.6rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.85rem;">
+                            <option value="SO RECEIVED">SO RECEIVED</option>
+                            <option value="AWAITING SO" selected>AWAITING SO</option>
+                            <option value="DO RECEIVED">DO RECEIVED</option>
+                            <option value="N/A">N/A</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; display: block; margin-bottom: 0.35rem;">SO Document / Google Drive Link</label>
+                    <input type="text" id="partSoLink" placeholder="https://drive.google.com/file/d/..." style="width: 100%; padding: 0.6rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.85rem;">
+                </div>
+
+                <div>
+                    <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; display: block; margin-bottom: 0.35rem;">Final Remarks / Notes</label>
+                    <input type="text" id="partFinalRemarks" placeholder="Notes on outcome, order status, etc." style="width: 100%; padding: 0.6rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.85rem;">
+                </div>
+
+                <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 0.5rem;">
+                    <button type="button" class="btn btn-secondary" onclick="closeParticipatedModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="background: var(--success-color); border-color: var(--success-border); color: #fff; font-weight: 700;">
+                        <span>🏆 Save & Move to Participated Sheet</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Master Sheet & Google Sheets Tracker Hub Modal -->
+    <div id="finalizedHubModal" class="modal">
+        <div class="modal-content" style="max-width: 1320px; width: 96vw; max-height: 90vh;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); display: flex; align-items: center; justify-content: center; color: #f59e0b; font-size: 1.25rem;">
+                        📋
+                    </div>
+                    <div>
+                        <h3 class="modal-title">Master Sheet & Google Sheets Tracker</h3>
+                        <p style="font-size: 0.78rem; color: var(--text-secondary); margin: 0;">Indexed tender repository linked with your Google Sheet & Master Excel workbook</p>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <button class="btn btn-secondary" onclick="syncAllFinalizedToGoogle()" id="btnHeaderSyncAll" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; border-color: rgba(59, 130, 246, 0.4); color: #60a5fa;">
+                        <span>🔄 Sync All to Sheet</span>
+                    </button>
+                    <a id="btnOpenGSheetLink" href="https://docs.google.com/spreadsheets/d/1WbeJJ8goLPGLryyJfcJNbiXtIxXjC9Z0g8viueh5oOk/edit?usp=sharing" target="_blank" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; border-color: rgba(16, 185, 129, 0.4); color: #34d399;">
+                        <span>Open Google Sheet ↗</span>
+                    </a>
+                    <button class="close-btn" onclick="closeFinalizedModal()">&times;</button>
+                </div>
+            </div>
+
+            <!-- Tab Switcher -->
+            <div class="finalized-tabs">
+                <button class="tab-pill active" id="tabBtnStudy" onclick="switchFinalizedTab('study')">
+                    <span>🔬 Under Detailed Study</span>
+                    <span class="badge-count" id="countBadgeStudy">0</span>
+                </button>
+                <button class="tab-pill" id="tabBtnMaster" onclick="switchFinalizedTab('master')">
+                    <span>📁 Master Sheet</span>
+                    <span class="badge-count" id="countBadgeMaster">0</span>
+                </button>
+                <button class="tab-pill" id="tabBtnPart" onclick="switchFinalizedTab('part')">
+                    <span>🏆 Participated (Won / Lost)</span>
+                    <span class="badge-count" id="countBadgePart">0</span>
+                </button>
+                <button class="tab-pill" id="tabBtnSettings" onclick="switchFinalizedTab('settings')">
+                    <span>⚙️ Google Sheet & Drive Sync</span>
+                </button>
+            </div>
+
+            <!-- Table View Container -->
+            <div id="finalizedTableView" style="overflow-x: auto; max-height: 56vh; border: 1px solid var(--border-color); border-radius: 8px;">
+                <table class="master-sheet-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 80px;">SL. NO</th>
+                            <th style="width: 140px;">Tender ID</th>
+                            <th>Description</th>
+                            <th>Organisation</th>
+                            <th style="width: 90px;">Category</th>
+                            <th style="width: 100px;">Deadline</th>
+                            <th style="width: 100px;">RFP / Drive</th>
+                            <th style="width: 120px;">Status</th>
+                            <th style="width: 140px; text-align: center;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="finalizedTableBody">
+                        <!-- Populated dynamically -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Settings View Container -->
+            <div id="finalizedSettingsView" style="display: none; display: flex; flex-direction: column; gap: 1.25rem;">
+                <div style="background: var(--surface-sunken); padding: 1.25rem; border-radius: 10px; border: 1px solid var(--border-color);">
+                    <h4 style="margin: 0 0 0.5rem 0; font-size: 1rem; color: var(--primary-accent); display: flex; align-items: center; gap: 0.4rem;">
+                        <span>🔗</span> Google Sheets Integration
+                    </h4>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem;">Connect your Google Sheet for real-time bidirectional updates.</p>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                        <div>
+                            <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Google Sheet Webhook URL (Apps Script)</label>
+                            <div style="display: flex; gap: 0.5rem; margin-top: 0.25rem;">
+                                <input type="text" id="cfgAppsScriptUrl" placeholder="https://script.google.com/macros/s/.../exec" style="flex: 1; padding: 0.6rem 0.85rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.85rem;">
+                                <button class="btn btn-secondary" onclick="testCurrentWebhook()" id="btnTestWebhook" style="padding: 0.6rem 1rem; font-size: 0.8rem;">Test Webhook</button>
+                            </div>
+                            <div id="webhookTestResult" style="font-size: 0.8rem; margin-top: 0.35rem; display: none;"></div>
+                        </div>
+
+                        <div>
+                            <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Mounted Google Drive Path (Local Drive or Sync Folder)</label>
+                            <input type="text" id="cfgDriveMountPath" placeholder="e.g. G:\My Drive\ETSPL Tenders  or  C:\Users\zewan\Google Drive\Tenders" style="width: 100%; margin-top: 0.25rem; padding: 0.6rem 0.85rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.85rem;">
+                            <span style="font-size: 0.75rem; color: var(--text-secondary);">When specified, downloaded tender PDFs will be copied to this folder automatically.</span>
+                        </div>
+
+                        <div>
+                            <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Local Master Excel Workbook Path</label>
+                            <input type="text" id="cfgLocalExcelPath" style="width: 100%; margin-top: 0.25rem; padding: 0.6rem 0.85rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.85rem;">
+                        </div>
+
+                        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 0.5rem;">
+                            <button class="btn btn-secondary" onclick="syncAllFinalizedToGoogle()" id="btnSyncAllGoogleSettings" style="padding: 0.6rem 1.1rem; border-color: rgba(59, 130, 246, 0.4); color: #60a5fa;">🔄 Push All Finalized to Google Sheet</button>
+                            <button class="btn btn-primary" onclick="saveMasterConfig()" style="padding: 0.6rem 1.25rem;">Save Settings</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Google Apps Script Setup Guide -->
+                <div style="border: 1px solid var(--border-color); padding: 1.25rem; border-radius: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                        <h4 style="margin: 0; font-size: 0.95rem; font-weight: 700;">⚡ 30-Second Google Apps Script Setup</h4>
+                        <button class="btn btn-secondary" onclick="copyAppsScriptCode()" style="padding: 0.4rem 0.85rem; font-size: 0.8rem; border-color: var(--primary-accent); color: var(--primary-accent);">
+                            <span id="btnCopyScriptText">📋 Copy Apps Script Code</span>
+                        </button>
+                    </div>
+                    <ol style="margin: 0; padding-left: 1.25rem; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.6;">
+                        <li>Open your <a href="https://docs.google.com/spreadsheets/d/1WbeJJ8goLPGLryyJfcJNbiXtIxXjC9Z0g8viueh5oOk/edit?usp=sharing" target="_blank" style="color: var(--primary-accent); text-decoration: underline;">Google Sheet</a>, click <strong>Extensions &gt; Apps Script</strong>.</li>
+                        <li>Click <strong>Copy Apps Script Code</strong> above, paste it into the editor, and click Save (💾).</li>
+                        <li>Click <strong>Deploy &gt; New deployment &gt; Web app</strong>. Set <em>Execute as: Me</em>, <em>Who has access: Anyone</em>. Click Deploy, copy the Web app URL, and paste it into the field above!</li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- Footer summary -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 0.75rem; font-size: 0.8rem; color: var(--text-secondary);">
+                <div>
+                    Highest Serial Number: <strong id="footerHighestSl" style="color: #f59e0b;">#---</strong> · Total Finalized: <strong id="footerTotalFinalized">0</strong>
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="btn btn-secondary" onclick="loadFinalizedData()" style="padding: 0.4rem 0.85rem; font-size: 0.8rem;">🔄 Refresh</button>
+                    <button class="btn btn-primary" onclick="closeFinalizedModal()" style="padding: 0.4rem 1rem; font-size: 0.8rem;">Close</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -3601,6 +4080,7 @@
             loadPresets();
             fetchLiveExcelStatus();
             startLiveExcelTicker();
+            loadFinalizedData();
         });
 
         // Every keystroke used to re-filter and re-render the whole list.
@@ -5527,6 +6007,10 @@
                 const isInLiveExcel = Boolean(liveExcelState && liveExcelState.tenderBids && liveExcelState.tenderBids.has(tender.bid_no));
                 let liveExcelTag = isInLiveExcel ? `<span class="tag tag-in-excel" style="background: var(--success-bg); color: var(--success-color); border: 1px solid var(--success-border); font-weight: 700;">📊 In Live Excel</span>` : '';
 
+                const isFinalized = Boolean(finalizedBidsMap && finalizedBidsMap[tender.bid_no]);
+                const finalRec = isFinalized ? finalizedBidsMap[tender.bid_no] : null;
+                let finalizedTag = isFinalized ? `<span class="tag tag-finalized" title="Finalized into Master Sheet as SL. NO #${finalRec.sl_no}">⭐ Finalized (#${finalRec.sl_no})</span>` : '';
+
                 const analysis = tender.analysis;
 
                 if (analysis) {
@@ -5867,6 +6351,7 @@
                                     ${eligibilityTag}
                                     ${urgencyTag}
                                     ${liveExcelTag}
+                                    ${finalizedTag}
                                 </div>
                                 <h3 class="tender-title">${escapeHtml(tender.title)}</h3>
                             </div>
@@ -5913,6 +6398,12 @@
                                         onclick="toggleLiveExcel('${encodeURIComponent(tender.bid_no)}')"
                                         title="${isInLiveExcel ? 'Click to remove from Live Excel' : 'Move tender to Live Excel summary'}">
                                     ${isInLiveExcel ? '<span>📊 In Live Excel ✓</span>' : '<span>➕ Move to Excel</span>'}
+                                </button>
+                                <button class="btn-finalize ${isFinalized ? 'is-finalized' : ''}"
+                                        data-bid-no="${encodeURIComponent(tender.bid_no)}"
+                                        onclick="${isFinalized ? `openFinalizedModalFor('${encodeURIComponent(tender.bid_no)}')` : `openQuickFinalize('${encodeURIComponent(tender.bid_no)}')`}"
+                                        title="${isFinalized ? `Finalized as SL. NO #${finalRec.sl_no}. Click to inspect in Master Tracker.` : 'Finalize and save to Google Sheet & Master Excel'}">
+                                    ${isFinalized ? `<span>⭐ Finalized (#${finalRec.sl_no})</span>` : `<span>⭐ Finalize</span>`}
                                 </button>
                             </div>
                             
@@ -6144,6 +6635,518 @@
             });
 
             splashTimers.push(setTimeout(finishSplash, lastSettle + BOARD_HOLD));
+        }
+
+        // ==========================================================
+        // Master Sheet & Google Sheets Integration Logic
+        // ==========================================================
+        let finalizedData = { total_count: 0, highest_serial_no: 1016, records: [] };
+        let finalizedBidsMap = {};
+        let activeFinalizedTab = 'study';
+
+        async function loadFinalizedData() {
+            try {
+                const res = await fetch('/api/finalized');
+                const data = await res.json();
+                if (data && data.records) {
+                    finalizedData = data;
+                    finalizedBidsMap = {};
+                    data.records.forEach(r => {
+                        if (r.bid_no) finalizedBidsMap[r.bid_no] = r;
+                    });
+
+                    // Update header badge
+                    const badge = document.getElementById('finalizedCountBadge');
+                    if (badge) badge.innerText = data.total_count || 0;
+
+                    // Update footer info
+                    const footerHighest = document.getElementById('footerHighestSl');
+                    if (footerHighest) footerHighest.innerText = '#' + (data.highest_serial_no || '---');
+                    const footerTotal = document.getElementById('footerTotalFinalized');
+                    if (footerTotal) footerTotal.innerText = data.total_count || 0;
+
+                    // Update tab count badges
+                    const counts = data.counts_by_sheet || {};
+                    const bStudy = document.getElementById('countBadgeStudy');
+                    if (bStudy) bStudy.innerText = counts['UNDER DETAILED STUDY'] || 0;
+                    const bMaster = document.getElementById('countBadgeMaster');
+                    if (bMaster) bMaster.innerText = counts['MASTER'] || 0;
+                    const bPart = document.getElementById('countBadgePart');
+                    if (bPart) bPart.innerText = counts['(TENDER DETAILS (PARTICIPATED)'] || 0;
+
+                    // Update external sheet link
+                    if (data.spreadsheet_url) {
+                        const link = document.getElementById('btnOpenGSheetLink');
+                        if (link) link.href = data.spreadsheet_url;
+                    }
+
+                    // Re-render table if modal is visible
+                    renderFinalizedTable();
+                    updateCardFinalizeButtons();
+                }
+            } catch (e) {
+                console.error("Error loading finalized tenders:", e);
+            }
+        }
+
+        function updateCardFinalizeButtons() {
+            document.querySelectorAll('.btn-finalize').forEach(btn => {
+                const bidNo = decodeURIComponent(btn.getAttribute('data-bid-no') || '');
+                if (!bidNo) return;
+                const rec = finalizedBidsMap[bidNo];
+                if (rec) {
+                    btn.classList.add('is-finalized');
+                    btn.innerHTML = `<span>⭐ Finalized (#${rec.sl_no})</span>`;
+                    btn.title = `Finalized as SL. NO #${rec.sl_no} in ${rec.target_sheet || 'Master Sheet'}. Click to view.`;
+                    btn.onclick = () => openFinalizedModalFor(encodeURIComponent(bidNo));
+                } else {
+                    btn.classList.remove('is-finalized');
+                    btn.innerHTML = `<span>⭐ Finalize</span>`;
+                    btn.title = 'Finalize and save to Google Sheet & Master Excel';
+                    btn.onclick = () => openQuickFinalize(encodeURIComponent(bidNo));
+                }
+            });
+        }
+
+        function openQuickFinalize(encodedBidNo) {
+            const bidNo = decodeURIComponent(encodedBidNo);
+            const tender = tenders.find(t => t.bid_no === bidNo) || { bid_no: bidNo, title: 'Unknown Title' };
+            
+            document.getElementById('finalizeBidNo').value = bidNo;
+            document.getElementById('finalizeBidNoDisplay').innerText = bidNo;
+            document.getElementById('finalizeTitleDisplay').innerText = tender.title || 'N/A';
+            document.getElementById('finalizeOrgDisplay').innerText = tender.department || ((tender.analysis || {}).buyer_org) || 'N/A';
+            
+            const nextSl = (finalizedData.highest_serial_no || 1016) + 1;
+            document.getElementById('finalizeNextSlBadge').innerText = `Next SL. NO: #${nextSl}`;
+            
+            // Auto-select category
+            const analysis = tender.analysis || {};
+            const catSelect = document.getElementById('finalizeWorkCategory');
+            const bl = ((analysis.business_line || {}).label || '').toUpperCase();
+            if (bl.includes('DRONE')) catSelect.value = 'DRONES';
+            else if (bl.includes('POWER')) catSelect.value = 'POWER SUPPLY';
+            else if (bl.includes('LAB')) catSelect.value = 'LAB';
+            else catSelect.value = 'SUPPLY';
+
+            document.getElementById('finalizeApproval').value = 'TO BE SUBMIT';
+            document.getElementById('finalizeRemarks').value = analysis.pre_bid_date ? `Pre-bid: ${analysis.pre_bid_date}` : '';
+
+            // Show dynamic webhook status banner
+            const syncNotice = document.getElementById('finalizeSyncStatusNotice');
+            if (syncNotice) {
+                if (finalizedData && finalizedData.has_webhook) {
+                    syncNotice.style.display = 'block';
+                    syncNotice.style.background = 'rgba(16, 185, 129, 0.12)';
+                    syncNotice.style.border = '1px solid rgba(16, 185, 129, 0.35)';
+                    syncNotice.style.color = '#10b981';
+                    syncNotice.innerHTML = '<span>✓ Google Sheet Webhook is active & will sync in real time.</span>';
+                } else {
+                    syncNotice.style.display = 'block';
+                    syncNotice.style.background = 'rgba(245, 158, 11, 0.12)';
+                    syncNotice.style.border = '1px solid rgba(245, 158, 11, 0.35)';
+                    syncNotice.style.color = '#f59e0b';
+                    syncNotice.innerHTML = '<span>ℹ️ Webhook URL not set in Settings. Tender will be saved to Master Excel (Downloads), and can be synced to Google Sheet once the Apps Script URL is added.</span>';
+                }
+            }
+
+            document.getElementById('finalizeConfirmModal').style.display = 'flex';
+        }
+
+        function closeQuickFinalize() {
+            document.getElementById('finalizeConfirmModal').style.display = 'none';
+        }
+
+        async function submitFinalize(event) {
+            event.preventDefault();
+            const bidNo = document.getElementById('finalizeBidNo').value;
+            const targetSheet = document.getElementById('finalizeTargetSheet').value;
+            const workCat = document.getElementById('finalizeWorkCategory').value;
+            const approval = document.getElementById('finalizeApproval').value;
+            const oemAuth = document.getElementById('finalizeOemAuth').value;
+            const remarks = document.getElementById('finalizeRemarks').value;
+
+            const btn = document.getElementById('btnSubmitFinalize');
+            const origHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span>Saving...</span>';
+
+            try {
+                const res = await fetch('/api/finalized/finalize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        bid_no: bidNo,
+                        target_sheet: targetSheet,
+                        custom_fields: {
+                            work_category: workCat,
+                            approval: approval,
+                            oem_authorization: oemAuth,
+                            remarks: remarks
+                        }
+                    })
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    closeQuickFinalize();
+                    await loadFinalizedData();
+                    const gRes = data.google_response || {};
+                    if (gRes.status === 'ok') {
+                        showFinalizeNotification(`⭐ Tender ${bidNo} finalized as #${data.sl_no}! Synced to Google Sheet & Master Excel.`);
+                    } else {
+                        showFinalizeNotification(`⭐ Tender ${bidNo} saved as #${data.sl_no} to Master Excel. (Google Sheet sync skipped: add Webhook URL in Settings to sync)`);
+                    }
+                    filterData();
+                } else {
+                    alert(data.error || 'Failed to finalize tender.');
+                }
+            } catch (err) {
+                console.error("Error finalizing:", err);
+                alert("Failed to finalize tender: " + err);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origHtml;
+            }
+        }
+
+        function openFinalizedModal(defaultTab = 'study') {
+            document.getElementById('finalizedHubModal').style.display = 'flex';
+            switchFinalizedTab(defaultTab);
+            loadFinalizedData();
+            loadFinalizedConfig();
+        }
+
+        function openFinalizedModalFor(encodedBidNo) {
+            const bidNo = decodeURIComponent(encodedBidNo);
+            const rec = finalizedBidsMap[bidNo];
+            let tab = 'study';
+            if (rec && rec.target_sheet === 'MASTER') tab = 'master';
+            if (rec && rec.target_sheet && rec.target_sheet.includes('PARTICIPATED')) tab = 'part';
+            openFinalizedModal(tab);
+        }
+
+        function closeFinalizedModal() {
+            document.getElementById('finalizedHubModal').style.display = 'none';
+        }
+
+        function switchFinalizedTab(tab) {
+            activeFinalizedTab = tab;
+            ['study', 'master', 'part', 'settings'].forEach(t => {
+                const pill = document.getElementById(`tabBtn${t.charAt(0).toUpperCase() + t.slice(1)}`);
+                if (pill) {
+                    if (t === tab) pill.classList.add('active');
+                    else pill.classList.remove('active');
+                }
+            });
+
+            const tableView = document.getElementById('finalizedTableView');
+            const settingsView = document.getElementById('finalizedSettingsView');
+
+            if (tab === 'settings') {
+                tableView.style.display = 'none';
+                settingsView.style.display = 'flex';
+            } else {
+                tableView.style.display = 'block';
+                settingsView.style.display = 'none';
+                renderFinalizedTable();
+            }
+        }
+
+        function renderFinalizedTable() {
+            const tbody = document.getElementById('finalizedTableBody');
+            if (!tbody) return;
+
+            let filtered = finalizedData.records || [];
+            if (activeFinalizedTab === 'study') {
+                filtered = filtered.filter(r => (r.target_sheet || 'UNDER DETAILED STUDY') === 'UNDER DETAILED STUDY');
+            } else if (activeFinalizedTab === 'master') {
+                filtered = filtered.filter(r => r.target_sheet === 'MASTER');
+            } else if (activeFinalizedTab === 'part') {
+                filtered = filtered.filter(r => (r.target_sheet || '').includes('PARTICIPATED'));
+            }
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="9" style="text-align: center; padding: 2.5rem; color: var(--text-secondary);">
+                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">📋</div>
+                            <div>No tenders finalized in this sheet yet.</div>
+                            <div style="font-size: 0.75rem; margin-top: 0.25rem;">Click <strong>⭐ Finalize</strong> on any tender card to add it here.</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(r => {
+                const link = r.drive_link || r.rfp_link || '';
+                let linkHtml = '<span style="color: var(--text-muted); font-size: 0.82rem;">None</span>';
+                if (link) {
+                    const isGdrive = link.includes('drive.google.com');
+                    if (isGdrive) {
+                        linkHtml = `<a href="${escapeHtml(link)}" target="_blank" class="gdrive-link-badge">📁 Drive RFP ↗</a>`;
+                    } else {
+                        linkHtml = `<a href="${escapeHtml(link)}" target="_blank" class="gdrive-link-badge" style="background: rgba(14, 124, 107, 0.1); color: var(--secondary-accent); border-color: rgba(14, 124, 107, 0.3);">📄 GeM RFP ↗</a>`;
+                    }
+                }
+
+                let statusBadge = '';
+                if ((r.target_sheet || '').includes('PARTICIPATED')) {
+                    const res = r.won_lost_result || 'PARTICIPATING';
+                    const isWon = res.toLowerCase().includes('won');
+                    statusBadge = `<span class="${isWon ? 'chip-won' : 'chip-lost'}">${escapeHtml(res)}</span>`;
+                } else if (r.target_sheet === 'MASTER') {
+                    statusBadge = `<span class="chip-study" style="background: rgba(59, 130, 246, 0.12); color: #3b82f6; border-color: rgba(59, 130, 246, 0.3);">Master Sheet</span>`;
+                } else {
+                    statusBadge = `<span class="chip-study">Detailed Study</span>`;
+                }
+
+                const isParticipated = (r.target_sheet || '').includes('PARTICIPATED');
+                const encodedBid = encodeURIComponent(r.bid_no);
+
+                return `
+                    <tr>
+                        <td><span class="badge-sl">#${r.sl_no}</span></td>
+                        <td style="font-weight: 700; font-family: var(--font-mono); color: var(--primary-accent); font-size: 0.9rem;">${escapeHtml(r.bid_no)}</td>
+                        <td style="max-width: 340px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.88rem; font-weight: 500;" title="${escapeHtml(r.title)}">${escapeHtml(r.title)}</td>
+                        <td style="max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85rem; color: var(--text-secondary);" title="${escapeHtml(r.organisation)}">${escapeHtml(r.organisation)}</td>
+                        <td><span class="tag tag-keyword" style="font-size: 0.78rem; padding: 0.2rem 0.5rem; font-weight: 600;">${escapeHtml(r.work_category || 'SUPPLY')}</span></td>
+                        <td style="white-space: nowrap; font-size: 0.85rem; font-weight: 600;">${escapeHtml(r.end_date || 'N/A')}</td>
+                        <td>${linkHtml}</td>
+                        <td>${statusBadge}</td>
+                        <td style="text-align: center; white-space: nowrap;">
+                            <div style="display: inline-flex; gap: 0.35rem; align-items: center;">
+                                ${!isParticipated ? `
+                                    <button class="btn btn-secondary" onclick="openParticipatedModalFor('${encodedBid}')" title="Move to Participated Sheet (Mark Won/Lost)" style="padding: 0.3rem 0.55rem; font-size: 0.75rem; border-color: rgba(16, 185, 129, 0.5); color: #34d399;">
+                                        🏆 Participated
+                                    </button>
+                                ` : ''}
+                                <button class="btn btn-secondary" onclick="deleteFinalizedPrompt('${encodedBid}', ${r.sl_no})" title="Delete from Google Sheet & Master Excel" style="padding: 0.3rem 0.55rem; font-size: 0.75rem; border-color: rgba(239, 68, 68, 0.4); color: var(--failed-color);">
+                                    🗑️
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function deleteFinalizedPrompt(encodedBidNo, slNo) {
+            const bidNo = decodeURIComponent(encodedBidNo);
+            if (!confirm(`Are you sure you want to remove Tender ${bidNo} (SL #${slNo}) from the Google Sheet and Master Excel?\n\nThis will maintain proper indexing and remove any accidental entry.`)) {
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/finalized/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bid_no: bidNo, sl_no: slNo })
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    await loadFinalizedData();
+                    showFinalizeNotification(`🗑️ Tender ${bidNo} removed from Google Sheet and Master Excel.`);
+                    filterData();
+                } else {
+                    alert(data.error || 'Failed to delete tender.');
+                }
+            } catch (e) {
+                console.error("Error deleting tender:", e);
+                alert("Delete failed: " + e);
+            }
+        }
+
+        function openParticipatedModalFor(encodedBidNo) {
+            const bidNo = decodeURIComponent(encodedBidNo);
+            const rec = finalizedBidsMap[bidNo];
+            if (!rec) return;
+
+            document.getElementById('partBidNo').value = bidNo;
+            document.getElementById('partBidNoDisplay').innerText = bidNo;
+            document.getElementById('partSlBadge').innerText = `SL. NO: #${rec.sl_no}`;
+            document.getElementById('partTitleDisplay').innerText = rec.title || 'N/A';
+            document.getElementById('partTenderValue').value = rec.est_value_inr || '';
+            document.getElementById('partSoLink').value = rec.so_link || rec.rfp_link || '';
+
+            document.getElementById('participatedTransitionModal').style.display = 'flex';
+        }
+
+        function closeParticipatedModal() {
+            document.getElementById('participatedTransitionModal').style.display = 'none';
+        }
+
+        async function submitParticipatedMove(event) {
+            event.preventDefault();
+            const bidNo = document.getElementById('partBidNo').value;
+            const wonLost = document.getElementById('partWonLost').value;
+            const subStatus = document.getElementById('partSubmissionStatus').value;
+            const val = document.getElementById('partTenderValue').value;
+            const soStatus = document.getElementById('partSoStatus').value;
+            const soLink = document.getElementById('partSoLink').value;
+            const remarks = document.getElementById('partFinalRemarks').value;
+
+            try {
+                const res = await fetch('/api/finalized/move-to-participated', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        bid_no: bidNo,
+                        won_lost_result: wonLost,
+                        submission_status: subStatus,
+                        tender_value: val,
+                        so_status: soStatus,
+                        so_link: soLink,
+                        final_remarks: remarks
+                    })
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    closeParticipatedModal();
+                    await loadFinalizedData();
+                    showFinalizeNotification(`🏆 Tender ${bidNo} moved to Participated Sheet with outcome "${wonLost}"!`);
+                    switchFinalizedTab('part');
+                } else {
+                    alert(data.error || 'Failed to update participated status.');
+                }
+            } catch (e) {
+                console.error("Error updating participated:", e);
+                alert("Failed to update: " + e);
+            }
+        }
+
+        async function loadFinalizedConfig() {
+            try {
+                const res = await fetch('/api/finalized/config');
+                const cfg = await res.json();
+                if (cfg) {
+                    document.getElementById('cfgAppsScriptUrl').value = cfg.apps_script_url || '';
+                    document.getElementById('cfgDriveMountPath').value = cfg.google_drive_mount_path || '';
+                    document.getElementById('cfgLocalExcelPath').value = cfg.local_master_excel_path || '';
+                }
+            } catch (e) {
+                console.error("Error loading finalized config:", e);
+            }
+        }
+
+        async function saveMasterConfig() {
+            const appsScriptUrl = document.getElementById('cfgAppsScriptUrl').value.trim();
+            const driveMount = document.getElementById('cfgDriveMountPath').value.trim();
+            const localExcel = document.getElementById('cfgLocalExcelPath').value.trim();
+
+            try {
+                const res = await fetch('/api/finalized/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        apps_script_url: appsScriptUrl,
+                        google_drive_mount_path: driveMount,
+                        local_master_excel_path: localExcel
+                    })
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    showFinalizeNotification("⚙️ Google Sheet & Drive settings saved successfully.");
+                }
+            } catch (e) {
+                alert("Failed saving config: " + e);
+            }
+        }
+
+        async function testCurrentWebhook() {
+            const url = document.getElementById('cfgAppsScriptUrl').value.trim();
+            const resDiv = document.getElementById('webhookTestResult');
+            if (!url) {
+                alert("Please enter a Google Apps Script Webhook URL first.");
+                return;
+            }
+            resDiv.style.display = 'block';
+            resDiv.style.color = 'var(--text-secondary)';
+            resDiv.innerText = 'Testing connection...';
+
+            try {
+                const res = await fetch('/api/finalized/test-webhook', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ apps_script_url: url })
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    resDiv.style.color = 'var(--success-color)';
+                    resDiv.innerText = '✓ Connected! Google Sheet Webhook responded successfully.';
+                } else {
+                    resDiv.style.color = 'var(--failed-color)';
+                    resDiv.innerText = '✗ Webhook error: ' + (data.message || data.error || 'Unknown error');
+                }
+            } catch (e) {
+                resDiv.style.color = 'var(--failed-color)';
+                resDiv.innerText = '✗ Network error: ' + e;
+            }
+        }
+
+        async function copyAppsScriptCode() {
+            try {
+                const res = await fetch('/api/finalized/script');
+                const data = await res.json();
+                if (data.script) {
+                    await navigator.clipboard.writeText(data.script);
+                    const btnText = document.getElementById('btnCopyScriptText');
+                    btnText.innerText = '✓ Copied to Clipboard!';
+                    setTimeout(() => { btnText.innerText = '📋 Copy Apps Script Code'; }, 3000);
+                }
+            } catch (e) {
+                alert("Could not copy script: " + e);
+            }
+        }
+
+        function showFinalizeNotification(msg) {
+            const toast = document.createElement('div');
+            toast.style.cssText = 'position: fixed; bottom: 2rem; right: 2rem; background: #1f2937; color: #f9fafb; border: 1px solid #f59e0b; padding: 0.85rem 1.25rem; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); z-index: 9999; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;';
+            toast.innerHTML = `<span>${escapeHtml(msg)}</span>`;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.4s ease';
+                setTimeout(() => toast.remove(), 400);
+            }, 4000);
+        }
+
+        async function syncAllFinalizedToGoogle() {
+            const btnHeader = document.getElementById('btnHeaderSyncAll');
+            const btnSettings = document.getElementById('btnSyncAllGoogleSettings');
+            const origHeaderHtml = btnHeader ? btnHeader.innerHTML : '';
+            const origSettingsHtml = btnSettings ? btnSettings.innerHTML : '';
+
+            if (btnHeader) {
+                btnHeader.innerHTML = '<span>⏳ Syncing...</span>';
+                btnHeader.disabled = true;
+            }
+            if (btnSettings) {
+                btnSettings.innerHTML = '⏳ Syncing...';
+                btnSettings.disabled = true;
+            }
+
+            try {
+                const res = await fetch('/api/finalized/sync-all', { method: 'POST' });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    showFinalizeNotification(`✓ ${data.message}`);
+                    await loadFinalizedData();
+                } else {
+                    alert(data.message || data.error || 'Failed to sync to Google Sheet.');
+                }
+            } catch (e) {
+                alert("Error syncing to Google Sheet: " + e);
+            } finally {
+                if (btnHeader) {
+                    btnHeader.innerHTML = origHeaderHtml;
+                    btnHeader.disabled = false;
+                }
+                if (btnSettings) {
+                    btnSettings.innerHTML = origSettingsHtml;
+                    btnSettings.disabled = false;
+                }
+            }
         }
 
         if (splashOverlay) {
