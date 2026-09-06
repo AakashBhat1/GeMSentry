@@ -24,7 +24,7 @@ Write-Host "Activating virtual environment..." -ForegroundColor Yellow
 
 # 4. Install requirements
 Write-Host "Installing/updating dependencies..." -ForegroundColor Yellow
-python -m pip install -r requirements.txt
+python -m pip install -e .
 
 # 5. Install Playwright Chromium
 Write-Host "Initializing Playwright Chromium browser..." -ForegroundColor Yellow

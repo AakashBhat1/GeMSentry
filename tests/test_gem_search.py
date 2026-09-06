@@ -3,11 +3,9 @@ import io
 import json
 import os
 import sys
-import socket
 import unittest
 import urllib.error
 import urllib.parse
-from unittest.mock import patch
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
@@ -151,7 +149,7 @@ class TestSearchTimeoutAndRetry(unittest.TestCase):
 
         def fake_urlopen(request, **kwargs):
             calls["n"] += 1
-            raise TimeoutError("timed out after %ss" % kwargs.get("timeout"))
+            raise TimeoutError(f"timed out after {kwargs.get('timeout')}s")
 
         gem_client._urlopen = fake_urlopen
         tenders = fetch_keyword_bids_api(
@@ -166,7 +164,7 @@ class TestSearchTimeoutAndRetry(unittest.TestCase):
         def fake_urlopen(request, **kwargs):
             calls["n"] += 1
             if calls["n"] == 1:
-                raise urllib.error.URLError(socket.timeout("timed out"))
+                raise urllib.error.URLError(TimeoutError("timed out"))
             search_bid, payload, _form = _decode_search_bid(request)
             self.assertEqual(search_bid, "IOT ENERGY METER")
             self.assertEqual(payload["param"]["searchType"], "fullText")

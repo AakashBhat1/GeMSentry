@@ -6,7 +6,7 @@ and *which column means what*, so the fetch/find/iterate/normalize loop lives
 here and subclasses supply a small amount of declarative configuration.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from bs4 import BeautifulSoup
 
@@ -23,9 +23,9 @@ class HtmlTableAdapter(BaseAdapter):
     #: Path appended to the portal root, or an absolute URL. Subclass sets one.
     listing_path: str = ""
     #: ``id`` of the listing table, when the portal gives it one.
-    table_id: Optional[str] = None
+    table_id: str | None = None
     #: CSS class on the listing table, used when ``table_id`` is absent.
-    table_class: Optional[str] = None
+    table_class: str | None = None
     #: Minimum ``<td>`` count for a row to be considered data rather than chrome.
     min_cells: int = 3
 
@@ -34,7 +34,7 @@ class HtmlTableAdapter(BaseAdapter):
             return self.listing_path
         return f"{self.url.rstrip('/')}/{self.listing_path.lstrip('/')}" if self.listing_path else self.url
 
-    def fetch_active_tenders(self, keywords: List[str], max_pages: int = 5) -> List[Dict[str, Any]]:
+    def fetch_active_tenders(self, keywords: list[str], max_pages: int = 5) -> list[dict[str, Any]]:
         keywords_lower = [k.lower().strip() for k in (keywords or []) if k and k.strip()]
         url = self.listing_url()
         logger.info("[%s] fetching %s", self.source_id, url)
@@ -65,7 +65,7 @@ class HtmlTableAdapter(BaseAdapter):
         tables = [t for t in soup.find_all("table") if len(t.find_all("tr")) > 1]
         return max(tables, key=lambda t: len(t.find_all("tr")), default=None)
 
-    def parse_listing(self, html: Optional[str], keywords_lower: List[str]) -> List[Dict[str, Any]]:
+    def parse_listing(self, html: str | None, keywords_lower: list[str]) -> list[dict[str, Any]]:
         if not html:
             return []
 
@@ -74,7 +74,7 @@ class HtmlTableAdapter(BaseAdapter):
             logger.debug("[%s] no listing table in response", self.source_id)
             return []
 
-        tenders: List[Dict[str, Any]] = []
+        tenders: list[dict[str, Any]] = []
         seen = set()
         for row in table.find_all("tr"):
             cells = row.find_all("td")
@@ -95,10 +95,10 @@ class HtmlTableAdapter(BaseAdapter):
             tenders.append(tender)
         return tenders
 
-    def row_haystack(self, tender: Dict[str, Any]) -> str:
+    def row_haystack(self, tender: dict[str, Any]) -> str:
         return f"{tender.get('title', '')} {tender.get('buyer_org', '')}"
 
-    def row_to_tender(self, cells, row) -> Optional[Dict[str, Any]]:
+    def row_to_tender(self, cells, row) -> dict[str, Any] | None:
         raise NotImplementedError
 
     # -- helpers ---------------------------------------------------------

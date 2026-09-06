@@ -2,12 +2,12 @@
 
 import datetime
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from gemsentry.constants import logger
 
 
-def squash(value: Optional[str]) -> str:
+def squash(value: str | None) -> str:
     """Trim and collapse every internal whitespace run to a single space."""
     return " ".join((value or "").split())
 
@@ -20,17 +20,17 @@ class BaseAdapter(ABC):
     regardless of which portal a tender came from.
     """
 
-    def __init__(self, source_config: Dict[str, Any]):
+    def __init__(self, source_config: dict[str, Any]):
         self.source_id: str = source_config.get("id", "unknown")
         self.source_name: str = source_config.get("name", "Unknown Source")
         self.url: str = source_config.get("url", "")
         self.category: str = source_config.get("category", "general")
         self.engine: str = source_config.get("engine", "generic")
         self.enabled: bool = source_config.get("enabled", True)
-        self.config: Dict[str, Any] = source_config
+        self.config: dict[str, Any] = source_config
 
     @abstractmethod
-    def fetch_active_tenders(self, keywords: List[str], max_pages: int = 5) -> List[Dict[str, Any]]:
+    def fetch_active_tenders(self, keywords: list[str], max_pages: int = 5) -> list[dict[str, Any]]:
         """Return normalized tender dicts matching any of ``keywords``."""
 
     def normalize_tender(
@@ -44,8 +44,8 @@ class BaseAdapter(ABC):
         url: str = "",
         pdf_url: str = "",
         published_date: str = "",
-        raw_data: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        raw_data: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Format one portal row into GeMSentry's standard external schema."""
         now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         return {
@@ -68,7 +68,7 @@ class BaseAdapter(ABC):
         }
 
     @staticmethod
-    def matches_keywords(text: str, keywords_lower: List[str]) -> bool:
+    def matches_keywords(text: str, keywords_lower: list[str]) -> bool:
         """Empty keyword list means 'accept everything'."""
         if not keywords_lower:
             return True
@@ -88,6 +88,6 @@ class UnsupportedAdapter(BaseAdapter):
 
     implemented = False
 
-    def fetch_active_tenders(self, keywords: List[str], max_pages: int = 5) -> List[Dict[str, Any]]:
+    def fetch_active_tenders(self, keywords: list[str], max_pages: int = 5) -> list[dict[str, Any]]:
         logger.debug("[%s] engine '%s' has no adapter yet; skipping.", self.source_id, self.engine)
         return []

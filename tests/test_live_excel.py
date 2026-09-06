@@ -1,9 +1,7 @@
 import os
 import sys
 import time
-import shutil
 import datetime
-import tempfile
 import openpyxl
 import pytest
 
@@ -80,7 +78,7 @@ def test_toggle_tender_removes_if_present(temp_manager):
 
 def test_toggle_forms_new_session_if_idle(temp_manager):
     assert temp_manager.is_active is False
-    res = temp_manager.toggle_tender("BID_NEW")
+    temp_manager.toggle_tender("BID_NEW")
     assert temp_manager.is_active is True
     assert "BID_NEW" in temp_manager.tender_bids
     assert temp_manager.update_count == 1
@@ -177,7 +175,7 @@ def test_build_curated_workbook_structure(tmp_path):
 
 
 def test_api_live_excel_routes():
-    from app import app, live_excel_manager
+    from app import app
 
     client = app.test_client()
 

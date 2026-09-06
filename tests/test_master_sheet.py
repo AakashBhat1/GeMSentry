@@ -1,6 +1,5 @@
 import os
 import sys
-import json
 import pytest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -14,24 +13,24 @@ from gemsentry.master_sheet import MasterSheetManager
 def temp_manager(tmp_path):
     mgr = MasterSheetManager()
     test_wb_path = str(tmp_path / "test_master.xlsx")
-    
+
     # Create clean test workbook with the required sheets
     wb = openpyxl.Workbook()
     ws_master = wb.active
     ws_master.title = "MASTER"
     ws_study = wb.create_sheet("UNDER DETAILED STUDY")
     ws_part = wb.create_sheet("(TENDER DETAILS (PARTICIPATED)")
-    
+
     # Add dummy header rows (row 4 for Master/Study, row 2 for Participated)
     for _ in range(3):
         ws_master.append([])
         ws_study.append([])
     ws_master.append(["SL. NO", "DOWNLOAD FROM", "WORK CATEGORY", "DOWNLOAD DATE", "MONTH", "ORGANISATION", "LOCATION/SITE", "TENDER ID"])
     ws_study.append(["SL. NO", "DOWNLOAD FROM", "WORK CATEGORY", "DOWNLOAD DATE", "MONTH", "ORGANISATION", "LOCATION/SITE", "TENDER ID"])
-    
+
     ws_part.append([])
     ws_part.append(["SL. NO", "STATUS", "DOWNLOAD FROM", "WORK CATEGORY", "DOWNLOAD DATE", "MONTH", "ORGANISATION", "LOCATIOIN/SITE", "TENDER ID"])
-    
+
     wb.save(test_wb_path)
     wb.close()
 
@@ -139,7 +138,8 @@ def test_delete_tender(temp_manager):
 
 
 def test_api_finalized_endpoints(monkeypatch):
-    from app import app, master_sheet_manager
+    from app import app
+    from gemsentry.master_sheet import master_sheet_manager
     monkeypatch.setattr(master_sheet_manager, "_sync_to_local_excel", lambda *args, **kwargs: True)
     monkeypatch.setattr(master_sheet_manager, "_delete_from_local_excel", lambda *args, **kwargs: 1)
     monkeypatch.setattr(master_sheet_manager, "_sync_to_google_sheet", lambda *args, **kwargs: {"status": "ok", "mocked": True})

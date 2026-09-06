@@ -20,7 +20,6 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 import scraper
-import paths
 
 def main():
     parser = argparse.ArgumentParser(description="Filter tenders by deadline remaining days.")
@@ -51,10 +50,10 @@ def main():
         print(json.dumps([t for t, _ in matching], indent=2))
         return
 
-    print(f"\n==================================================================================")
+    print("\n==================================================================================")
     print(f"  GeMSentry: Tenders Ending in {args.min_days} to {args.max_days} Days from Today")
     print(f"  Total Found: {len(matching)} out of {len(all_tenders)} stored tenders")
-    print(f"==================================================================================\n")
+    print("==================================================================================\n")
 
     if not matching:
         print("  No tenders found matching the specified date window.\n")
@@ -66,7 +65,7 @@ def main():
         dept = t.get("department", "N/A")
         end_date = t.get("end_date", "N/A")
         status = t.get("status", "Pending Review")
-        
+
         print(f"📌 Bid ID:      {bid_no}")
         print(f"   Title:       {title}")
         print(f"   Department:  {dept}")

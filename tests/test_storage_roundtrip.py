@@ -56,10 +56,45 @@ class TestMetadataRoundTrip(unittest.TestCase):
         self.assertEqual(loaded["source_id"], "defproc")
         self.assertEqual(loaded["source_name"], "Defence eProcurement Portal")
 
-    def test_all_three_export_formats_are_written(self):
+    def test_both_export_formats_are_written(self):
         save_metadata([EXTERNAL_RECORD], self.dir)
-        for name in ("metadata.json", "metadata.js", "metadata.csv"):
+        for name in ("metadata.json", "metadata.csv"):
             self.assertTrue(os.path.exists(os.path.join(self.dir, name)), name)
+
+    def test_metadata_js_is_not_written(self):
+        """metadata.js was a third copy of the payload that nothing read."""
+        save_metadata([EXTERNAL_RECORD], self.dir)
+        self.assertFalse(os.path.exists(os.path.join(self.dir, "metadata.js")))
+
+    def test_stale_metadata_js_is_removed(self):
+        stale = os.path.join(self.dir, "metadata.js")
+        os.makedirs(self.dir, exist_ok=True)
+        with open(stale, "w", encoding="utf-8") as f:
+            f.write("const TENDER_DATA = [];")
+        save_metadata([EXTERNAL_RECORD], self.dir)
+        self.assertFalse(os.path.exists(stale))
+
+    def test_save_leaves_no_temp_files_behind(self):
+        save_metadata([EXTERNAL_RECORD], self.dir)
+        leftovers = [f for f in os.listdir(self.dir) if f.endswith(".tmp")]
+        self.assertEqual(leftovers, [])
+
+    def test_failed_save_preserves_previous_metadata(self):
+        """An exception mid-encode must not truncate the last good file."""
+        save_metadata([EXTERNAL_RECORD], self.dir)
+        json_path = os.path.join(self.dir, "metadata.json")
+        before = open(json_path, encoding="utf-8").read()
+
+        class Unserializable:
+            pass
+
+        with self.assertRaises(TypeError):
+            save_metadata([{**EXTERNAL_RECORD, "analysis": Unserializable()}], self.dir)
+
+        self.assertEqual(open(json_path, encoding="utf-8").read(), before)
+        self.assertEqual(
+            [f for f in os.listdir(self.dir) if f.endswith(".tmp")], []
+        )
 
     def test_csv_carries_source_columns(self):
         save_metadata([EXTERNAL_RECORD], self.dir)

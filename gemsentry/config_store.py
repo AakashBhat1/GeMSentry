@@ -27,7 +27,7 @@ def load_keywords():
     )
     if csv_path:
         try:
-            with open(csv_path, mode="r", encoding="utf-8") as f:
+            with open(csv_path, encoding="utf-8") as f:
                 for line in f:
                     clean = line.strip()
                     if clean.startswith('\ufeff'):
@@ -60,7 +60,7 @@ def load_scoring_config():
         logger.warning("%s not found; using default scoring config.", SCORING_CONFIG_PATH)
         return defaults
     try:
-        with open(cfg_path, "r", encoding="utf-8") as f:
+        with open(cfg_path, encoding="utf-8") as f:
             cfg = json.load(f)
         if not isinstance(cfg, dict):
             raise ValueError("config root must be an object")

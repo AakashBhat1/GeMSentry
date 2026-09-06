@@ -7,7 +7,7 @@ with a stable six-column layout, so no browser or session is needed:
               | Bid Closing Date (IST) | Bid Opening Date (IST) | Actions
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from gemsentry.sources.table_adapter import HtmlTableAdapter
 
@@ -21,7 +21,7 @@ class ISROAdapter(HtmlTableAdapter):
     table_id = "tenderListTable"
     min_cells = 5
 
-    def row_to_tender(self, cells, row) -> Optional[Dict[str, Any]]:
+    def row_to_tender(self, cells, row) -> dict[str, Any] | None:
         tender_no = self.cell_text(cells, TENDER_NO)
         description = self.cell_text(cells, DESCRIPTION)
         if not tender_no or not description:
@@ -42,9 +42,9 @@ class ISROAdapter(HtmlTableAdapter):
             },
         )
 
-    def row_haystack(self, tender: Dict[str, Any]) -> str:
+    def row_haystack(self, tender: dict[str, Any]) -> str:
         centre = (tender.get("raw_data") or {}).get("centre", "")
         return f"{tender.get('title', '')} {tender.get('buyer_org', '')} {centre}"
 
 
-__all__: List[str] = ["ISROAdapter"]
+__all__: list[str] = ["ISROAdapter"]

@@ -296,9 +296,9 @@ def scrape(
 
         # 2. Load existing metadata records (scoped to this workspace)
         all_tenders = load_existing_metadata(tenders_dir)
-        
+
         new_tenders_count = 0
-        
+
         with sync_playwright() as p:
             logger.info("Launching browser with stealth settings...")
             browser = p.chromium.launch(
@@ -317,7 +317,7 @@ def scrape(
                 accept_downloads=True
             )
             context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-            
+
             page = context.new_page()
             page.goto("https://bidplus.gem.gov.in/all-bids", wait_until="domcontentloaded", timeout=60000)
             page.wait_for_timeout(2000)
@@ -326,12 +326,12 @@ def scrape(
             cookies = context.cookies()
             cookie_header = "; ".join([f"{c['name']}={c['value']}" for c in cookies])
             csrf_token = next((c['value'] for c in cookies if c['name'] == 'csrf_gem_cookie'), None)
-            
+
             if target_count and (min_days_left is not None or max_days_left is not None):
                 logger.info(f"Target Goal Mode Active: Finding at least {target_count} tenders per keyword ending in [{min_days_left} to {max_days_left}] days...")
             else:
                 logger.info("Starting high-performance concurrent keyword ingestion...")
-            
+
             def process_keyword(kw):
                 tenders = fetch_keyword_bids_api(
                     kw,
@@ -393,7 +393,7 @@ def scrape(
             # Reuse the same config/profile snapshot used by discovery so the
             # remaining-time gate and analysis cannot disagree during a run.
             company_profile = load_company_profile()
-            
+
             # --- BE-27 fast pipeline: plan → parallel fetch → analyze ---
             dl_policy = scoring_cfg.get("download_policy") or DEFAULT_SCORING_CONFIG["download_policy"]
             skip_zero_rel = bool(dl_policy.get("skip_zero_relevance_download", True))
@@ -531,9 +531,9 @@ def scrape_single_bid(bid_id, log_callback=None):
         logger.info(f"Targeting Bid ID / Number: '{bid_id_clean}'")
 
         all_tenders = load_existing_metadata(tenders_dir)
-        
+
         target_tender = None
-        
+
         with sync_playwright() as p:
             logger.info("Launching browser with stealth settings...")
             browser = p.chromium.launch(
@@ -552,64 +552,64 @@ def scrape_single_bid(bid_id, log_callback=None):
                 accept_downloads=True
             )
             context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-            
+
             page = context.new_page()
-            
+
             logger.info("Navigating to base search page...")
             page.goto("https://bidplus.gem.gov.in/all-bids", wait_until="domcontentloaded", timeout=60000)
             page.wait_for_timeout(2000)
-            
+
             # Fill the search input and click search button
             logger.info(f"Typing search query '{bid_id_clean}' in search box...")
             page.fill("#searchBid", bid_id_clean)
             page.wait_for_timeout(500)
-            
+
             logger.info("Clicking search button...")
             page.click("#searchBidRA")
             page.wait_for_timeout(3000) # Wait for AJAX refresh
-            
+
             # Wait for card
             try:
                 page.wait_for_selector("div.card, #bidCard", timeout=12000)
                 tenders = parse_cards(page.content(), "MANUAL_REQUEST")
-                
+
                 # Try to find matching card (partial or exact)
                 for t in tenders:
                     if bid_id_clean.lower() in t["bid_no"].lower() or t["bid_no"].lower() in bid_id_clean.lower():
                         target_tender = t
                         break
-                
+
                 # Do not default to a random card if no match is found
                 pass
-                    
+
             except Exception as e:
                 logger.error(f"Failed to find or parse bid cards for ID '{bid_id_clean}': {e}")
-                
+
             if not target_tender:
                 logger.warning(f"No tender found on GeM matching ID: '{bid_id_clean}'")
                 browser.close()
                 return None
-                
+
             bid_no = target_tender["bid_no"]
             pdf_url = target_tender["pdf_url"]
             logger.info(f"Tender found: {bid_no} - {target_tender['title']}")
-            
+
             # Since this is a manual request, we BYPASS the Date Policy Gate check
             logger.info("Manual acquisition request: Bypassing Date Policy Gate check.")
-            
+
             sanitized_bid = sanitize_filename(bid_no)
             nlp_res = nlp_classifier.classify_tender(target_tender)
             target_tender["domain"] = nlp_res["domain"]
             target_tender["nlp_category"] = nlp_res["domain_label"]
             domain_folder = nlp_res["domain"]
             date_folder = get_date_folder_name()
-            
+
             target_dir = os.path.join(downloads_dir, domain_folder, date_folder, sanitized_bid)
             save_path = os.path.join(target_dir, f"{sanitized_bid}.pdf")
 
             existing_path = find_existing_pdf_file(sanitized_bid, downloads_dir)
             pdf_location = None
-            
+
             if existing_path:
                 logger.info(f"RFP PDF already exists in local downloads cache: {existing_path}")
                 target_tender["downloaded"] = True
@@ -632,7 +632,7 @@ def scrape_single_bid(bid_id, log_callback=None):
                 else:
                     target_tender["downloaded"] = False
                     logger.error("Download failed for RFP PDF.")
-                    
+
             # Scan and analyze RFP PDF (manual path: still scores date_window from dates)
             scoring_cfg = load_scoring_config()
             company_profile = load_company_profile()
@@ -669,13 +669,13 @@ def scrape_single_bid(bid_id, log_callback=None):
                     target_tender["status"] = existing.get("status", target_tender.get("status"))
             else:
                 target_tender["keyword"] = "MANUAL_REQUEST"
-                
+
             # Save or update in database
             all_tenders[bid_no] = target_tender
             save_metadata(list(all_tenders.values()), tenders_dir)
             auto_export_summary(tenders_dir, downloads_dir)
             logger.info(f"Successfully processed and updated metadata for Bid: {bid_no}")
-            
+
             browser.close()
             return target_tender
 

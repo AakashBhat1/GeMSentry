@@ -12,7 +12,8 @@ rewriting ``metadata.json``. New records get the field stamped at write time
 net for everything already on disk.
 """
 
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any
+from collections.abc import Iterable
 from urllib.parse import urlparse
 
 from gemsentry.constants import logger
@@ -42,14 +43,14 @@ def normalize_host(url: str) -> str:
     return host[4:] if host.startswith("www.") else host
 
 
-def build_host_index(sources: Iterable[Dict[str, Any]]) -> Dict[str, Tuple[str, str]]:
+def build_host_index(sources: Iterable[dict[str, Any]]) -> dict[str, tuple[str, str]]:
     """Map portal host -> (source_id, source_name) from the sources config.
 
     Two portals can share a host (CPPP publishes two apps under
     ``eprocure.gov.in``); the first configured entry wins, which is accurate at
     the host level and only loses the sub-app distinction.
     """
-    index: Dict[str, Tuple[str, str]] = {}
+    index: dict[str, tuple[str, str]] = {}
     for source in sources or []:
         source_id = source.get("id")
         host = normalize_host(source.get("url", ""))
@@ -59,7 +60,7 @@ def build_host_index(sources: Iterable[Dict[str, Any]]) -> Dict[str, Tuple[str, 
     return index
 
 
-def _match_host(host: str, index: Dict[str, Tuple[str, str]]) -> Optional[Tuple[str, str]]:
+def _match_host(host: str, index: dict[str, tuple[str, str]]) -> tuple[str, str] | None:
     """Resolve ``host`` against the index, allowing subdomains.
 
     GeM serves bid documents from ``bidplus.gem.gov.in`` while the config lists
@@ -76,9 +77,9 @@ def _match_host(host: str, index: Dict[str, Tuple[str, str]]) -> Optional[Tuple[
 
 
 def derive_source(
-    record: Dict[str, Any],
-    host_index: Dict[str, Tuple[str, str]],
-) -> Tuple[str, str]:
+    record: dict[str, Any],
+    host_index: dict[str, tuple[str, str]],
+) -> tuple[str, str]:
     """Return the (source_id, source_name) a tender record belongs to.
 
     An explicit ``source_id`` on the record always wins; it is written by the
@@ -102,16 +103,16 @@ def derive_source(
 
 
 def annotate_sources(
-    records: Iterable[Dict[str, Any]],
-    sources: Iterable[Dict[str, Any]],
-) -> List[Dict[str, Any]]:
+    records: Iterable[dict[str, Any]],
+    sources: Iterable[dict[str, Any]],
+) -> list[dict[str, Any]]:
     """Return copies of ``records`` with source_id / source_name filled in.
 
     The inputs are never mutated: the caller's in-memory metadata stays exactly
     as it was loaded from disk.
     """
     host_index = build_host_index(sources)
-    annotated: List[Dict[str, Any]] = []
+    annotated: list[dict[str, Any]] = []
     derived_count = 0
 
     for record in records:

@@ -34,7 +34,7 @@ import threading
 # ─── Config ──────────────────────────────────────────────────────────────
 ICON_SIZE = 72
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
-ICON_PATH = os.path.join(APP_DIR, "desktop_icon.png")
+ICON_PATH = os.path.join(APP_DIR, "assets", "desktop_icon.png")
 DASHBOARD_URL = "http://127.0.0.1:5000"
 PYTHON_EXE = sys.executable  # Use the same Python that launched this widget
 

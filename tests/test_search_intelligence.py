@@ -385,8 +385,22 @@ def test_gem_fetch_applies_profile_wide_expansion_and_card_verification():
 
 
 def test_dashboard_defaults_to_live_newly_published_view():
+    # Markup and behaviour now live in separate files (dashboard.html +
+    # static/app.js) so the browser can cache the 200 KB of script.
     with open(os.path.join(ROOT, "dashboard.html"), encoding="utf-8") as handle:
         html = handle.read()
-    assert "let currentDeadlineBand = 'actionable';" in html
+    with open(os.path.join(ROOT, "static", "app.js"), encoding="utf-8") as handle:
+        script = handle.read()
+    assert "let currentDeadlineBand = 'actionable';" in script
     assert '<option value="published-newest" selected>' in html
     assert '<option value="priority-desc" selected>' not in html
+
+
+def test_dashboard_loads_external_assets():
+    with open(os.path.join(ROOT, "dashboard.html"), encoding="utf-8") as handle:
+        html = handle.read()
+    assert '<link rel="stylesheet" href="/static/app.css">' in html
+    assert '<script src="/static/app.js"></script>' in html
+    # No inline blocks left behind by the split.
+    assert "<style>" not in html
+    assert "<script>" not in html

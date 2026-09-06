@@ -63,7 +63,7 @@ def _cache_path(digest, max_pages):
 
 def _read_cache(cache_file):
     try:
-        with open(cache_file, "r", encoding="utf-8") as handle:
+        with open(cache_file, encoding="utf-8") as handle:
             return handle.read()
     except OSError:
         return None

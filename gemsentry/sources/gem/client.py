@@ -277,7 +277,7 @@ def parse_cards(html, keyword):
                     department = rows[1].get_text(separator=" | ", strip=True).replace("Department Name And Address:", "").strip()
                 elif rows:
                     department = rows[0].get_text(separator=" | ", strip=True).replace("Department Name And Address:", "").strip()
-            
+
             department = re.sub(r'\s+', ' ', department)
 
             start_date_el = card.select_one(".start_date")
@@ -320,7 +320,7 @@ def select_sort_order(page, sort_order="Bid-Start-Date-Latest"):
         "Bid-End-Date-Latest": ("Bid End Date: Latest First", "#Bid-End-Date-Latest"),
         "Bid-End-Date-Oldest": ("Bid End Date: Oldest First", "#Bid-End-Date-Oldest")
     }
-    
+
     label, selector_id = sort_map.get(sort_order, ("Bid Start Date: Latest First", "#Bid-Start-Date-Latest"))
     logger.info(f"Setting sorting to '{label}'...")
     try:
@@ -328,7 +328,7 @@ def select_sort_order(page, sort_order="Bid-Start-Date-Latest"):
         if sort_button.count() > 0:
             sort_button.click()
             page.wait_for_timeout(800)
-            
+
             option = page.locator(selector_id)
             if option.count() > 0:
                 option.click()
@@ -394,7 +394,7 @@ def download_rfp_pdf(context, pdf_url, save_path):
         page = context.new_page()
         download_container = []
         page.on("download", lambda d: download_container.append(d))
-        
+
         response = None
         try:
             response = page.goto(pdf_url, wait_until="commit", timeout=15000)
@@ -403,11 +403,11 @@ def download_rfp_pdf(context, pdf_url, save_path):
                 response = None
             else:
                 raise e
-        
+
         # Give up to 1s for download object event to register if committed
         if not download_container and not response:
             page.wait_for_timeout(500)
-        
+
         # Scenario A: Download event triggered. Playwright will write whatever
         # the server streamed -- including HTML interstitials -- so the file
         # is classified after save and discarded when it is not a PDF.
@@ -450,7 +450,7 @@ def download_rfp_pdf(context, pdf_url, save_path):
                 "Response was not a PDF (Content-Type: %s).",
                 content_type or "n/a",
             )
-                
+
     except Exception as e:
         logger.error(f"Download failed for {pdf_url}: {e}")
     finally:

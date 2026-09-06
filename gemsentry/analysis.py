@@ -379,7 +379,7 @@ def analyze_rfp_pdf(pdf_path, start_date_str=None, end_date_str=None,
             signals["est_value_inr"] = est
             analysis["est_value_inr"] = est
             analysis["est_value_estimated"] = True
-            analysis["est_value_source"] = "emd_x{:g}".format(mult)
+            analysis["est_value_source"] = f"emd_x{mult:g}"
             analysis["reasons"].append(
                 f"Bid value not stated; estimated ₹{est:,} from EMD ₹{emd_amount:,} (×{mult:g})."
             )

@@ -1,6 +1,6 @@
 # 🛰️ GeMSentry
 
-![GeMSentry Banner](gemsentry_banner.png)
+![GeMSentry Banner](assets/gemsentry_banner.png)
 
 <div align="center">
 
@@ -85,7 +85,7 @@ powershell -ExecutionPolicy Bypass -File .\run_search.ps1
 
 2. **Install Dependencies:**
    ```bash
-   pip install -r requirements.txt
+   uv sync            # or: pip install -e .
    ```
 
 3. **Install Browser Binaries:**
@@ -109,8 +109,48 @@ powershell -ExecutionPolicy Bypass -File .\run_search.ps1
 | `data/` | Runtime / imported state (`history.json`, optional `source/` inputs) |
 | `logs/` | App log (`gemsentry.log`) + per-scrape session files under `logs/scrapes/` |
 | `tenders/` | Tender metadata + downloaded RFP PDFs (`tenders/downloads/`) |
+| `static/` | Dashboard CSS + JS, served separately so the browser caches them |
+| `gemsentry/web/` | Flask blueprints (`auth`, `tenders`, `settings`, `live_excel`, `master_sheet`) + shared `context.py` |
+| `gemsentry/db.py` | SQLite tender store (store of record) |
 | `paths.py` | Single path map used by app, scraper, and tools |
+| `app.py` | Composition root: builds the Flask app, registers blueprints |
 | `run.py` | Primary entrypoint |
+
+### Data storage
+
+`tenders/<workspace>/metadata.db` (SQLite) is the store of record. `metadata.json`
+and `metadata.csv` are **exports** kept beside it for `tools/` and for reading by
+hand; they are refreshed on every bulk save and, after a single-record change, by
+a debounced background writer. An existing `metadata.json` is migrated into the
+database automatically on first run.
+
+## Security
+
+The server binds `127.0.0.1` by default. Binding any other interface requires an
+auth token, and startup refuses otherwise:
+
+```powershell
+$env:GEMSENTRY_AUTH_TOKEN = "<a long secret>"
+$env:GEMSENTRY_HOST = "0.0.0.0"
+```
+
+API calls authenticate with `Authorization: Bearer <token>`. The `HttpOnly`
+cookie issued by `/api/auth/verify` covers browser navigations (opening a PDF)
+and is deliberately **not** accepted for POST/PUT/PATCH/DELETE, so another site
+cannot forge a state change.
+
+Google Sheets sync settings live in `config/google_sync_config.json`, which is
+gitignored. Copy `config/google_sync_config.example.json`, or set
+`GEMSENTRY_APPS_SCRIPT_URL` / `GEMSENTRY_SHEET_ID` / `GEMSENTRY_MASTER_XLSX`.
+
+## Development
+
+```bash
+uv sync --group dev
+uv run pytest                 # test suite
+uv run pytest --cov=gemsentry # with coverage
+uv run ruff check .           # lint
+```
 
 ---
 

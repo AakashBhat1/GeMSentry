@@ -22,7 +22,7 @@ source config opts this one portal out of TLS verification.
 """
 
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from gemsentry.sources.table_adapter import HtmlTableAdapter
 
@@ -40,7 +40,7 @@ _FIELD_RX = re.compile(
 _GEM_REF_RX = re.compile(r"\[?(GEM/\d{4}/[A-Z]/\d+)\]?", re.IGNORECASE)
 
 
-def parse_description_cell(text: str) -> Dict[str, str]:
+def parse_description_cell(text: str) -> dict[str, str]:
     """Unpack the packed 'Label : value' description cell into a dict."""
     fields = {}
     for label, value in _FIELD_RX.findall(text or ""):
@@ -55,7 +55,7 @@ class BHELAdapter(HtmlTableAdapter):
     table_class = "views-table"
     min_cells = 4
 
-    def row_to_tender(self, cells, row) -> Optional[Dict[str, Any]]:
+    def row_to_tender(self, cells, row) -> dict[str, Any] | None:
         nit_number = self.cell_text(cells, NIT_NUMBER)
         raw_description = self.cell_text(cells, DESCRIPTION)
         if not nit_number or not raw_description:
@@ -93,7 +93,7 @@ class BHELAdapter(HtmlTableAdapter):
             },
         )
 
-    def row_haystack(self, tender: Dict[str, Any]) -> str:
+    def row_haystack(self, tender: dict[str, Any]) -> str:
         raw = tender.get("raw_data") or {}
         return " ".join([
             tender.get("title", ""),
@@ -102,4 +102,4 @@ class BHELAdapter(HtmlTableAdapter):
         ])
 
 
-__all__: List[str] = ["BHELAdapter", "parse_description_cell"]
+__all__: list[str] = ["BHELAdapter", "parse_description_cell"]

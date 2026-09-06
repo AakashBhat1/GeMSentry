@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from difflib import SequenceMatcher
 import json
 import re
-from typing import Dict, Iterable, Optional, Tuple
+from collections.abc import Iterable
 
 import paths
 from gemsentry.constants import logger
@@ -25,10 +25,10 @@ class SearchPlan:
     """A canonical user intent and the portal queries used to retrieve it."""
 
     canonical_keyword: str
-    queries: Tuple[str, ...]
-    concept_id: Optional[str] = None
-    positive_terms: Tuple[str, ...] = ()
-    exclude_terms: Tuple[str, ...] = ()
+    queries: tuple[str, ...]
+    concept_id: str | None = None
+    positive_terms: tuple[str, ...] = ()
+    exclude_terms: tuple[str, ...] = ()
 
 
 _HYPHEN_AS_SEPARATOR = re.compile(r"(?<=[A-Za-z0-9])-(?=[A-Za-z0-9])")
@@ -45,7 +45,7 @@ def _normalize(value) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
-def _dedupe(values: Iterable[str]) -> Tuple[str, ...]:
+def _dedupe(values: Iterable[str]) -> tuple[str, ...]:
     result = []
     seen = set()
     for value in values:
@@ -58,11 +58,11 @@ def _dedupe(values: Iterable[str]) -> Tuple[str, ...]:
     return tuple(result)
 
 
-def load_search_concepts(path: Optional[str] = None) -> Dict[str, dict]:
+def load_search_concepts(path: str | None = None) -> dict[str, dict]:
     """Load configurable aliases; malformed config degrades to exact search."""
     config_path = path or paths.SEARCH_CONCEPTS_PATH
     try:
-        with open(config_path, "r", encoding="utf-8") as handle:
+        with open(config_path, encoding="utf-8") as handle:
             payload = json.load(handle)
         if not isinstance(payload, dict):
             raise ValueError("top-level value must be an object")
@@ -72,11 +72,11 @@ def load_search_concepts(path: Optional[str] = None) -> Dict[str, dict]:
         return {}
 
 
-def load_company_profile(path: Optional[str] = None) -> dict:
+def load_company_profile(path: str | None = None) -> dict:
     """Load business-line vocabulary used for profile-wide search planning."""
     profile_path = path or paths.COMPANY_PROFILE_PATH
     try:
-        with open(profile_path, "r", encoding="utf-8") as handle:
+        with open(profile_path, encoding="utf-8") as handle:
             payload = json.load(handle)
         if not isinstance(payload, dict):
             raise ValueError("top-level value must be an object")
@@ -86,7 +86,7 @@ def load_company_profile(path: Optional[str] = None) -> dict:
         return {}
 
 
-def _concept_aliases(concept: dict) -> Tuple[str, ...]:
+def _concept_aliases(concept: dict) -> tuple[str, ...]:
     return _dedupe([
         concept.get("canonical_keyword", ""),
         *(concept.get("aliases") or []),
@@ -131,7 +131,7 @@ def _stem_token(token: str) -> str:
     return token
 
 
-def _related_profile_terms(canonical: str, line: dict) -> Tuple[str, ...]:
+def _related_profile_terms(canonical: str, line: dict) -> tuple[str, ...]:
     """Find close aliases within one business line without expanding to the whole line."""
     base = _normalize(canonical)
     base_tokens = {_stem_token(token) for token in base.split() if len(token) > 2}
@@ -159,7 +159,7 @@ def _related_profile_terms(canonical: str, line: dict) -> Tuple[str, ...]:
     return _dedupe(item[3] for item in candidates)
 
 
-def _query_anchors(phrase: str) -> Tuple[str, ...]:
+def _query_anchors(phrase: str) -> tuple[str, ...]:
     """Return up to two distinctive words for portals that mishandle phrases."""
     tokens = {
         token for token in _normalize(phrase).split()
@@ -168,7 +168,7 @@ def _query_anchors(phrase: str) -> Tuple[str, ...]:
     return tuple(sorted(tokens, key=lambda token: (-len(token), token))[:2])
 
 
-def _profile_search_plan(clean_keyword: str, profile: dict) -> Optional[SearchPlan]:
+def _profile_search_plan(clean_keyword: str, profile: dict) -> SearchPlan | None:
     normalized = _normalize(clean_keyword)
     selected = None
     best_rank = None
@@ -214,8 +214,8 @@ def _profile_search_plan(clean_keyword: str, profile: dict) -> Optional[SearchPl
 
 def build_search_plan(
     keyword: str,
-    concepts: Optional[Dict[str, dict]] = None,
-    profile: Optional[dict] = None,
+    concepts: dict[str, dict] | None = None,
+    profile: dict | None = None,
 ) -> SearchPlan:
     """Resolve a keyword to a configurable concept and its query variants."""
     clean_keyword = re.sub(r"\s+", " ", str(keyword or "")).strip()
@@ -273,7 +273,7 @@ def build_search_plan(
     )
 
 
-def expand_keywords(keywords: Iterable[str]) -> Tuple[str, ...]:
+def expand_keywords(keywords: Iterable[str]) -> tuple[str, ...]:
     """Expand safe positive phrases for adapters that filter listings locally.
 
     GeM alone receives broad single-word anchors because its results pass back

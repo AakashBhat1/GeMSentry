@@ -19,7 +19,7 @@ import shutil
 import logging
 import datetime
 import threading
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Any
 
 import requests
 import openpyxl
@@ -33,7 +33,12 @@ logger = logging.getLogger("gemsentry.master_sheet")
 
 CONFIG_PATH = os.path.join(paths.CONFIG_DIR, "google_sync_config.json")
 FINALIZED_STORE_PATH = os.path.join(paths.DATA_DIR, "finalized_tenders.json")
-DEFAULT_LOCAL_MASTER_PATH = r"C:\Users\zewan\Downloads\TENDER MASTER SHEET(ETSPL) 2025- 26.xlsx"
+# Falls back to the copy in the repo root rather than one developer's Downloads
+# folder. Override with GEMSENTRY_MASTER_XLSX or local_master_excel_path.
+DEFAULT_LOCAL_MASTER_PATH = os.environ.get(
+    "GEMSENTRY_MASTER_XLSX",
+    os.path.join(paths.ROOT, "TENDER MASTER SHEET(ETSPL) 2025- 26.xlsx"),
+)
 WORKSPACE_MASTER_PATH = os.path.join(paths.ROOT, "TENDER MASTER SHEET(ETSPL) 2025- 26.xlsx")
 
 # Baseline serial number if no previous records exist
@@ -63,13 +68,17 @@ class MasterSheetManager:
     def __init__(self):
         self.lock = threading.RLock()
         self.config = self._load_config()
-        self.finalized_records: List[Dict[str, Any]] = self._load_store()
+        self.finalized_records: list[dict[str, Any]] = self._load_store()
         self._ensure_serial_baseline()
 
-    def _load_config(self) -> Dict[str, Any]:
+    def _load_config(self) -> dict[str, Any]:
         default_cfg = {
-            "spreadsheet_id": "1WbeJJ8goLPGLryyJfcJNbiXtIxXjC9Z0g8viueh5oOk",
-            "spreadsheet_url": "https://docs.google.com/spreadsheets/d/1WbeJJ8goLPGLryyJfcJNbiXtIxXjC9Z0g8viueh5oOk/edit?usp=sharing",
+            # No live IDs or webhook URLs baked into the source. An Apps Script
+            # /exec URL is a bearer capability -- anyone holding it can write to
+            # the sheet -- so it belongs in the gitignored config file or the
+            # environment, never in a tracked default.
+            "spreadsheet_id": "",
+            "spreadsheet_url": "",
             "apps_script_url": "",
             "google_drive_mount_path": "",
             "local_master_excel_path": DEFAULT_LOCAL_MASTER_PATH,
@@ -79,20 +88,31 @@ class MasterSheetManager:
         }
         if os.path.exists(CONFIG_PATH):
             try:
-                with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+                with open(CONFIG_PATH, encoding="utf-8") as f:
                     user_cfg = json.load(f)
                     default_cfg.update(user_cfg)
             except Exception as e:
                 logger.warning("Could not read google_sync_config.json: %s", e)
+
+        # Environment wins over the file, so a deployment can inject secrets
+        # without ever writing them to disk.
+        for env_name, key in (
+            ("GEMSENTRY_SHEET_ID", "spreadsheet_id"),
+            ("GEMSENTRY_SHEET_URL", "spreadsheet_url"),
+            ("GEMSENTRY_APPS_SCRIPT_URL", "apps_script_url"),
+            ("GEMSENTRY_MASTER_XLSX", "local_master_excel_path"),
+        ):
+            if os.environ.get(env_name):
+                default_cfg[key] = os.environ[env_name]
         return default_cfg
 
-    def load_config(self) -> Dict[str, Any]:
+    def load_config(self) -> dict[str, Any]:
         """Reloads and returns the latest config from disk."""
         with self.lock:
             self.config = self._load_config()
             return self.config
 
-    def save_config(self, new_config: Dict[str, Any]) -> Dict[str, Any]:
+    def save_config(self, new_config: dict[str, Any]) -> dict[str, Any]:
         with self.lock:
             self.config.update(new_config)
             os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
@@ -101,10 +121,10 @@ class MasterSheetManager:
             logger.info("Updated Google sync configuration.")
             return self.config
 
-    def _load_store(self) -> List[Dict[str, Any]]:
+    def _load_store(self) -> list[dict[str, Any]]:
         if os.path.exists(FINALIZED_STORE_PATH):
             try:
-                with open(FINALIZED_STORE_PATH, "r", encoding="utf-8") as f:
+                with open(FINALIZED_STORE_PATH, encoding="utf-8") as f:
                     data = json.load(f)
                     if isinstance(data, list):
                         return data
@@ -120,7 +140,7 @@ class MasterSheetManager:
         except Exception as e:
             logger.error("Failed persisting finalized_tenders.json: %s", e)
 
-    def _get_active_master_paths(self) -> List[str]:
+    def _get_active_master_paths(self) -> list[str]:
         paths_to_update = []
         configured_path = self.config.get("local_master_excel_path") or DEFAULT_LOCAL_MASTER_PATH
         if os.path.exists(configured_path):
@@ -175,14 +195,14 @@ class MasterSheetManager:
         norm_bid = str(bid_no).strip().lower()
         return any(str(r.get("bid_no")).strip().lower() == norm_bid for r in self.finalized_records)
 
-    def get_record(self, bid_no: str) -> Optional[Dict[str, Any]]:
+    def get_record(self, bid_no: str) -> dict[str, Any] | None:
         norm_bid = str(bid_no).strip().lower()
         for r in self.finalized_records:
             if str(r.get("bid_no")).strip().lower() == norm_bid:
                 return r
         return None
 
-    def _format_date_parts(self, date_str: Optional[str]) -> Tuple[str, str]:
+    def _format_date_parts(self, date_str: str | None) -> tuple[str, str]:
         if not date_str:
             return "N/A", "15:00"
         dt = parse_gem_date(date_str)
@@ -190,7 +210,7 @@ class MasterSheetManager:
             return dt.strftime("%Y-%m-%d"), dt.strftime("%H:%M")
         return str(date_str)[:10], "15:00"
 
-    def _handle_google_drive(self, tender: Dict[str, Any], bid_no: str) -> str:
+    def _handle_google_drive(self, tender: dict[str, Any], bid_no: str) -> str:
         """Handles PDF copy to mounted Google Drive or cloud upload."""
         # 1. Reuse existing Google Drive link if already present
         existing_drive = tender.get("rfp_link") or tender.get("drive_link")
@@ -248,7 +268,7 @@ class MasterSheetManager:
         # 4. Fallback: GeM PDF link or local relative path
         return tender.get("pdf_url") or local_pdf or ""
 
-    def _sync_to_local_excel(self, record: Dict[str, Any], target_sheet: str) -> bool:
+    def _sync_to_local_excel(self, record: dict[str, Any], target_sheet: str) -> bool:
         """Writes row to local Excel files, respecting empty rows, header offsets, and styling neatly."""
         success = True
         thin_border = Border(
@@ -417,7 +437,7 @@ class MasterSheetManager:
                 success = False
         return success
 
-    def _delete_from_local_excel(self, bid_no: str, sl_no: Optional[int] = None) -> int:
+    def _delete_from_local_excel(self, bid_no: str, sl_no: int | None = None) -> int:
         deleted_count = 0
         norm_bid = str(bid_no).strip().lower()
         for path in self._get_active_master_paths():
@@ -451,7 +471,7 @@ class MasterSheetManager:
                 logger.error("Error deleting tender from local Excel %s: %s", path, e)
         return deleted_count
 
-    def _sync_to_google_sheet(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def _sync_to_google_sheet(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Sends action payload to Google Apps Script Webhook."""
         self.load_config()
         apps_script_url = (self.config.get("apps_script_url") or "").strip()
@@ -468,10 +488,10 @@ class MasterSheetManager:
 
     def _build_gsheet_payload(
         self,
-        record: Dict[str, Any],
+        record: dict[str, Any],
         target_sheet: str = "MASTER",
-        secondary_sheet: Optional[str] = None
-    ) -> Dict[str, Any]:
+        secondary_sheet: str | None = None
+    ) -> dict[str, Any]:
         """Builds a comprehensive payload for Google Apps Script with both flat fields and nested tender."""
         rfp = record.get("rfp_link") or record.get("drive_link") or record.get("pdf_url") or ""
         return {
@@ -502,10 +522,10 @@ class MasterSheetManager:
 
     def finalize_tender(
         self,
-        tender: Dict[str, Any],
+        tender: dict[str, Any],
         target_sheet: str = "UNDER DETAILED STUDY",
-        custom_fields: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        custom_fields: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Finalizes a tender, assigns sequential SL. NO, updates Excel & Google Sheet."""
         with self.lock:
             bid_no = tender.get("bid_no") or "UNKNOWN"
@@ -596,7 +616,7 @@ class MasterSheetManager:
                 "google_response": gsheet_res
             }
 
-    def delete_tender(self, bid_no_or_sl_no: Any) -> Dict[str, Any]:
+    def delete_tender(self, bid_no_or_sl_no: Any) -> dict[str, Any]:
         """Deletes a finalized tender from JSON store, local Excel, and Google Sheet."""
         with self.lock:
             target_bid = None
@@ -644,11 +664,11 @@ class MasterSheetManager:
         self,
         bid_no: str,
         won_lost_result: str = "WON L - 1",
-        tender_value: Optional[Any] = None,
-        so_link: Optional[str] = None,
+        tender_value: Any | None = None,
+        so_link: str | None = None,
         submission_status: str = "SUBMITTED",
-        final_remarks: Optional[str] = None
-    ) -> Dict[str, Any]:
+        final_remarks: str | None = None
+    ) -> dict[str, Any]:
         """Transitions a finalized tender to '(TENDER DETAILS (PARTICIPATED)'."""
         with self.lock:
             record = self.get_record(bid_no)
@@ -689,7 +709,7 @@ class MasterSheetManager:
                 "google_response": gsheet_res
             }
 
-    def sync_all_to_google_sheet(self) -> Dict[str, Any]:
+    def sync_all_to_google_sheet(self) -> dict[str, Any]:
         """Pushes all finalized tenders from local store into Google Sheet."""
         with self.lock:
             apps_script_url = (self.config.get("apps_script_url") or "").strip()
@@ -738,7 +758,7 @@ class MasterSheetManager:
                 "message": f"Successfully synced {len(synced)} of {len(self.finalized_records)} tender(s) to Google Sheet."
             }
 
-    def get_all_finalized(self) -> Dict[str, Any]:
+    def get_all_finalized(self) -> dict[str, Any]:
         with self.lock:
             sorted_records = sorted(
                 self.finalized_records,

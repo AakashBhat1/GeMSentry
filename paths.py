@@ -35,14 +35,19 @@ def load_server_config() -> dict:
     """Load config/server_config.json with environment variable overrides."""
     cfg = {
         "auth_token": "",
-        "host": "0.0.0.0",
+        # Loopback by default. Binding every interface used to be the default,
+        # which exposed the dashboard -- and every mutating endpoint, including
+        # /api/clear-workspace -- to the whole LAN with auth off. Widening the
+        # bind is now an explicit choice, and require_safe_bind() makes it cost
+        # an auth token.
+        "host": "127.0.0.1",
         "port": 5000,
         "tenders_dir": "",
         "logs_dir": "",
     }
     if os.path.exists(SERVER_CONFIG_PATH):
         try:
-            with open(SERVER_CONFIG_PATH, "r", encoding="utf-8") as f:
+            with open(SERVER_CONFIG_PATH, encoding="utf-8") as f:
                 loaded = json.load(f)
                 if isinstance(loaded, dict):
                     cfg.update(loaded)
@@ -65,6 +70,36 @@ def load_server_config() -> dict:
         cfg["logs_dir"] = os.environ["GEMSENTRY_LOGS_DIR"]
 
     return cfg
+
+
+LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost", ""}
+
+
+def is_loopback(host: str) -> bool:
+    return (host or "").strip().lower() in LOOPBACK_HOSTS
+
+
+def require_safe_bind(cfg: dict) -> None:
+    """Refuse to serve an unauthenticated API on a non-loopback interface.
+
+    Raises RuntimeError when the operator asks for a public bind (0.0.0.0 or a
+    specific LAN address) without setting an auth token. Anything reachable
+    from another machine must be authenticated -- especially given
+    scripts/setup_tunnel.ps1, which puts this server on the public internet.
+    """
+    host = (cfg.get("host") or "").strip()
+    token = (cfg.get("auth_token") or "").strip()
+    if is_loopback(host) or token:
+        return
+    raise RuntimeError(
+        f"Refusing to bind {host} without authentication.\n"
+        "  Anything but 127.0.0.1 is reachable by other machines, and every\n"
+        "  mutating endpoint (/api/scrape, /api/clear-workspace, config\n"
+        "  writes) would be open to them.\n"
+        "  Set a token first:  $env:GEMSENTRY_AUTH_TOKEN = '<a long secret>'\n"
+        "  or add \"auth_token\" to config/server_config.json.\n"
+        "  To keep it private instead, set host to 127.0.0.1."
+    )
 
 
 _cfg = load_server_config()

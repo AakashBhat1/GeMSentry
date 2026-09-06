@@ -17,12 +17,11 @@ import re
 import glob
 import json
 import time
-import shutil
 import logging
 import datetime
 import threading
 import urllib.parse
-from typing import Optional, List, Dict, Any, Set
+from typing import Any
 
 import openpyxl
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -53,7 +52,7 @@ GREEN_FILL = PatternFill("solid", fgColor="C6EFCE")
 LINK_FONT = Font(color="0563C1", underline="single")
 
 
-def _days_left(tender: Dict[str, Any]) -> Optional[float]:
+def _days_left(tender: dict[str, Any]) -> float | None:
     end_str = tender.get("end_date")
     if not end_str:
         return None
@@ -67,7 +66,7 @@ def _days_left(tender: Dict[str, Any]) -> Optional[float]:
         return None
 
 
-def _file_uri(rel_path: Optional[str]) -> Optional[str]:
+def _file_uri(rel_path: str | None) -> str | None:
     if not rel_path:
         return None
     abs_path = rel_path if os.path.isabs(rel_path) else os.path.join(paths.ROOT, rel_path)
@@ -76,12 +75,12 @@ def _file_uri(rel_path: Optional[str]) -> Optional[str]:
     return "file:///" + urllib.parse.quote(abs_path.replace("\\", "/"), safe="/:")
 
 
-def _sort_key(tender: Dict[str, Any]) -> float:
+def _sort_key(tender: dict[str, Any]) -> float:
     pr = (tender.get("analysis") or {}).get("priority_score")
     return float(pr) if pr is not None else -1.0
 
 
-def _write_sheet(wb, name: str, tenders: List[Dict[str, Any]], tab_color: Optional[str] = None):
+def _write_sheet(wb, name: str, tenders: list[dict[str, Any]], tab_color: str | None = None):
     ws = wb.create_sheet(name)
     if tab_color:
         ws.sheet_properties.tabColor = tab_color
@@ -137,7 +136,7 @@ def _write_sheet(wb, name: str, tenders: List[Dict[str, Any]], tab_color: Option
     return ws
 
 
-def _write_overview(wb, tenders: List[Dict[str, Any]], fingerprint: Optional[str] = None):
+def _write_overview(wb, tenders: list[dict[str, Any]], fingerprint: str | None = None):
     ws = wb.create_sheet("Overview", 0)
     ws.column_dimensions["A"].width = 30
     ws.column_dimensions["B"].width = 40
@@ -163,7 +162,7 @@ def _write_overview(wb, tenders: List[Dict[str, Any]], fingerprint: Optional[str
     return ws
 
 
-def build_curated_workbook(tenders: List[Dict[str, Any]], output_path: str):
+def build_curated_workbook(tenders: list[dict[str, Any]], output_path: str):
     """Generate a full summary workbook for the selected tenders."""
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     try:
@@ -218,11 +217,11 @@ class LiveExcelManager:
 
         self.is_active: bool = False
         self.status: str = "idle"  # "idle" | "active" | "saved" | "removed"
-        self.created_at: Optional[float] = None
-        self.last_updated_at: Optional[float] = None
+        self.created_at: float | None = None
+        self.last_updated_at: float | None = None
         self.update_count: int = 0
-        self.tender_bids: List[str] = []
-        self.last_saved_filename: Optional[str] = None
+        self.tender_bids: list[str] = []
+        self.last_saved_filename: str | None = None
         self.last_message: str = "Ready"
 
         # Restore any ongoing session from disk or clean up stale
@@ -254,7 +253,7 @@ class LiveExcelManager:
         if not os.path.exists(self.state_file):
             return
         try:
-            with open(self.state_file, "r", encoding="utf-8") as f:
+            with open(self.state_file, encoding="utf-8") as f:
                 state = json.load(f)
             if state.get("is_active"):
                 last_up = state.get("last_updated_at", 0)
@@ -326,7 +325,7 @@ class LiveExcelManager:
         next_idx = max_idx + 1
         return f"{today}_{next_idx}.xlsx"
 
-    def _resolve_tenders(self, bids: List[str]) -> List[Dict[str, Any]]:
+    def _resolve_tenders(self, bids: list[str]) -> list[dict[str, Any]]:
         """Load tender metadata dictionaries corresponding to bid numbers."""
         try:
             from gemsentry.storage import load_existing_metadata
@@ -365,7 +364,7 @@ class LiveExcelManager:
         self._save_state()
         logger.info("Live Excel session discarded: %s", reason)
 
-    def _finalize_and_save(self, reason: str = "Session closed and saved") -> Optional[str]:
+    def _finalize_and_save(self, reason: str = "Session closed and saved") -> str | None:
         """Save the working Excel permanently with sequential daily numbering."""
         if not self.tender_bids:
             self._discard_session("No tenders in session upon close.")
@@ -409,7 +408,7 @@ class LiveExcelManager:
     # Public API
     # -------------------------------------------------------------------------
 
-    def on_scrape_completed(self, new_tenders: Optional[List[Dict[str, Any]]] = None):
+    def on_scrape_completed(self, new_tenders: list[dict[str, Any]] | None = None):
         """
         Called after each scrape completes.
         Stores an Excel session with a 10-minute timer.
@@ -436,7 +435,7 @@ class LiveExcelManager:
             self._save_state()
             logger.info("Live Excel session started after scrape.")
 
-    def toggle_tender(self, bid_no: str) -> Dict[str, Any]:
+    def toggle_tender(self, bid_no: str) -> dict[str, Any]:
         """
         Toggle inclusion of a tender in the active Excel.
         If the 10 minutes have expired or session is idle, forms a NEW session.
@@ -474,7 +473,7 @@ class LiveExcelManager:
                 "status": self.get_status(touch=False),
             }
 
-    def add_tender(self, bid_no: str) -> Dict[str, Any]:
+    def add_tender(self, bid_no: str) -> dict[str, Any]:
         """Explicitly add a tender to active Excel (starts new session if idle)."""
         with self.lock:
             now = time.time()
@@ -495,7 +494,7 @@ class LiveExcelManager:
 
             return self.get_status(touch=False)
 
-    def remove_tender(self, bid_no: str) -> Dict[str, Any]:
+    def remove_tender(self, bid_no: str) -> dict[str, Any]:
         """Explicitly remove a tender from active Excel."""
         with self.lock:
             if not self.is_active:
@@ -511,7 +510,7 @@ class LiveExcelManager:
 
             return self.get_status(touch=False)
 
-    def add_batch(self, bid_nos: List[str]) -> Dict[str, Any]:
+    def add_batch(self, bid_nos: list[str]) -> dict[str, Any]:
         """Add multiple tenders at once (e.g. 'Add All Proceed'). Resets 10m timer."""
         with self.lock:
             now = time.time()
@@ -537,7 +536,7 @@ class LiveExcelManager:
 
             return self.get_status(touch=False)
 
-    def manual_close(self, save: bool = True) -> Dict[str, Any]:
+    def manual_close(self, save: bool = True) -> dict[str, Any]:
         """Manually save and close or discard the session without waiting 10 minutes."""
         with self.lock:
             if not self.is_active:
@@ -550,7 +549,7 @@ class LiveExcelManager:
                 self._discard_session("Manually discarded by user.")
                 return {"message": "Session discarded.", "status": self.get_status(touch=False)}
 
-    def list_today_saved_files(self) -> List[Dict[str, Any]]:
+    def list_today_saved_files(self) -> list[dict[str, Any]]:
         """List today's saved Excel files (and recent daily files)."""
         today = datetime.date.today().isoformat()
         pattern = os.path.join(self.daily_dir, "*.xlsx")
@@ -572,7 +571,7 @@ class LiveExcelManager:
                 pass
         return files
 
-    def get_status(self, touch: bool = False) -> Dict[str, Any]:
+    def get_status(self, touch: bool = False) -> dict[str, Any]:
         """
         Read status of the Live Excel manager.
         READ DOES NOT COUNT -> touch defaults to False, so timer is not reset!

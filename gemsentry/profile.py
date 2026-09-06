@@ -21,7 +21,7 @@ def load_company_profile():
         logger.warning("%s not found; using default company profile.", COMPANY_PROFILE_PATH)
         return defaults
     try:
-        with open(cfg_path, "r", encoding="utf-8") as f:
+        with open(cfg_path, encoding="utf-8") as f:
             cfg = json.load(f)
         if not isinstance(cfg, dict):
             raise ValueError("profile root must be an object")

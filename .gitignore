@@ -63,5 +63,11 @@ logs/**
 
 # Server auth config & cloudflared binaries
 config/server_config.json
+
+# Google Sync config: holds the Apps Script /exec URL, which is a bearer
+# capability -- anyone with it can write to the sheet. Copy
+# config/google_sync_config.example.json and fill it in locally, or set
+# GEMSENTRY_APPS_SCRIPT_URL / GEMSENTRY_SHEET_ID in the environment.
+config/google_sync_config.json
 tools/cloudflared.exe
 .cloudflared/

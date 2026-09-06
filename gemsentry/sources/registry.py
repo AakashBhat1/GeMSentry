@@ -4,7 +4,8 @@ import json
 import os
 import threading
 from concurrent.futures import ThreadPoolExecutor, wait
-from typing import Any, Dict, Iterable, List, Optional, Type
+from typing import Any
+from collections.abc import Iterable
 
 import paths
 from gemsentry.constants import logger
@@ -14,7 +15,7 @@ from gemsentry.sources.gepnic import GePNICAdapter
 from gemsentry.sources.isro import ISROAdapter
 
 # engine name -> adapter class. Adding a portal family means adding one entry.
-ENGINES: Dict[str, Type[BaseAdapter]] = {
+ENGINES: dict[str, type[BaseAdapter]] = {
     "gepnic": GePNICAdapter,
     "isro": ISROAdapter,
     "bhel": BHELAdapter,
@@ -38,8 +39,8 @@ class SourceRegistry:
 
     def __init__(self, sources_path: str = paths.SOURCES_PATH):
         self.sources_path = sources_path
-        self.sources: List[Dict[str, Any]] = []
-        self.adapters: Dict[str, BaseAdapter] = {}
+        self.sources: list[dict[str, Any]] = []
+        self.adapters: dict[str, BaseAdapter] = {}
         self._lock = threading.Lock()
         self.reload_sources()
 
@@ -51,7 +52,7 @@ class SourceRegistry:
             self.sources, self.adapters = [], {}
             return
         try:
-            with open(self.sources_path, "r", encoding="utf-8") as handle:
+            with open(self.sources_path, encoding="utf-8") as handle:
                 data = json.load(handle)
         except (OSError, ValueError) as exc:
             logger.error("Failed to load sources from %s: %s", self.sources_path, exc)
@@ -66,7 +67,7 @@ class SourceRegistry:
         )
 
     def _build_adapters(self) -> None:
-        adapters: Dict[str, BaseAdapter] = {}
+        adapters: dict[str, BaseAdapter] = {}
         for source in self.sources:
             source_id = source.get("id")
             if not source_id:
@@ -94,7 +95,7 @@ class SourceRegistry:
 
     # -- queries ---------------------------------------------------------
 
-    def get_all_sources(self) -> List[Dict[str, Any]]:
+    def get_all_sources(self) -> list[dict[str, Any]]:
         """Every configured source, annotated with its runtime capability."""
         annotated = []
         for source in self.sources:
@@ -107,14 +108,14 @@ class SourceRegistry:
             })
         return annotated
 
-    def get_active_sources(self) -> List[Dict[str, Any]]:
+    def get_active_sources(self) -> list[dict[str, Any]]:
         return [s for s in self.sources if s.get("enabled", True)]
 
-    def _by_engine(self, engines: Iterable[str]) -> List[Dict[str, Any]]:
+    def _by_engine(self, engines: Iterable[str]) -> list[dict[str, Any]]:
         wanted = set(engines)
         return [s for s in self.sources if (s.get("engine") or "").lower() in wanted]
 
-    def unsupported_sources(self) -> List[Dict[str, Any]]:
+    def unsupported_sources(self) -> list[dict[str, Any]]:
         """Enabled sources whose engine has no adapter and isn't native."""
         return [
             s for s in self.get_active_sources()
@@ -122,7 +123,7 @@ class SourceRegistry:
             and (s.get("engine") or "").lower() not in NATIVE_ENGINES
         ]
 
-    def runnable_adapters(self) -> List[BaseAdapter]:
+    def runnable_adapters(self) -> list[BaseAdapter]:
         """Enabled sources that have a real adapter to run."""
         enabled = {s.get("id") for s in self.get_active_sources()}
         return [
@@ -144,11 +145,11 @@ class SourceRegistry:
 
     def fetch_from_all_active(
         self,
-        keywords: List[str],
+        keywords: list[str],
         max_workers: int = DEFAULT_MAX_WORKERS,
         max_pages: int = 5,
-        timeout: Optional[float] = DEFAULT_SOURCE_TIMEOUT,
-    ) -> List[Dict[str, Any]]:
+        timeout: float | None = DEFAULT_SOURCE_TIMEOUT,
+    ) -> list[dict[str, Any]]:
         """Query every runnable portal in parallel and merge the results.
 
         Results are de-duplicated on ``tender_id`` -- the same tender is often
@@ -169,7 +170,7 @@ class SourceRegistry:
         logger.info("Querying %d portal(s) in parallel: %s",
                     len(adapters), ", ".join(a.source_id for a in adapters))
 
-        merged: Dict[str, Dict[str, Any]] = {}
+        merged: dict[str, dict[str, Any]] = {}
         pool = ThreadPoolExecutor(max_workers=max(1, min(max_workers, len(adapters))))
         try:
             futures = {
@@ -195,7 +196,7 @@ class SourceRegistry:
         return list(merged.values())
 
     @staticmethod
-    def _run_adapter(adapter: BaseAdapter, keywords: List[str], max_pages: int) -> List[Dict[str, Any]]:
+    def _run_adapter(adapter: BaseAdapter, keywords: list[str], max_pages: int) -> list[dict[str, Any]]:
         tenders = adapter.fetch_active_tenders(keywords, max_pages=max_pages)
         logger.info("[%s] returned %d tender(s)", adapter.source_id, len(tenders))
         return tenders

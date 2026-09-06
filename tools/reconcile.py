@@ -140,7 +140,7 @@ def main():
     print(f"Found {len(new_orphans)} orphan PDFs to import, {len(relink)} records to re-link")
 
     if args.dry_run:
-        for b, k, p in new_orphans[:20]:
+        for b, k, _pdf in new_orphans[:20]:
             print(f"  would import {b} ({k})")
         print("(dry run — nothing saved)")
         return
@@ -167,7 +167,7 @@ def main():
         if i % 25 == 0:
             print(f"  ... {i}/{len(new_orphans)}")
 
-    for bid_no, keyword, abs_pdf in relink:
+    for bid_no, _keyword, abs_pdf in relink:
         tenders[bid_no]["downloaded"] = True
         tenders[bid_no]["local_pdf_path"] = paths.repo_relative(abs_pdf)
         scraper.rescore_tender(tenders[bid_no], cfg, profile, reparse=True)

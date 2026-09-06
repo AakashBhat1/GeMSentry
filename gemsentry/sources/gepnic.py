@@ -10,7 +10,7 @@ import hashlib
 import re
 import threading
 import urllib.parse
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from bs4 import BeautifulSoup
 
@@ -50,7 +50,7 @@ class GePNICAdapter(BaseAdapter):
 
     implemented = True
 
-    def __init__(self, source_config: Dict[str, Any]):
+    def __init__(self, source_config: dict[str, Any]):
         super().__init__(source_config)
         self.app_url = self._resolve_app_url(self.url)
         self.date_list_url = f"{self.app_url}?{DATE_LIST_QUERY}"
@@ -71,7 +71,7 @@ class GePNICAdapter(BaseAdapter):
             return f"{base}{path}"
         return f"{base}{DEFAULT_APP_PATH}"
 
-    def fetch_active_tenders(self, keywords: List[str], max_pages: int = 5) -> List[Dict[str, Any]]:
+    def fetch_active_tenders(self, keywords: list[str], max_pages: int = 5) -> list[dict[str, Any]]:
         keywords_lower = [k.lower().strip() for k in (keywords or []) if k and k.strip()]
         logger.info("[%s] fetching %s", self.source_id, self.date_list_url)
 
@@ -91,7 +91,7 @@ class GePNICAdapter(BaseAdapter):
         """Per-source TLS opt-out; default on. See HtmlTableAdapter.verify_tls."""
         return bool(self.config.get("verify_tls", True))
 
-    def _browser_fetch(self) -> Optional[str]:
+    def _browser_fetch(self) -> str | None:
         """Render the listing in Chromium; the 'closing soon' tabs need JS."""
         try:
             from playwright.sync_api import sync_playwright
@@ -126,7 +126,7 @@ class GePNICAdapter(BaseAdapter):
 
     # -- parsing ---------------------------------------------------------
 
-    def parse_listing(self, html: str, keywords_lower: List[str]) -> List[Dict[str, Any]]:
+    def parse_listing(self, html: str, keywords_lower: list[str]) -> list[dict[str, Any]]:
         """Parse a GePNIC date-listing table into normalized tenders."""
         if not html:
             return []
@@ -138,7 +138,7 @@ class GePNICAdapter(BaseAdapter):
             return []
 
         columns, header_row = self._column_map(table)
-        tenders: List[Dict[str, Any]] = []
+        tenders: list[dict[str, Any]] = []
         seen: set = set()
 
         for row in table.find_all("tr"):
@@ -203,7 +203,7 @@ class GePNICAdapter(BaseAdapter):
             cells = row.find_all("th") or row.find_all("td")
             if len(cells) < 4:
                 continue
-            mapping: Dict[str, int] = {}
+            mapping: dict[str, int] = {}
             for index, cell in enumerate(cells):
                 label = cell.get_text(" ", strip=True).lower()
                 for hint, name in _HEADER_HINTS:
@@ -216,13 +216,13 @@ class GePNICAdapter(BaseAdapter):
         return dict(_POSITIONAL_COLUMNS), None
 
     @staticmethod
-    def _cell(cells, columns: Dict[str, int], name: str):
+    def _cell(cells, columns: dict[str, int], name: str):
         index = columns.get(name)
         if index is None or index >= len(cells):
             return None
         return cells[index]
 
-    def _text(self, cells, columns: Dict[str, int], name: str) -> str:
+    def _text(self, cells, columns: dict[str, int], name: str) -> str:
         cell = self._cell(cells, columns, name)
         return cell.get_text(strip=True) if cell else ""
 

@@ -1,4 +1,3 @@
-import os
 import sys
 
 
@@ -15,25 +14,32 @@ def main():
     logger.info("=" * 60)
 
     # 1. Dependency Checks
+    # Imported purely to prove the dependency is installed before we start.
     try:
-        import playwright
-        import bs4
-        import pypdf
-        import flask
+        import bs4  # noqa: F401
+        import flask  # noqa: F401
+        import playwright  # noqa: F401
+        import pypdf  # noqa: F401
     except ImportError as e:
         logger.error("Missing Python dependencies: %s", e)
-        logger.error("Please run: pip install -r requirements.txt")
+        logger.error("Please run: uv sync   (or: pip install -e .)")
         sys.exit(1)
 
     # 2. Start the server
     server_cfg = paths.load_server_config()
-    host = server_cfg.get("host", "0.0.0.0")
+    try:
+        paths.require_safe_bind(server_cfg)
+    except RuntimeError as e:
+        logger.error("%s", e)
+        sys.exit(1)
+    host = server_cfg.get("host", "127.0.0.1")
     port = int(server_cfg.get("port", 5000))
     auth_on = bool(server_cfg.get("auth_token", "").strip())
     logger.info("Starting GeMSentry Server on %s:%s (Auth: %s)...", host, port, "ENABLED" if auth_on else "DISABLED")
     try:
         from app import app
-        app.run(host=host, port=port, debug=False)
+        from gemsentry.serve import serve
+        serve(app, host, port)
     except Exception as e:
         logger.error("Server failed to start: %s", e)
         sys.exit(1)

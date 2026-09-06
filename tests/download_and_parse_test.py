@@ -32,7 +32,7 @@ with sync_playwright() as p:
         accept_downloads=True
     )
     context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-    
+
     page = context.new_page()
     # Visit search query page to mimic exact user flow and referrer headers
     search_url = "https://bidplus.gem.gov.in/all-bids?bid_number=&items_per_page=&search_under=&search=PSU"
@@ -42,7 +42,7 @@ with sync_playwright() as p:
         page.wait_for_timeout(3000)
     except Exception as e:
         print(f"Warning: Search page load: {e}")
-        
+
     page.close()
 
     # Now download using the same context
@@ -52,11 +52,11 @@ with sync_playwright() as p:
 
 if success and os.path.exists(save_path) and os.path.getsize(save_path) > 0:
     print(f"\nPDF downloaded successfully to: {save_path} ({os.path.getsize(save_path)} bytes)")
-    
+
     # 2. Parse and evaluate PDF
     print("\nRunning PDF evaluation parser...")
     analysis = scraper.analyze_rfp_pdf(save_path)
-    
+
     if analysis:
         print("\n================== Evaluation Report ==================")
         print(f"Score: {analysis['score']}/10")

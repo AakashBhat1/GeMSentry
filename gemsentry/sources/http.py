@@ -10,7 +10,6 @@ import ssl
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Optional
 
 from gemsentry.constants import logger
 
@@ -104,7 +103,7 @@ _UNVERIFIED_CTX.verify_mode = ssl.CERT_NONE
 
 
 def fetch_html(url: str, timeout: int = DEFAULT_TIMEOUT, label: str = "",
-               verify_tls: bool = True) -> Optional[str]:
+               verify_tls: bool = True) -> str | None:
     """GET ``url`` and return decoded HTML, or ``None`` if the request failed.
 
     ``verify_tls=False`` skips certificate validation for that one request.

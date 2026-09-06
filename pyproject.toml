@@ -12,6 +12,8 @@ dependencies = [
     "flask>=3.0.0",
     "openpyxl>=3.1.0",
     "certifi>=2024.0.0",
+    "requests>=2.31.0",
+    "waitress>=3.0.0",
 ]
 
 [project.optional-dependencies]
@@ -19,9 +21,53 @@ dependencies = [
 # blurred glass background. Not required by run.py.
 widget = ["pillow>=10.0.0"]
 
-[tool.uv]
-# Run from the source tree (`python run.py`); the top-level modules
-# (run, app, paths, scraper, ...) live outside the gemsentry/ package,
-# so there is nothing to build or install.
-package = false
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
+[tool.hatch.build.targets.wheel]
+# The gemsentry package plus the top-level modules it is driven by. Declaring
+# them explicitly is what makes `pip install -e .` work without relocating
+# five modules and rewriting ~47 import sites across tools/ and tests/.
+packages = ["gemsentry"]
+include = [
+    "app.py",
+    "paths.py",
+    "run.py",
+    "main.py",
+    "scraper.py",
+    "logging_setup.py",
+    "nlp_classifier.py",
+]
+
+[project.scripts]
+gemsentry = "run:main"
+
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
+    "ruff>=0.6.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# live_test / download_and_parse_test hit the network; opt in with -m network
+addopts = "-q --strict-markers"
+markers = ["network: test requires live network access (deselected by default)"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "UP", "C4"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# The package is run from the source tree, so scripts and tests must extend
+# sys.path before they can import project modules. E402 is unavoidable there.
+"tests/*" = ["E402"]
+"tools/*" = ["E402"]
+"app.py" = ["E402"]

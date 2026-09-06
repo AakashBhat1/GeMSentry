@@ -11,7 +11,6 @@ import os
 import shutil
 import argparse
 import datetime
-import json
 import logging
 
 # Configure stdout encoding for Windows console unicode support
@@ -53,7 +52,7 @@ def clean_empty_directories(root_dir: str):
     """Recursively remove empty subdirectories under root_dir."""
     if not os.path.exists(root_dir):
         return
-    for current_dir, dirs, files in os.walk(root_dir, topdown=False):
+    for current_dir, _dirs, _files in os.walk(root_dir, topdown=False):
         if current_dir == root_dir:
             continue
         try:
@@ -87,12 +86,12 @@ def main():
     all_tenders = list(tenders_dict.values())
     total_tenders = len(all_tenders)
 
-    logger.info(f"=" * 80)
-    logger.info(f"  GeMSentry NLP Tender Resegregation Tool")
+    logger.info("=" * 80)
+    logger.info("  GeMSentry NLP Tender Resegregation Tool")
     logger.info(f"  Workspace:    '{args.workspace}' -> {tenders_dir}")
     logger.info(f"  Total Tenders: {total_tenders}")
     logger.info(f"  Mode:          {'[DRY RUN - PREVIEW ONLY]' if args.dry_run else '[LIVE MIGRATION]'}")
-    logger.info(f"=" * 80)
+    logger.info("=" * 80)
 
     if not args.dry_run:
         backup_dir = backup_metadata(tenders_dir)
@@ -165,7 +164,7 @@ def main():
                         dst_f = os.path.join(target_dir, fname)
                         if os.path.isfile(src_f):
                             shutil.move(src_f, dst_f)
-                    
+
                     # Remove old empty directory
                     if os.path.exists(current_dir) and not os.listdir(current_dir):
                         os.rmdir(current_dir)
@@ -187,21 +186,21 @@ def main():
         clean_empty_directories(downloads_dir)
         logger.info(f"Updated metadata.json saved with {updated_meta_count} re-routed PDF paths.")
 
-    logger.info(f"\n==================================================================================")
-    logger.info(f"  NLP Segregation Summary Report")
-    logger.info(f"==================================================================================")
+    logger.info("\n==================================================================================")
+    logger.info("  NLP Segregation Summary Report")
+    logger.info("==================================================================================")
     for dom_key, count in sorted(domain_counts.items(), key=lambda x: x[1], reverse=True):
         label = nlp_classifier.CANONICAL_DOMAINS.get(dom_key, {}).get("label", dom_key)
         pct = (count / total_tenders) * 100 if total_tenders else 0
         logger.info(f"  📌 {label:<35} : {count:>4} tenders ({pct:.1f}%)")
 
-    logger.info(f"----------------------------------------------------------------------------------")
+    logger.info("----------------------------------------------------------------------------------")
     logger.info(f"  Total Files Needing Folder Re-allocation: {moved_count}")
     if args.dry_run:
-        logger.info(f"  [DRY RUN] Run without --dry-run to apply file moves and update metadata.json.")
+        logger.info("  [DRY RUN] Run without --dry-run to apply file moves and update metadata.json.")
     else:
-        logger.info(f"  [COMPLETED] Resegregation successfully applied to local storage.")
-    logger.info(f"==================================================================================\n")
+        logger.info("  [COMPLETED] Resegregation successfully applied to local storage.")
+    logger.info("==================================================================================\n")
 
 
 if __name__ == "__main__":

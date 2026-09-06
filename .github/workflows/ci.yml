@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: windows-latest  # the app is Windows-first (PowerShell scripts, NTFS paths)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Test
+        # Network-marked tests hit live portals; they cannot run in CI.
+        run: uv run pytest -m "not network" --cov=gemsentry --cov-report=term-missing
+
+  bind-safety:
+    # Guards the one setting that would expose the API to the network.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv python install 3.12
+      - run: uv sync --group dev
+      - name: Default bind must stay on loopback
+        run: uv run python -c "import paths; h = paths.load_server_config()['host']; assert h == '127.0.0.1', f'default host regressed to {h}'"

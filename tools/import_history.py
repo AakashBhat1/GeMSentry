@@ -18,7 +18,7 @@ import os
 import re
 import statistics
 import sys
-from collections import Counter, defaultdict
+from collections import Counter
 
 try:
     import openpyxl

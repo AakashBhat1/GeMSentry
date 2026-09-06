@@ -11,7 +11,7 @@ import os
 from collections import deque
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
-from typing import Callable, Deque, List, Optional
+from collections.abc import Callable
 
 import paths
 
@@ -20,11 +20,11 @@ LOGGER_NAME = "gemsentry"
 
 # Bounded live buffer shared with app.py /api/status (BE-24)
 LOG_BUFFER_MAX = 500
-log_buffer: Deque[str] = deque(maxlen=LOG_BUFFER_MAX)
+log_buffer: deque[str] = deque(maxlen=LOG_BUFFER_MAX)
 
 # Current / last scrape session file path (absolute)
-_current_session_path: Optional[str] = None
-_current_session_handler: Optional[logging.Handler] = None
+_current_session_path: str | None = None
+_current_session_handler: logging.Handler | None = None
 
 
 class CallbackHandler(logging.Handler):
@@ -46,7 +46,7 @@ class CallbackHandler(logging.Handler):
 class BufferHandler(logging.Handler):
     """Append formatted lines to the bounded in-memory deque."""
 
-    def __init__(self, buffer: Deque[str], level: int = logging.INFO):
+    def __init__(self, buffer: deque[str], level: int = logging.INFO):
         super().__init__(level=level)
         self.buffer = buffer
         self.setFormatter(
@@ -116,11 +116,11 @@ def clear_log_buffer() -> None:
     log_buffer.clear()
 
 
-def get_log_buffer_lines() -> List[str]:
+def get_log_buffer_lines() -> list[str]:
     return list(log_buffer)
 
 
-def get_session_path() -> Optional[str]:
+def get_session_path() -> str | None:
     return _current_session_path
 
 
@@ -172,7 +172,7 @@ def attach_callback(callback: Callable[[str], None]) -> CallbackHandler:
     return handler
 
 
-def detach_handler(handler: Optional[logging.Handler]) -> None:
+def detach_handler(handler: logging.Handler | None) -> None:
     if handler is None:
         return
     logger = get_logger()
@@ -183,7 +183,7 @@ def detach_handler(handler: Optional[logging.Handler]) -> None:
         pass
 
 
-def list_session_logs(limit: int = 20) -> List[dict]:
+def list_session_logs(limit: int = 20) -> list[dict]:
     """Newest session log files under logs/scrapes/ (max `limit`)."""
     paths.ensure_dirs()
     entries = []
@@ -214,12 +214,12 @@ def list_session_logs(limit: int = 20) -> List[dict]:
     return entries[:limit]
 
 
-def tail_file(abs_path: str, lines: int = 100) -> List[str]:
+def tail_file(abs_path: str, lines: int = 100) -> list[str]:
     """Return last `lines` of a text file (UTF-8, best-effort)."""
     if not abs_path or not os.path.isfile(abs_path):
         return []
     try:
-        with open(abs_path, "r", encoding="utf-8", errors="replace") as f:
+        with open(abs_path, encoding="utf-8", errors="replace") as f:
             # Efficient enough for log tails under a few MB
             content = f.readlines()
         return [ln.rstrip("\n\r") for ln in content[-lines:]]
@@ -227,7 +227,7 @@ def tail_file(abs_path: str, lines: int = 100) -> List[str]:
         return []
 
 
-def safe_logs_path(candidate: str) -> Optional[str]:
+def safe_logs_path(candidate: str) -> str | None:
     """Resolve path only if it stays under LOGS_DIR."""
     if not candidate:
         return None

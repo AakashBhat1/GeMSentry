@@ -285,7 +285,7 @@ def test_business_line_cites_only_its_own_keywords():
         {"verdict": "unknown"}, PROFILE, CFG,
         card_meta={"title": "CRIME ANALYTICS AND MAPPING SOFTWARE"})
     assert bl is not None
-    line = next(l for l in PROFILE["business_lines"] if l["label"] == bl["label"])
+    line = next(b for b in PROFILE["business_lines"] if b["label"] == bl["label"])
     own = {k.lower() for k in line["keywords"]}
     foreign = [k for k in bl["matched_keywords"] if k.lower() not in own]
     assert not foreign, f"{bl['label']} credited with foreign keywords: {foreign}"

@@ -24,7 +24,7 @@ Write-Host "Activating virtual environment..." -ForegroundColor DarkGray
 
 # 4. Check dependencies
 Write-Host "Checking dependencies..." -ForegroundColor DarkGray
-python -m pip install -r requirements.txt --quiet
+python -m pip install -e . --quiet
 
 # 5. Playwright browser check
 python -m playwright install chromium

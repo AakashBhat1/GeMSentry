@@ -9,14 +9,14 @@ from __future__ import annotations
 import logging
 import os
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from gemsentry.textmatch import count_hits, keyword_hit
 
 logger = logging.getLogger("gemsentry.nlp")
 
 # Canonical Industry Domains Taxonomy
-CANONICAL_DOMAINS: Dict[str, Dict[str, Any]] = {
+CANONICAL_DOMAINS: dict[str, dict[str, Any]] = {
     "ai_and_data_science": {
         "label": "AI & Data Science",
         "description": "Artificial Intelligence, Machine Learning, Deep Learning, LLMs, NLP, Chatbots, Data Analytics",
@@ -419,15 +419,12 @@ def score_domain(keywords, title, category_text, keyword_hint, pdf_text, strong=
             continue
         seen_families.add(family)
 
-        in_subject = False
         in_title = keyword_hit(term, title)
         if in_title:
-            in_subject = True
             title_score += WEIGHT_TITLE
             reasons.append(f"Title: '{keyword}'")
 
         if keyword_hit(term, category_text):
-            in_subject = True
             category_score += WEIGHT_CATEGORY
             reasons.append(f"Category: '{keyword}'")
 
@@ -458,11 +455,11 @@ def score_domain(keywords, title, category_text, keyword_hint, pdf_text, strong=
 
 
 def classify_tender(
-    tender: Dict[str, Any],
-    pdf_text: Optional[str] = None,
-    pdf_path: Optional[str] = None,
+    tender: dict[str, Any],
+    pdf_text: str | None = None,
+    pdf_path: str | None = None,
     min_confidence: float = 0.15
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Classify a tender into a canonical domain.
 
     The result drives which folder a downloaded RFP is filed under, so an
@@ -500,8 +497,8 @@ def classify_tender(
         pdf_text = extract_pdf_text_sample(pdf_path, max_pages=5)
     pdf_norm = normalize_text(pdf_text or "")
 
-    domain_scores: Dict[str, float] = {}
-    matched_reasons: Dict[str, List[str]] = {}
+    domain_scores: dict[str, float] = {}
+    matched_reasons: dict[str, list[str]] = {}
     for domain_key, domain_info in CANONICAL_DOMAINS.items():
         if domain_key == "uncategorized_general":
             continue
