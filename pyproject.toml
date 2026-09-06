@@ -53,7 +53,12 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# live_test / download_and_parse_test hit the network; opt in with -m network
+# Only test_*.py. tests/live_test.py and tests/download_and_parse_test.py are
+# manual scripts that launch Playwright against the live portal in their module
+# body -- pytest's default `*_test.py` pattern collected them, so merely
+# *importing* them ran a real scrape on every test run (and fails in CI, which
+# has no browser). Run them by hand: `python tests/live_test.py`.
+python_files = ["test_*.py"]
 addopts = "-q --strict-markers"
 markers = ["network: test requires live network access (deselected by default)"]
 
