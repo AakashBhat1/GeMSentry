@@ -935,6 +935,7 @@
                 if (search) {
                     search.placeholder = `Search ${knownKeywords.length} keywords… (e.g. lead acid, vrla, tubular)`;
                 }
+                updatePresetCoverage();
                 applyKeywordSearch();
             } catch (err) {
                 console.error("Failed to load keywords for modal:", err);
@@ -1048,64 +1049,107 @@
             }
         }
 
+        // Quick-preset taxonomy for the keyword picker.
+        //
+        // Every keyword in config/keywords.csv must be reachable from at least
+        // one chip; tests/test_keyword_presets.py fails if one is not, and the
+        // "❓ Uncategorised" chip is the runtime safety net for keywords added
+        // to the CSV after that check last ran.
         const TECHNICAL_CATEGORIES = {
             solar_broad: [
-                "solar", "solar panels", "panels", "panel", "solar power plant", "solar epc", 
-                "solar project", "solar pv", "solar photovoltaic", "renewable energy", 
-                "green energy", "rooftop solar", "on grid solar", "off grid solar", 
-                "hybrid solar", "pm surya ghar", "residential rooftop solar", 
-                "government building solar", "sitc solar", "epc solar", "turnkey solar", 
-                "solar installation", "solar commissioning", "solar o&m", "annual maintenance solar", 
-                "solar panel", "solar module", "mono perc", "topcon module", "bifacial module", 
-                "solar inverter", "string inverter", "central inverter", "hybrid inverter", 
-                "battery energy storage system", "bess", "lithium battery", "solar battery", 
-                "solar cable", "solar mounting structure", "module mounting structure", 
-                "solar junction box", "ground mounted solar", "solar street light", 
-                "solar high mast", "solar led street light", "solar pump", 
-                "solar water pump", "pm kusum", "kusum component b", "kusum component c"
+                "solar", "solar panels", "panels", "panel", "solar power plant", "solar epc",
+                "solar project", "solar pv", "solar photovoltaic", "renewable energy",
+                "green energy", "rooftop solar", "on grid solar", "off grid solar",
+                "hybrid solar", "pm surya ghar", "residential rooftop solar",
+                "government building solar", "sitc solar", "epc solar", "turnkey solar",
+                "solar installation", "solar commissioning", "solar o&m", "annual maintenance solar",
+                "solar panel", "solar module", "mono perc", "topcon module", "bifacial module",
+                "solar inverter", "string inverter", "central inverter", "hybrid inverter",
+                "battery energy storage system", "bess", "lithium battery", "solar battery",
+                "solar cable", "solar mounting structure", "module mounting structure",
+                "solar junction box", "ground mounted solar", "solar street light",
+                "solar high mast", "solar led street light", "solar pump",
+                "solar water pump", "pm kusum", "kusum component b", "kusum component c",
+                "design supply installation testing commissioning"
             ],
             power_electrical: [
-                "power", "power supply", "psu", "lvpsu", "hvpsu", "transformer", 
-                "substation", "switchgear", "gis substation", "discom", "power distribution", 
-                "electrical testing", "electrical commissioning", "solid state power amplifier", 
-                "amplifier", "resistors", "cables", "cable", "rectifiers", "harness", 
-                "relay", "connectors", "repairing (electronics)", "supply", "meter", "metering", 
-                "smart meter", "energy meter", "ht equipment", "lt equipment", "ht/lt equipment"
+                "power", "power supply", "psu", "lvpsu", "hvpsu", "transformer",
+                "substation", "switchgear", "gis substation", "discom", "power distribution",
+                "electrical testing", "electrical commissioning", "solid state power amplifier",
+                "amplifier", "resistors", "cables", "cable", "rectifiers", "harness",
+                "relay", "connectors", "repairing (electronics)", "supply",
+                "ht equipment", "lt equipment", "ht/lt equipment",
+                // Bare "inverter" sits outside the solar-prefixed variants above.
+                "inverter", "current transformer"
+            ],
+            smart_metering: [
+                "meter", "metering", "smart meter", "smart metering", "smart energy meter",
+                "electricity smart meter", "energy meter", "electronic energy meter",
+                "digital energy meter", "multifunction meter", "net meter", "net metering",
+                "prepaid meter", "smart prepaid meter", "ami",
+                "advanced metering infrastructure", "amisp", "ami service provider",
+                "meter data management", "mdm", "hes", "head end system",
+                "rf mesh", "rf communication", "nb-iot meter", "lorawan meter",
+                "gprs meter", "cellular smart meter", "iot energy meter",
+                "remote meter reading", "automatic meter reading", "amr",
+                "distribution metering", "feeder metering", "dt metering",
+                "consumer metering", "lt meter", "ht meter", "three phase meter",
+                "single phase meter", "mdas", "scada integration", "energy accounting",
+                "smart grid", "rdss smart meter", "dbfoot smart meter",
+                "meter installation", "meter replacement", "smart meter o&m",
+                "ct operated meter", "meter box", "meter enclosure",
+                "meter communication module", "dcu", "data concentrator unit",
+                "gateway", "meter testing equipment"
             ],
             ai_software: [
-                "ai", "artificial intelligence", "machine learning", "deep learning", "computer vision", 
-                "object detection", "video analytics", "generative ai", "large language model", 
-                "llm", "chatbot", "natural language processing", "nlp", "neural network", 
-                "predictive analytics", "data analytics", "data science", "big data", 
-                "image recognition", "speech recognition", "software", "development", 
-                "cloud computing", "cloud migration", "cybersecurity", "firewall", 
-                "endpoint security", "security", "penetration testing", "vulnerability assessment", 
-                "erp", "crm", "enterprise software", "database", "data warehouse", 
-                "business intelligence", "iot", "internet of things", "smart city", 
-                "edge computing", "embedded system", "embedded software", "scada", 
-                "automation", "blockchain", "digital twin", "augmented reality", 
-                "virtual reality", "it infrastructure", "system integration", 
-                "data center", "digital transformation", "e-governance", 
-                "website development", "web portal", "custom software", 
+                "ai", "artificial intelligence", "machine learning", "deep learning", "computer vision",
+                "object detection", "video analytics", "generative ai", "large language model",
+                "llm", "chatbot", "natural language processing", "nlp", "neural network",
+                "predictive analytics", "data analytics", "data science", "big data",
+                "image recognition", "speech recognition", "software", "development",
+                "cloud computing", "cloud migration", "cybersecurity", "firewall",
+                "endpoint security", "penetration testing", "vulnerability assessment",
+                "erp", "crm", "enterprise software", "database", "data warehouse",
+                "business intelligence", "iot", "internet of things", "smart city",
+                "edge computing", "embedded system", "embedded software", "scada",
+                "automation", "robotic process automation", "rpa", "blockchain",
+                "digital twin", "augmented reality",
+                "virtual reality", "it infrastructure", "system integration",
+                "data center", "server", "digital transformation", "e-governance",
+                "website development", "web portal", "custom software",
                 "application development", "api integration", "mobile application"
             ],
+            security_surveillance: [
+                "security", "cybersecurity", "firewall", "endpoint security",
+                "penetration testing", "vulnerability assessment", "surveillance",
+                "cctv", "video analytics", "facial recognition", "face recognition",
+                "biometric", "biometrics", "fingerprint", "access control"
+            ],
             defence_avionics: [
-                "defence", "military", "military grade", "radar", "drone", "drones", 
-                "unmanned aerial vehicles (uavs)", "multirotor", "quadcopter", "gis", 
-                "mapping", "cctv", "data aquisition", "indigenous & development", "design", 
-                "mechanical", "repair", "repairing", "avionics"
+                "defence", "military", "military grade", "radar", "gis",
+                "mapping", "cctv", "data aquisition", "indigenous",
+                "indigenous & development", "design",
+                "mechanical", "repair", "repairing", "avionics",
+                "military engineering services"
+            ],
+            drones_uav: [
+                "drone", "drones", "uav", "uavs", "unmanned aerial vehicle",
+                "unmanned aerial vehicles (uavs)", "unmanned aircraft",
+                "remotely piloted aircraft", "multirotor", "quadcopter",
+                "fixed wing drone", "drone survey", "uav survey", "aerial survey",
+                "airborne lidar", "lidar survey", "orthomosaic", "photogrammetry"
             ],
             dgps_gis_survey: [
-                "dgps", "dgps survey", "differential gps", "gis", "gis survey", "gis mapping", 
-                "geographical information system", "geospatial", "geospatial survey", 
-                "geospatial mapping", "topographic survey", "topographical survey", 
-                "cadastral survey", "drone survey", "uav survey", "aerial survey", 
-                "lidar survey", "airborne lidar", "bathymetric survey", "hydrographic survey", 
-                "total station survey", "total station", "contour survey", "land survey", 
-                "boundary survey", "georeferencing", "orthomosaic", "photogrammetry", 
-                "digital elevation model", "dem", "dtm", "dsm", "ground control points", 
-                "gcp", "rtk survey", "gnss survey", "subsurface utility engineering", 
-                "sue survey", "utility mapping", "thematic mapping", "remote sensing", 
+                "dgps", "dgps survey", "differential gps", "gis", "gis survey", "gis mapping",
+                "geographical information system", "geospatial", "geospatial survey",
+                "geospatial mapping", "topographic survey", "topographical survey",
+                "cadastral survey", "drone survey", "uav survey", "aerial survey",
+                "lidar survey", "airborne lidar", "bathymetric survey", "hydrographic survey",
+                "total station survey", "total station", "contour survey", "land survey",
+                "boundary survey", "georeferencing", "orthomosaic", "photogrammetry",
+                "digital elevation model", "dem", "dtm", "dsm", "ground control points",
+                "gcp", "rtk survey", "gnss survey", "subsurface utility engineering",
+                "sue survey", "utility mapping", "thematic mapping", "remote sensing",
                 "satellite imagery", "as-built survey", "geotechnical survey", "geophysical survey"
             ],
             battery_storage: [
@@ -1113,7 +1157,7 @@
                 "energy storage system", "lithium battery", "lithium ion battery",
                 "lithium iron phosphate", "lifepo4 battery", "lfp battery",
                 "solar battery", "battery pack", "battery bank", "battery set",
-                "battery charger", "battery charging system",
+                "battery cell", "battery charger", "battery charging system",
                 "battery management system", "battery container", "battery rack",
                 "battery stand", "battery cable", "battery terminal",
                 "battery tester", "battery load tester", "battery replacement",
@@ -1132,7 +1176,7 @@
                 "agm battery", "absorbent glass mat battery",
                 "nickel cadmium battery", "ni-cd battery", "telecom battery",
                 "dg set battery", "automotive battery", "sli battery",
-                "2v lead acid cell", "2v battery cell", "12v battery",
+                "lead acid cell", "2v lead acid cell", "2v battery cell", "12v battery",
                 "12v 100ah battery", "100ah battery", "150ah battery",
                 "200ah battery", "c10 rating battery", "battery electrolyte",
                 "lead scrap"
@@ -1141,14 +1185,32 @@
                 "ev", "ev charging", "electric vehicle charger", "charging station"
             ],
             lighting_mast: [
-                "light", "lights", "lighting", "solar street light", "solar high mast", 
+                "light", "lights", "lighting", "solar street light", "solar high mast",
                 "solar led street light", "cctv"
             ],
             pumps_kusum: [
-                "pump", "pumps", "solar pump", "solar water pump", "pm kusum", 
+                "pump", "pumps", "solar pump", "solar water pump", "pm kusum",
                 "kusum component b", "kusum component c"
             ]
         };
+
+        // Buyer and scheme names rather than technologies. Kept out of
+        // TECHNICAL_CATEGORIES so "🚀 All Technical" keeps meaning "everything we
+        // can build", not "every keyword in the file".
+        const BUYER_CATEGORIES = {
+            buyers_agencies: [
+                "discom", "state electricity board", "electricity distribution company",
+                "rec pdcl", "energy department", "power department",
+                "smart grid mission", "seci", "ntpc", "nhpc", "sjvn", "nlc india",
+                "mnre", "cpwd", "railways", "airports authority of india",
+                "military engineering services",
+                "state renewable energy development agencies", "municipal corporation"
+            ]
+        };
+
+        // What a preset chip resolves against. Presets may overlap on purpose --
+        // "drone survey" belongs to both 🚁 Drones and 🛰️ Survey.
+        const KEYWORD_CATEGORIES = { ...TECHNICAL_CATEGORIES, ...BUYER_CATEGORIES };
 
         // Mirrors gemsentry/textmatch.py:keyword_hit. Raw substring matching made
         // a preset tick half the list: "ai" sits inside "maintenance", "ev" inside
@@ -1191,17 +1253,29 @@
             const selectedOnly = document.getElementById('keywordShowSelected');
             if (selectedOnly) selectedOnly.checked = false;
 
-            const boxes = document.getElementsByName('keywordCheckbox');
+            const boxes = Array.from(document.getElementsByName('keywordCheckbox'));
+
+            // "All Technical" replaces the selection; the other chips add to it,
+            // so several presets can be stacked into one search.
             if (categoryKey === 'all_technical') {
                 const allTech = Object.values(TECHNICAL_CATEGORIES).flat();
                 boxes.forEach(b => {
-                    const val = b.value.toLowerCase().trim();
-                    b.checked = allTech.some(t => termMatchesKeyword(t, val));
+                    b.checked = allTech.some(t => termMatchesKeyword(t, b.value.toLowerCase().trim()));
                 });
                 applyKeywordSearch();
                 return;
             }
-            const targetTerms = TECHNICAL_CATEGORIES[categoryKey] || [];
+
+            // The safety net: whatever the curated chips do not reach. Empty in
+            // a healthy build, non-empty the moment keywords.csv grows a term
+            // nobody has filed yet — so no keyword is ever unreachable.
+            if (categoryKey === 'uncategorised') {
+                uncategorisedKeywordBoxes().forEach(b => { b.checked = true; });
+                applyKeywordSearch();
+                return;
+            }
+
+            const targetTerms = KEYWORD_CATEGORIES[categoryKey] || [];
             boxes.forEach(b => {
                 const val = b.value.toLowerCase().trim();
                 if (targetTerms.some(t => termMatchesKeyword(t, val))) {
@@ -1209,6 +1283,31 @@
                 }
             });
             applyKeywordSearch();
+        }
+
+        function keywordIsCategorised(keyword) {
+            const val = String(keyword || '').toLowerCase().trim();
+            return Object.values(KEYWORD_CATEGORIES)
+                .some(terms => terms.some(t => termMatchesKeyword(t, val)));
+        }
+
+        function uncategorisedKeywordBoxes() {
+            return Array.from(document.getElementsByName('keywordCheckbox'))
+                .filter(b => !keywordIsCategorised(b.value));
+        }
+
+        // Shows the ❓ chip only when it has something to offer, and puts the
+        // count on it so an unfiled keyword is visible rather than merely
+        // reachable.
+        function updatePresetCoverage() {
+            const chip = document.getElementById('uncategorisedChip');
+            if (!chip) return;
+            const orphans = uncategorisedKeywordBoxes();
+            chip.style.display = orphans.length ? '' : 'none';
+            chip.textContent = `❓ Uncategorised (${orphans.length})`;
+            chip.title = orphans.length
+                ? `Not covered by any preset: ${orphans.map(b => b.value).join(', ')}`
+                : '';
         }
 
         // Scoped to what is on screen: with a search active, "Select All" means

@@ -990,6 +990,15 @@
             font-weight: 600;
         }
 
+        /* Keywords no curated preset reaches. Warning-coloured because it
+           appearing at all means the taxonomy has fallen behind keywords.csv. */
+        .kw-cat-chip-orphan {
+            background: var(--warning-bg);
+            color: var(--warning-color);
+            border-color: var(--warning-border);
+            font-weight: 600;
+        }
+
         /* Keywords Grid */
         .keywords-grid-container {
             display: flex;

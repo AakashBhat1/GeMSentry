@@ -399,14 +399,22 @@
                     <span style="font-size: 0.75rem; color: var(--text-secondary); margin-right: 0.25rem; font-weight: 500;">Quick Presets:</span>
                     <button class="kw-cat-chip" onclick="selectCategoryKeywords('solar_broad')">☀️ Solar &amp; Panels</button>
                     <button class="kw-cat-chip" onclick="selectCategoryKeywords('power_electrical')">⚡ Power &amp; Electricals</button>
+                    <button class="kw-cat-chip" onclick="selectCategoryKeywords('smart_metering')">📟 Smart Metering &amp; AMI</button>
                     <button class="kw-cat-chip" onclick="selectCategoryKeywords('ai_software')">🤖 AI &amp; Software</button>
+                    <button class="kw-cat-chip" onclick="selectCategoryKeywords('security_surveillance')">🔐 Security &amp; Surveillance</button>
                     <button class="kw-cat-chip" onclick="selectCategoryKeywords('defence_avionics')">🛡️ Defence &amp; Avionics</button>
+                    <button class="kw-cat-chip" onclick="selectCategoryKeywords('drones_uav')">🚁 Drones &amp; UAV</button>
                     <button class="kw-cat-chip" onclick="selectCategoryKeywords('dgps_gis_survey')">🛰️ DGPS &amp; GIS Survey</button>
                     <button class="kw-cat-chip" onclick="selectCategoryKeywords('battery_storage')">🔋 Battery &amp; BESS</button>
                     <button class="kw-cat-chip" onclick="selectCategoryKeywords('lead_acid')">🪫 Lead-Acid &amp; VRLA</button>
                     <button class="kw-cat-chip" onclick="selectCategoryKeywords('ev_infrastructure')">🚗 EV Charging</button>
                     <button class="kw-cat-chip" onclick="selectCategoryKeywords('lighting_mast')">💡 Lighting &amp; High Mast</button>
                     <button class="kw-cat-chip" onclick="selectCategoryKeywords('pumps_kusum')">🌊 Solar Pumps &amp; KUSUM</button>
+                    <button class="kw-cat-chip" onclick="selectCategoryKeywords('buyers_agencies')">🏛️ Buyers &amp; PSUs</button>
+                    <!-- Populated and shown by updatePresetCoverage(): visible only
+                         when keywords.csv holds a term no preset above reaches. -->
+                    <button class="kw-cat-chip kw-cat-chip-orphan" id="uncategorisedChip"
+                            style="display: none;" onclick="selectCategoryKeywords('uncategorised')">❓ Uncategorised</button>
                     <button class="kw-cat-chip kw-cat-chip-accent" onclick="selectCategoryKeywords('all_technical')" style="margin-left: auto;">🚀 All Technical</button>
                     <button class="kw-cat-chip" onclick="selectAllKeywords()">Select All</button>
                     <button class="kw-cat-chip" onclick="clearAllKeywords()">Clear All</button>
