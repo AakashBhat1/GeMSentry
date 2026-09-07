@@ -2047,6 +2047,55 @@
             border-color: var(--accent-border);
         }
 
+        .vendor-filter-pill {
+            padding: 0.32rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            border: 1px solid var(--border-color);
+            background: var(--surface-sunken);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .vendor-filter-pill:hover {
+            color: var(--text-primary);
+            border-color: var(--text-muted);
+        }
+
+        .vendor-filter-pill.active {
+            background: var(--surface-card);
+            color: var(--text-primary);
+            font-weight: 700;
+            border-color: var(--primary-accent);
+            box-shadow: 0 0 0 1px var(--primary-accent);
+        }
+
+        .vendor-filter-pill.active.pill-drone {
+            border-color: #ef4444;
+            box-shadow: 0 0 0 1px #ef4444;
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.14);
+        }
+
+        .vendor-filter-pill.active.pill-power {
+            border-color: #eab308;
+            box-shadow: 0 0 0 1px #eab308;
+            color: #eab308;
+            background: rgba(234, 179, 8, 0.14);
+        }
+
+        .vendor-filter-pill.active.pill-bio {
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 1px #60a5fa;
+            color: #60a5fa;
+            background: rgba(59, 130, 246, 0.14);
+        }
+
         .master-sheet-table {
             width: 100%;
             border-collapse: collapse;

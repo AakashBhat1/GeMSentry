@@ -20,6 +20,13 @@
     "remarks": "",
     "target_sheet": "UNDER DETAILED STUDY",
     "finalized_at": "2026-09-05T17:50:49.147236",
-    "est_value_inr": null
+    "est_value_inr": null,
+    "vendor_id": "drone",
+    "vendor_name": "Rajiv Mittal",
+    "vendor_color": "FEE2E2",
+    "vendor_web_color": "#FEE2E2",
+    "vendor_category": "Drone / UAV",
+    "tech_spec_url": "",
+    "tech_spec_filename": ""
   }
 ]

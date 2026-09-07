@@ -203,3 +203,184 @@ def test_api_finalized_endpoints(monkeypatch):
     sync_data = res_sync.get_json()
     assert sync_data["status"] == "ok"
 
+
+def test_vendor_detection_and_coloring(temp_manager):
+    # 1. Drone tender -> Rajiv Mittal (Red: FEE2E2)
+    drone_tender = {
+        "bid_no": "TEST/DRONE/001",
+        "title": "Quadrotor UAV Surveillance Drone System",
+        "department": "BSF",
+        "analysis": {"business_line": {"id": "drone", "label": "Drone / UAV"}}
+    }
+    res_drone = temp_manager.finalize_tender(drone_tender)
+    assert res_drone["status"] == "ok"
+    rec_drone = res_drone["record"]
+    assert rec_drone["vendor_id"] == "drone"
+    assert rec_drone["vendor_name"] == "Rajiv Mittal"
+    assert rec_drone["vendor_color"] == "FEE2E2"
+
+    # 2. Power Supply tender -> Rajiv Tyagi (Yellow: FEF08A)
+    power_tender = {
+        "bid_no": "TEST/POWER/002",
+        "title": "High Voltage Static Convertor and Rectifier Unit",
+        "department": "DRDO",
+        "analysis": {"business_line": {"id": "power_supply", "label": "Power Supply / Electrical"}}
+    }
+    res_power = temp_manager.finalize_tender(power_tender)
+    assert res_power["status"] == "ok"
+    rec_power = res_power["record"]
+    assert rec_power["vendor_id"] == "power_supply"
+    assert rec_power["vendor_name"] == "Rajiv Tyagi"
+    assert rec_power["vendor_color"] == "FEF08A"
+
+    # 3. Biometrics tender -> Hanmars (Blue: BFDBFE)
+    bio_tender = {
+        "bid_no": "TEST/BIO/003",
+        "title": "Aadhaar Facial Recognition and Biometric Attendance Terminal",
+        "department": "CRPF",
+        "analysis": {"business_line": {"id": "biometrics", "label": "Biometrics & Facial Recognition"}}
+    }
+    res_bio = temp_manager.finalize_tender(bio_tender)
+    assert res_bio["status"] == "ok"
+    rec_bio = res_bio["record"]
+    assert rec_bio["vendor_id"] == "biometrics"
+    assert rec_bio["vendor_name"] == "Hanmars"
+    assert rec_bio["vendor_color"] == "BFDBFE"
+
+    # 4. Manual Vendor Override
+    override_tender = {
+        "bid_no": "TEST/OVERRIDE/004",
+        "title": "Generic Rugged IT Workstation",
+        "department": "Army"
+    }
+    res_over = temp_manager.finalize_tender(
+        override_tender,
+        custom_fields={"assigned_vendor": "drone"}
+    )
+    rec_over = res_over["record"]
+    assert rec_over["vendor_id"] == "drone"
+    assert rec_over["vendor_name"] == "Rajiv Mittal"
+    assert rec_over["vendor_color"] == "FEE2E2"
+
+    # 5. Check Excel workbook cell fill colors
+    active_path = temp_manager._get_active_master_paths()[0]
+    wb = openpyxl.load_workbook(active_path, data_only=False)
+    ws = wb["MASTER"]
+    # Header is row 4, rows 5-8 are the 4 tenders
+    # Check cell fill for Drone row (row 5)
+    drone_cell = ws.cell(row=5, column=1)
+    assert drone_cell.fill is not None
+    assert drone_cell.fill.start_color.rgb == "00FEE2E2" or drone_cell.fill.start_color.rgb == "FEE2E2"
+
+    # Check cell fill for Power Supply row (row 6)
+    power_cell = ws.cell(row=6, column=1)
+    assert power_cell.fill is not None
+    assert power_cell.fill.start_color.rgb == "00FEF08A" or power_cell.fill.start_color.rgb == "FEF08A"
+
+    # Check cell fill for Biometrics row (row 7)
+    bio_cell = ws.cell(row=7, column=1)
+    assert bio_cell.fill is not None
+    assert bio_cell.fill.start_color.rgb == "00BFDBFE" or bio_cell.fill.start_color.rgb == "BFDBFE"
+
+    wb.close()
+
+    # 6. Check payload structure
+    payload = temp_manager._build_gsheet_payload(rec_drone, target_sheet="MASTER")
+    assert payload["vendor_id"] == "drone"
+    assert payload["vendor_name"] == "Rajiv Mittal"
+    assert payload["vendor_color"] == "FEE2E2"
+    assert "vendor_sheets" in payload
+    assert "tech_spec_url" in payload
+
+
+def test_tech_spec_attachment_and_sync(temp_manager):
+    # 1. Finalize tender without spec sheet
+    tender = {
+        "bid_no": "TEST/SPEC/001",
+        "title": "Tactical UAV System",
+        "department": "BSF",
+        "analysis": {"business_line": {"label": "DRONES"}}
+    }
+    fin = temp_manager.finalize_tender(tender)
+    assert fin["status"] == "ok"
+    assert fin["record"]["tech_spec_url"] == ""
+
+    # 2. Attach Google Doc URL
+    doc_url = "https://docs.google.com/document/d/1ABCXYZ_Drone_Spec/edit?usp=sharing"
+    res = temp_manager.update_tech_spec(
+        bid_no="TEST/SPEC/001",
+        tech_spec_url=doc_url,
+        filename="drone_spec_doc"
+    )
+    assert res["status"] == "ok"
+    assert res["tech_spec_url"] == doc_url
+    assert res["vendor_id"] == "drone"
+    assert res["vendor_name"] == "Rajiv Mittal"
+
+    # Verify record in manager
+    rec = temp_manager.get_record("TEST/SPEC/001")
+    assert rec["tech_spec_url"] == doc_url
+    assert rec["tech_spec_filename"] == "drone_spec_doc"
+    assert rec["tech_spec_updated_at"] != ""
+
+    # Verify payload reflects tech_spec_url
+    payload = temp_manager._build_gsheet_payload(rec, target_sheet="MASTER")
+    assert payload["tech_spec_url"] == doc_url
+
+    # 3. Test uploading file bytes locally
+    file_content = b"%PDF-1.4 Mock PDF Technical Specification for Drone"
+    res_file = temp_manager.update_tech_spec(
+        bid_no="TEST/SPEC/001",
+        filename="uav_tech_specs.pdf",
+        file_bytes=file_content
+    )
+    assert res_file["status"] == "ok"
+    assert res_file["tech_spec_filename"] == "uav_tech_specs.pdf"
+    assert "spec-sheet" in res_file["tech_spec_url"] or "drive.google.com" in res_file["tech_spec_url"]
+
+    # Verify saved on disk
+    import paths
+    spec_file = os.path.join(paths.TECH_SPECS_DIR, "TEST_SPEC_001", "uav_tech_specs.pdf")
+    assert os.path.exists(spec_file)
+    with open(spec_file, "rb") as f:
+        assert f.read() == file_content
+
+
+def test_web_endpoints_spec_sheet(temp_manager, monkeypatch):
+    import app as flask_app
+    from io import BytesIO
+    client = flask_app.app.test_client()
+
+    # Pre-finalize a tender
+    temp_manager.finalize_tender({"bid_no": "TEST/ENDPOINT/001", "title": "CCTV and Biometric Access Control"})
+    monkeypatch.setattr("gemsentry.web.master_sheet.master_sheet_manager", temp_manager)
+
+    # 1. Update spec sheet with Google Doc URL
+    res = client.post("/api/finalized/update-spec-sheet", json={
+        "bid_no": "TEST/ENDPOINT/001",
+        "tech_spec_url": "https://docs.google.com/document/d/my_spec_doc"
+    })
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data["status"] == "ok"
+    assert data["tech_spec_url"] == "https://docs.google.com/document/d/my_spec_doc"
+
+    # 2. Upload a spec sheet file
+    file_data = (BytesIO(b"%PDF-1.4 Biometric Specifications"), "biometric_spec.pdf")
+    res_up = client.post("/api/finalized/upload-spec-sheet", data={
+        "bid_no": "TEST/ENDPOINT/001",
+        "file": file_data
+    }, content_type="multipart/form-data")
+    assert res_up.status_code == 200
+    up_data = res_up.get_json()
+    assert up_data["status"] == "ok"
+    assert up_data["tech_spec_filename"] == "biometric_spec.pdf"
+
+    # 3. Serve spec sheet file
+    res_serve = client.get("/api/finalized/spec-sheet/TEST_ENDPOINT_001")
+    assert res_serve.status_code == 200
+    assert b"Biometric Specifications" in res_serve.data
+
+
+
+

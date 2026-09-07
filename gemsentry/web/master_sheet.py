@@ -4,7 +4,8 @@ import logging
 import os
 
 import requests
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_from_directory
+from werkzeug.utils import secure_filename
 
 import paths
 from gemsentry.master_sheet import master_sheet_manager
@@ -46,6 +47,8 @@ def finalize_tender_endpoint():
 
         target_sheet = data.get("target_sheet") or "UNDER DETAILED STUDY"
         custom_fields = data.get("custom_fields") or {}
+        if "assigned_vendor" in data and "assigned_vendor" not in custom_fields:
+            custom_fields["assigned_vendor"] = data["assigned_vendor"]
 
         res = master_sheet_manager.finalize_tender(
             tender=tender,
@@ -53,6 +56,74 @@ def finalize_tender_endpoint():
             custom_fields=custom_fields
         )
         return jsonify(res)
+    except Exception as e:
+        return fail(e)
+
+
+@master_sheet_bp.route("/api/finalized/update-spec-sheet", methods=["POST"])
+def update_spec_sheet_endpoint():
+    """Attach or update the Google Doc or Tech Spec link for a finalized tender."""
+    try:
+        data = request.json or {}
+        bid_no = data.get("bid_no")
+        if not bid_no:
+            return jsonify({"error": "Missing bid_no in request."}), 400
+        tech_spec_url = (data.get("tech_spec_url") or "").strip()
+        filename = (data.get("filename") or "").strip()
+        assigned_vendor = data.get("assigned_vendor") or data.get("vendor_id")
+        res = master_sheet_manager.update_tech_spec(
+            bid_no=bid_no,
+            tech_spec_url=tech_spec_url or None,
+            filename=filename or None,
+            assigned_vendor=assigned_vendor
+        )
+        return jsonify(res)
+    except Exception as e:
+        return fail(e)
+
+
+@master_sheet_bp.route("/api/finalized/upload-spec-sheet", methods=["POST"])
+def upload_spec_sheet_endpoint():
+    """Upload a technical specification document (.pdf, .doc, .docx, etc.) for a tender."""
+    try:
+        bid_no = request.form.get("bid_no")
+        if not bid_no:
+            return jsonify({"error": "Missing bid_no in form data."}), 400
+        if "file" not in request.files:
+            return jsonify({"error": "No file uploaded."}), 400
+        uploaded_file = request.files["file"]
+        if not uploaded_file.filename:
+            return jsonify({"error": "Empty filename."}), 400
+
+        filename = secure_filename(uploaded_file.filename)
+        file_bytes = uploaded_file.read()
+        tech_spec_url = (request.form.get("tech_spec_url") or "").strip()
+        assigned_vendor = request.form.get("assigned_vendor") or request.form.get("vendor_id")
+
+        res = master_sheet_manager.update_tech_spec(
+            bid_no=bid_no,
+            tech_spec_url=tech_spec_url or None,
+            filename=filename,
+            file_bytes=file_bytes,
+            assigned_vendor=assigned_vendor
+        )
+        return jsonify(res)
+    except Exception as e:
+        return fail(e)
+
+
+@master_sheet_bp.route("/api/finalized/spec-sheet/<path:bid_slug>", methods=["GET"])
+def serve_spec_sheet_endpoint(bid_slug: str):
+    """Serve locally stored technical specification document."""
+    try:
+        clean_slug = os.path.basename(bid_slug)
+        folder = os.path.join(paths.TECH_SPECS_DIR, clean_slug)
+        if not os.path.exists(folder):
+            return jsonify({"error": "Spec sheet directory not found."}), 404
+        files = [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))]
+        if not files:
+            return jsonify({"error": "No files found in spec sheet directory."}), 404
+        return send_from_directory(folder, files[0], as_attachment=False)
     except Exception as e:
         return fail(e)
 

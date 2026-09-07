@@ -901,6 +901,36 @@
                     </div>
                 </div>
 
+                <div style="background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border-color);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                        <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Choose Destination Vendor Sheet</label>
+                        <span id="finalizeVendorBadgePreview" style="font-size: 0.72rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 4px; display: inline-block;">⚪ Master Only</span>
+                    </div>
+                    <select id="finalizeAssignedVendor" onchange="updateFinalizeVendorPreview()" style="width: 100%; padding: 0.6rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.85rem;">
+                        <option value="none" selected>⚪ Master Sheet Only (Internal — No Vendor Sheet)</option>
+                        <option value="drone">🔴 Rajiv Mittal (Drone / UAV Sheet)</option>
+                        <option value="power_supply">🟡 Rajiv Tyagi (Power Supply & Electrical Sheet)</option>
+                        <option value="biometrics">🔵 Hanmars (Biometrics & Face Recognition Sheet)</option>
+                    </select>
+                    <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.35rem;">
+                        Select where this requirement should go. No keyword guessing.
+                    </div>
+                </div>
+
+                <div style="background: rgba(255,255,255,0.02); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border-color);">
+                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.35rem;">
+                        <span>📑 Tech Spec Sheet (PDF or Google Doc)</span>
+                        <span style="color: var(--text-muted); font-weight: 400; text-transform: none; font-size: 0.72rem;">Optional — attach now or later</span>
+                    </label>
+                    <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+                        <input type="url" id="finalizeTechSpecUrl" placeholder="🔗 Paste Google Doc / Cloud Link (or upload PDF below)..." style="width: 100%; padding: 0.55rem 0.75rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.83rem;">
+                        <input type="file" id="finalizeTechSpecFile" accept=".pdf,.doc,.docx" style="width: 100%; padding: 0.4rem 0.6rem; border-radius: 6px; border: 1px dashed var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.8rem; cursor: pointer;">
+                    </div>
+                    <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.3rem;">
+                        If PDF uploaded, auto-uploads to Google Drive and links into the vendor sheet.
+                    </div>
+                </div>
+
                 <div>
                     <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; display: block; margin-bottom: 0.35rem;">Remarks / Notes (Optional)</label>
                     <input type="text" id="finalizeRemarks" placeholder="Optional notes, pre-bid info..." style="width: 100%; padding: 0.6rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.85rem;">
@@ -997,6 +1027,79 @@
         </div>
     </div>
 
+    <!-- Tech Spec Sheet / Google Doc Modal -->
+    <div id="modalSpecSheet" class="modal" style="z-index: 10001;">
+        <div class="modal-content" style="max-width: 580px;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <span style="font-size: 1.4rem;">📑</span>
+                    <div>
+                        <h3 class="modal-title">Attach / Update Tech Spec Sheet</h3>
+                        <div style="font-size: 0.76rem; color: var(--text-secondary); margin-top: 2px;">Syncs technical specification doc to vendor's Google Sheet (No bid details revealed)</div>
+                    </div>
+                </div>
+                <button class="modal-close" onclick="closeSpecSheetModal()">&times;</button>
+            </div>
+
+            <form id="formSpecSheet" onsubmit="event.preventDefault(); submitSpecSheet();" style="display: flex; flex-direction: column; gap: 1rem; padding-top: 1rem;">
+                <!-- Tender Summary Banner -->
+                <div style="background: var(--surface-sunken); padding: 0.85rem 1rem; border-radius: 8px; border: 1px solid var(--border-color); font-size: 0.85rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                        <span style="color: var(--text-muted); font-size: 0.72rem; font-weight: 700; text-transform: uppercase;">Tender ID</span>
+                        <span id="specModalBidNo" style="font-family: var(--font-mono); font-weight: 700; color: var(--primary-accent); font-size: 0.85rem;"></span>
+                    </div>
+                    <div id="specModalTitle" style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; line-height: 1.35; font-size: 0.88rem;"></div>
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 0.4rem; border-top: 1px dashed var(--border-color);">
+                        <label style="color: var(--text-muted); font-size: 0.72rem; font-weight: 700; text-transform: uppercase;">Destination Vendor Sheet</label>
+                        <select id="specModalVendorSelect" style="padding: 0.35rem 0.65rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.8rem; font-weight: 600;">
+                            <option value="none">⚪ Master Sheet Only (Unassigned)</option>
+                            <option value="drone">🔴 Rajiv Mittal (Drone / UAV Sheet)</option>
+                            <option value="power_supply">🟡 Rajiv Tyagi (Power Supply & Electrical Sheet)</option>
+                            <option value="biometrics">🔵 Hanmars (Biometrics & Face Rec Sheet)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Option A: Google Doc Link -->
+                <div>
+                    <label style="font-size: 0.78rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.35rem;">
+                        <span>🔗</span> Google Doc / Cloud Specification Link
+                    </label>
+                    <input type="url" id="specModalDocUrl" placeholder="https://docs.google.com/document/d/... or Drive URL" style="width: 100%; padding: 0.6rem 0.85rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.85rem;">
+                    <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.3rem;">
+                        Paste the public or shared Google Doc link for the vendor to review.
+                    </div>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 0.75rem; color: var(--text-muted); font-size: 0.72rem; font-weight: 700;">
+                    <div style="flex: 1; height: 1px; background: var(--border-color);"></div>
+                    <span>OR UPLOAD LOCAL SPEC FILE</span>
+                    <div style="flex: 1; height: 1px; background: var(--border-color);"></div>
+                </div>
+
+                <!-- Option B: File Upload -->
+                <div>
+                    <label style="font-size: 0.78rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.35rem;">
+                        <span>📎</span> Upload Spec Sheet File (PDF / Word / Excel)
+                    </label>
+                    <input type="file" id="specModalFile" accept=".pdf,.doc,.docx,.xls,.xlsx" style="width: 100%; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px dashed var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.82rem; cursor: pointer;">
+                    <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.3rem;">
+                        Automatically stored in data/tech_specs and uploaded to Google Drive if webhook is active.
+                    </div>
+                </div>
+
+                <div id="specModalStatusNotice" style="font-size: 0.76rem; padding: 0.6rem 0.85rem; border-radius: 6px; display: none; line-height: 1.4;"></div>
+
+                <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 0.5rem;">
+                    <button type="button" class="btn btn-secondary" onclick="closeSpecSheetModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btnSubmitSpecSheet" style="background: #2563eb; border-color: #1d4ed8; color: #fff; font-weight: 700;">
+                        <span>💾 Save & Sync to Vendor Sheet</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Master Sheet & Google Sheets Tracker Hub Modal -->
     <div id="finalizedHubModal" class="modal">
         <div class="modal-content" style="max-width: 1320px; width: 96vw; max-height: 90vh;">
@@ -1040,6 +1143,36 @@
                 </button>
             </div>
 
+            <!-- Category Filter Bar for Vendors (Separate 3 Categories to Easily Send Spec PDFs) -->
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+                    <span style="font-weight: 700; color: var(--text-secondary); text-transform: uppercase; font-size: 0.72rem; margin-right: 0.2rem;">Vendor Sheet:</span>
+                    <button type="button" class="vendor-filter-pill active" id="vfBtn_all" onclick="setVendorFilter('all')">
+                        <span>🌐 All Tenders</span>
+                        <span class="badge-count" id="vfCount_all">0</span>
+                    </button>
+                    <button type="button" class="vendor-filter-pill pill-drone" id="vfBtn_drone" onclick="setVendorFilter('drone')">
+                        <span>🔴 Drone / UAV (Rajiv Mittal)</span>
+                        <span class="badge-count" id="vfCount_drone">0</span>
+                    </button>
+                    <button type="button" class="vendor-filter-pill pill-power" id="vfBtn_power_supply" onclick="setVendorFilter('power_supply')">
+                        <span>🟡 Power Supply (Rajiv Tyagi)</span>
+                        <span class="badge-count" id="vfCount_power_supply">0</span>
+                    </button>
+                    <button type="button" class="vendor-filter-pill pill-bio" id="vfBtn_biometrics" onclick="setVendorFilter('biometrics')">
+                        <span>🔵 Biometrics (Hanmars)</span>
+                        <span class="badge-count" id="vfCount_biometrics">0</span>
+                    </button>
+                    <button type="button" class="vendor-filter-pill" id="vfBtn_general" onclick="setVendorFilter('general')">
+                        <span>⚪ Master Only</span>
+                        <span class="badge-count" id="vfCount_general">0</span>
+                    </button>
+                </div>
+                <div style="font-size: 0.76rem; color: var(--text-muted);">
+                    Click <strong style="color: #d97706;">➕ Attach Spec</strong> to upload or link a tech spec PDF
+                </div>
+            </div>
+
             <!-- Table View Container -->
             <div id="finalizedTableView" style="overflow-x: auto; max-height: 56vh; border: 1px solid var(--border-color); border-radius: 8px;">
                 <table class="master-sheet-table">
@@ -1049,6 +1182,8 @@
                             <th style="width: 140px;">Tender ID</th>
                             <th>Description</th>
                             <th>Organisation</th>
+                            <th style="width: 125px;">Vendor</th>
+                            <th style="width: 160px;">Tech Spec Sheet</th>
                             <th style="width: 90px;">Category</th>
                             <th style="width: 100px;">Deadline</th>
                             <th style="width: 100px;">RFP / Drive</th>
@@ -1078,6 +1213,39 @@
                                 <button class="btn btn-secondary" onclick="testCurrentWebhook()" id="btnTestWebhook" style="padding: 0.6rem 1rem; font-size: 0.8rem;">Test Webhook</button>
                             </div>
                             <div id="webhookTestResult" style="font-size: 0.8rem; margin-top: 0.35rem; display: none;"></div>
+                        </div>
+
+                        <!-- 3 Dedicated Vendor Google Sheets -->
+                        <div style="border-top: 1px solid var(--border-color); padding-top: 0.85rem; margin-top: 0.35rem;">
+                            <label style="font-size: 0.78rem; font-weight: 700; color: var(--primary-accent); text-transform: uppercase; display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.6rem;">
+                                <span>👥</span> 3 Dedicated Vendor Google Sheets
+                            </label>
+                            
+                            <div style="display: flex; flex-direction: column; gap: 0.65rem;">
+                                <div style="background: rgba(239, 68, 68, 0.08); padding: 0.65rem 0.85rem; border-radius: 6px; border: 1px solid rgba(239, 68, 68, 0.25);">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                                        <span style="font-size: 0.8rem; font-weight: 700; color: #ef4444;">🔴 Rajiv Mittal (Drone / UAV) — Red Tint</span>
+                                        <span style="font-size: 0.72rem; color: var(--text-muted);">Sheet ID or URL</span>
+                                    </div>
+                                    <input type="text" id="cfgVendorDroneUrl" placeholder="Paste Rajiv Mittal Google Sheet ID or URL" style="width: 100%; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.82rem;">
+                                </div>
+
+                                <div style="background: rgba(234, 179, 8, 0.08); padding: 0.65rem 0.85rem; border-radius: 6px; border: 1px solid rgba(234, 179, 8, 0.25);">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                                        <span style="font-size: 0.8rem; font-weight: 700; color: #eab308;">🟡 Rajiv Tyagi (Power Supply & Electrical) — Yellow Tint</span>
+                                        <span style="font-size: 0.72rem; color: var(--text-muted);">Sheet ID or URL</span>
+                                    </div>
+                                    <input type="text" id="cfgVendorPowerUrl" placeholder="Paste Rajiv Tyagi Google Sheet ID or URL" style="width: 100%; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.82rem;">
+                                </div>
+
+                                <div style="background: rgba(59, 130, 246, 0.08); padding: 0.65rem 0.85rem; border-radius: 6px; border: 1px solid rgba(59, 130, 246, 0.25);">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                                        <span style="font-size: 0.8rem; font-weight: 700; color: #60a5fa;">🔵 Hanmars (Face Rec & Biometrics) — Blue Tint</span>
+                                        <span style="font-size: 0.72rem; color: var(--text-muted);">Sheet ID or URL</span>
+                                    </div>
+                                    <input type="text" id="cfgVendorBioUrl" placeholder="Paste Hanmars Google Sheet ID or URL" style="width: 100%; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.82rem;">
+                                </div>
+                            </div>
                         </div>
 
                         <div>

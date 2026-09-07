@@ -14,6 +14,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 CONFIG_DIR = os.path.join(ROOT, "config")
 DATA_DIR = os.path.join(ROOT, "data")
 DATA_SOURCE_DIR = os.path.join(DATA_DIR, "source")
+TECH_SPECS_DIR = os.path.join(DATA_DIR, "tech_specs")
 DASHBOARD_PATH = os.path.join(ROOT, "dashboard.html")
 
 KEYWORDS_PATH = os.path.join(CONFIG_DIR, "keywords.csv")
@@ -129,6 +130,7 @@ def ensure_dirs() -> None:
         CONFIG_DIR,
         DATA_DIR,
         DATA_SOURCE_DIR,
+        TECH_SPECS_DIR,
         LOGS_DIR,
         SCRAPE_LOGS_DIR,
         TENDERS_DIR,

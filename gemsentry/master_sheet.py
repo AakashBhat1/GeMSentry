@@ -23,7 +23,7 @@ from typing import Any
 
 import requests
 import openpyxl
-from openpyxl.styles import Font, Alignment, Border, Side
+from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 
 import paths
 from gemsentry.dateparse import parse_gem_date
@@ -61,6 +61,81 @@ PARTICIPATED_COLUMNS = [
     "RESULT\nWON/LOST", "SO/ DO  STATUS", "SO LINK", "REMARKS"
 ]
 
+# Vendor definitions with color coding:
+# - Drone -> Rajiv Mittal (Red)
+# - Power Supply & Electrical -> Rajiv Tyagi (Yellow)
+# - Face Rec & Biometrics -> Hanmars (Blue)
+VENDOR_DEFINITIONS = {
+    "drone": {
+        "id": "drone",
+        "name": "Rajiv Mittal",
+        "category_label": "Drone / UAV",
+        "hex_color": "FEE2E2",  # Soft Red
+        "web_color": "#FEE2E2",
+        "keywords": [
+            "drone", "drones", "uav", "unmanned aerial", "quadcopter", "multirotor",
+            "aerostat", "gis", "mapping", "surveillance drone"
+        ]
+    },
+    "power_supply": {
+        "id": "power_supply",
+        "name": "Rajiv Tyagi",
+        "category_label": "Power Supply / Electrical",
+        "hex_color": "FEF08A",  # Soft Yellow
+        "web_color": "#FEF08A",
+        "keywords": [
+            "power supply", "rectifier", "lvpsu", "hvpsu", "static convertor",
+            "battery charger", "solid state power amplifier", "voltage regulator",
+            "ups", "psu", "smps", "transformer", "alternator", "electrical", "inverter"
+        ]
+    },
+    "biometrics": {
+        "id": "biometrics",
+        "name": "Hanmars",
+        "category_label": "Biometrics & Facial Recognition",
+        "hex_color": "BFDBFE",  # Soft Blue
+        "web_color": "#BFDBFE",
+        "keywords": [
+            "facial recognition", "face recognition", "facial based", "face based",
+            "biometric", "biometrics", "frs", "iris scanner", "iris recognition",
+            "fingerprint", "access control", "aadhaar authentication", "e-kyc"
+        ]
+    }
+}
+
+
+def detect_vendor(tender: dict[str, Any] | None, custom_vendor: str | None = None) -> dict[str, Any]:
+    """Detects the assigned vendor and master sheet color for a tender.
+
+    Vendors:
+    - Rajiv Mittal (Drone / UAV) -> Red (FEE2E2)
+    - Rajiv Tyagi (Power Supply / Electrical) -> Yellow (FEF08A)
+    - Hanmars (Biometrics & Face Recognition) -> Blue (BFDBFE)
+    """
+    tender = tender or {}
+    override = str(custom_vendor or tender.get("assigned_vendor") or "").strip().lower()
+    if override:
+        for vid, vinfo in VENDOR_DEFINITIONS.items():
+            if override in (vid, vinfo["name"].lower(), vinfo["category_label"].lower()) or vid in override:
+                return vinfo
+        if override in ("none", "unassigned", "default", "general"):
+            return {"id": None, "name": None, "category_label": "General", "hex_color": None, "web_color": None}
+
+    analysis = tender.get("analysis") or {}
+    bl = analysis.get("business_line") or {}
+    bl_id = str(bl.get("id") or "").lower()
+    bl_label = str(bl.get("label") or "").lower()
+
+    if bl_id == "drone" or "drone" in bl_label or "uav" in bl_label:
+        return VENDOR_DEFINITIONS["drone"]
+    if bl_id in ("power_supply", "components") or "power" in bl_label or "electrical" in bl_label:
+        return VENDOR_DEFINITIONS["power_supply"]
+    if bl_id == "biometrics" or "biometric" in bl_label or "face" in bl_label:
+        return VENDOR_DEFINITIONS["biometrics"]
+
+    # No keyword heuristic guessing — only route if explicitly chosen by user
+    return {"id": None, "name": None, "category_label": "General", "hex_color": None, "web_color": None}
+
 
 class MasterSheetManager:
     """Coordinates finalized tenders between GeMSentry, Excel master sheets, and Google Sheets."""
@@ -84,7 +159,30 @@ class MasterSheetManager:
             "local_master_excel_path": DEFAULT_LOCAL_MASTER_PATH,
             "sync_to_local_excel": True,
             "sync_to_google_sheet": True,
-            "default_sheet": "UNDER DETAILED STUDY"
+            "default_sheet": "UNDER DETAILED STUDY",
+            "vendor_sheets": {
+                "drone": {
+                    "name": "Rajiv Mittal",
+                    "category": "Drone / UAV",
+                    "spreadsheet_id": "",
+                    "spreadsheet_url": "",
+                    "color": "#FEE2E2"
+                },
+                "power_supply": {
+                    "name": "Rajiv Tyagi",
+                    "category": "Power Supply / Electrical",
+                    "spreadsheet_id": "",
+                    "spreadsheet_url": "",
+                    "color": "#FEF08A"
+                },
+                "biometrics": {
+                    "name": "Hanmars",
+                    "category": "Biometrics & Facial Recognition",
+                    "spreadsheet_id": "",
+                    "spreadsheet_url": "",
+                    "color": "#BFDBFE"
+                }
+            }
         }
         if os.path.exists(CONFIG_PATH):
             try:
@@ -104,6 +202,15 @@ class MasterSheetManager:
         ):
             if os.environ.get(env_name):
                 default_cfg[key] = os.environ[env_name]
+
+        for env_name, vid in (
+            ("GEMSENTRY_DRONE_SHEET_ID", "drone"),
+            ("GEMSENTRY_POWER_SHEET_ID", "power_supply"),
+            ("GEMSENTRY_BIOMETRICS_SHEET_ID", "biometrics"),
+        ):
+            if os.environ.get(env_name) and "vendor_sheets" in default_cfg and vid in default_cfg["vendor_sheets"]:
+                default_cfg["vendor_sheets"][vid]["spreadsheet_id"] = os.environ[env_name]
+
         return default_cfg
 
     def load_config(self) -> dict[str, Any]:
@@ -114,6 +221,14 @@ class MasterSheetManager:
 
     def save_config(self, new_config: dict[str, Any]) -> dict[str, Any]:
         with self.lock:
+            if "vendor_sheets" in new_config and isinstance(new_config["vendor_sheets"], dict):
+                current_vs = self.config.get("vendor_sheets") or {}
+                for k, v in new_config["vendor_sheets"].items():
+                    if k in current_vs and isinstance(v, dict):
+                        current_vs[k].update(v)
+                    else:
+                        current_vs[k] = v
+                new_config["vendor_sheets"] = current_vs
             self.config.update(new_config)
             os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
             with open(CONFIG_PATH, "w", encoding="utf-8") as f:
@@ -380,10 +495,15 @@ class MasterSheetManager:
                     ]
 
                 is_part = "PARTICIPATED" in target_sheet
+                vendor_hex = str(record.get("vendor_color") or "").lstrip("#").upper()
+                vendor_fill = PatternFill(start_color=vendor_hex, end_color=vendor_hex, fill_type="solid") if len(vendor_hex) == 6 else None
+
                 for col_idx, val in enumerate(row_data, 1):
                     cell = ws.cell(row=target_row, column=col_idx, value=val)
                     cell.font = Font(name="Arial", size=11)
                     cell.border = thin_border
+                    if vendor_fill:
+                        cell.fill = vendor_fill
 
                     # Alignments & formatting
                     if not is_part:
@@ -494,6 +614,7 @@ class MasterSheetManager:
     ) -> dict[str, Any]:
         """Builds a comprehensive payload for Google Apps Script with both flat fields and nested tender."""
         rfp = record.get("rfp_link") or record.get("drive_link") or record.get("pdf_url") or ""
+        vendor_sheets = self.config.get("vendor_sheets") or {}
         return {
             "action": "append_tender",
             "target_sheet": target_sheet,
@@ -517,6 +638,14 @@ class MasterSheetManager:
             "rfp_link": rfp,
             "approval": record.get("approval", "TO BE SUBMIT"),
             "remarks": record.get("remarks", ""),
+            "tech_spec_url": record.get("tech_spec_url") or "",
+            "tech_spec_filename": record.get("tech_spec_filename") or "",
+            "vendor_id": record.get("vendor_id"),
+            "vendor_name": record.get("vendor_name"),
+            "vendor_color": record.get("vendor_color"),
+            "vendor_web_color": record.get("vendor_web_color"),
+            "vendor_category": record.get("vendor_category"),
+            "vendor_sheets": vendor_sheets,
             "tender": record
         }
 
@@ -562,6 +691,10 @@ class MasterSheetManager:
                 "SUPPLY"
             ).upper()
 
+            # Vendor Detection & Assignment
+            vendor_override = custom_fields.get("assigned_vendor")
+            vendor_info = detect_vendor(tender, vendor_override)
+
             record = {
                 "sl_no": sl_no,
                 "bid_no": bid_no,
@@ -583,7 +716,15 @@ class MasterSheetManager:
                 "remarks": custom_fields.get("remarks") or (f"Pre-Bid: {analysis.get('pre_bid_date')}" if analysis.get("pre_bid_date") else ""),
                 "target_sheet": target_sheet,
                 "finalized_at": now.isoformat(),
-                "est_value_inr": analysis.get("est_value_inr") or tender.get("est_value_inr")
+                "est_value_inr": analysis.get("est_value_inr") or tender.get("est_value_inr"),
+                "vendor_id": vendor_info.get("id"),
+                "vendor_name": vendor_info.get("name"),
+                "vendor_color": vendor_info.get("hex_color"),
+                "vendor_web_color": vendor_info.get("web_color"),
+                "vendor_category": vendor_info.get("category_label"),
+                "tech_spec_url": custom_fields.get("tech_spec_url") or (existing.get("tech_spec_url", "") if existing else ""),
+                "tech_spec_filename": custom_fields.get("tech_spec_filename") or (existing.get("tech_spec_filename", "") if existing else ""),
+                "tech_spec_updated_at": existing.get("tech_spec_updated_at", "") if existing else (now.isoformat() if custom_fields.get("tech_spec_url") else "")
             }
 
             # Update records
@@ -709,6 +850,89 @@ class MasterSheetManager:
                 "google_response": gsheet_res
             }
 
+    def update_tech_spec(
+        self,
+        bid_no: str,
+        tech_spec_url: str | None = None,
+        filename: str | None = None,
+        file_bytes: bytes | None = None,
+        assigned_vendor: str | None = None
+    ) -> dict[str, Any]:
+        """Updates or attaches technical specification sheet for a specific tender."""
+        with self.lock:
+            record = self.get_record(bid_no)
+            if not record:
+                return {"status": "error", "message": f"Tender {bid_no} is not finalized yet. Please finalize it first."}
+
+            now_iso = datetime.datetime.now().isoformat()
+            local_file_path = None
+
+            # If user selected / updated the destination vendor
+            if assigned_vendor is not None:
+                vinfo = detect_vendor(record, custom_vendor=assigned_vendor)
+                record["vendor_id"] = vinfo.get("id")
+                record["vendor_name"] = vinfo.get("name")
+                record["vendor_color"] = vinfo.get("hex_color")
+                record["vendor_web_color"] = vinfo.get("web_color")
+                record["job_aligned_to"] = vinfo.get("name")
+
+            # Handle local file storage if file_bytes provided
+            if file_bytes and filename:
+                safe_slug = re.sub(r"[^a-zA-Z0-9_-]", "_", bid_no)
+                spec_dir = os.path.join(paths.TECH_SPECS_DIR, safe_slug)
+                os.makedirs(spec_dir, exist_ok=True)
+                clean_name = os.path.basename(filename)
+                local_file_path = os.path.join(spec_dir, clean_name)
+                with open(local_file_path, "wb") as f:
+                    f.write(file_bytes)
+                logger.info("Saved local tech spec sheet for %s at %s", bid_no, local_file_path)
+
+                # If no URL explicitly passed, attempt upload to Google Drive via Apps Script Webhook
+                if not tech_spec_url and self.config.get("apps_script_url"):
+                    b64 = base64.b64encode(file_bytes).decode("utf-8")
+                    drive_res = self._sync_to_google_sheet({
+                        "action": "upload_tech_spec_to_drive",
+                        "bid_no": bid_no,
+                        "filename": clean_name,
+                        "base64_data": b64,
+                        "vendor_id": record.get("vendor_id")
+                    })
+                    if drive_res.get("status") == "ok" and drive_res.get("drive_link"):
+                        tech_spec_url = drive_res["drive_link"]
+                        logger.info("Uploaded tech spec to Google Drive: %s", tech_spec_url)
+
+                if not tech_spec_url:
+                    tech_spec_url = f"/api/finalized/spec-sheet/{safe_slug}"
+
+            if tech_spec_url:
+                record["tech_spec_url"] = tech_spec_url
+            if filename:
+                record["tech_spec_filename"] = filename
+            record["tech_spec_updated_at"] = now_iso
+            self._save_store()
+
+            # Push live update to Google Apps Script Webhook
+            gsheet_res = self._sync_to_google_sheet({
+                "action": "update_tech_spec",
+                "bid_no": bid_no,
+                "sl_no": record.get("sl_no"),
+                "title": record.get("title"),
+                "tech_spec_url": record.get("tech_spec_url"),
+                "vendor_id": record.get("vendor_id"),
+                "vendor_sheets": self.config.get("vendor_sheets", {})
+            })
+
+            return {
+                "status": "ok",
+                "bid_no": bid_no,
+                "sl_no": record.get("sl_no"),
+                "tech_spec_url": record.get("tech_spec_url"),
+                "tech_spec_filename": record.get("tech_spec_filename"),
+                "vendor_id": record.get("vendor_id"),
+                "vendor_name": record.get("vendor_name"),
+                "google_response": gsheet_res
+            }
+
     def sync_all_to_google_sheet(self) -> dict[str, Any]:
         """Pushes all finalized tenders from local store into Google Sheet."""
         with self.lock:
@@ -769,6 +993,19 @@ class MasterSheetManager:
             for r in self.finalized_records:
                 s = r.get("target_sheet", "UNDER DETAILED STUDY")
                 sheets_count[s] = sheets_count.get(s, 0) + 1
+                # Auto-backfill vendor metadata for older records if missing
+                if not r.get("vendor_id") and (r.get("work_category") or r.get("title")):
+                    v = detect_vendor(r)
+                    if v.get("id"):
+                        r["vendor_id"] = v.get("id")
+                        r["vendor_name"] = v.get("name")
+                        r["vendor_color"] = v.get("hex_color")
+                        r["vendor_web_color"] = v.get("web_color")
+                        r["vendor_category"] = v.get("category_label")
+                if "tech_spec_url" not in r:
+                    r["tech_spec_url"] = ""
+                if "tech_spec_filename" not in r:
+                    r["tech_spec_filename"] = ""
 
             return {
                 "total_count": len(self.finalized_records),
@@ -778,7 +1015,9 @@ class MasterSheetManager:
                 "spreadsheet_url": self.config.get("spreadsheet_url"),
                 "spreadsheet_id": self.config.get("spreadsheet_id"),
                 "has_webhook": bool(self.config.get("apps_script_url")),
-                "has_gdrive_mount": bool(self.config.get("google_drive_mount_path"))
+                "has_gdrive_mount": bool(self.config.get("google_drive_mount_path")),
+                "vendor_definitions": VENDOR_DEFINITIONS,
+                "vendor_sheets": self.config.get("vendor_sheets", {})
             }
 
 

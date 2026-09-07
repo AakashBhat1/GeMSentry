@@ -3704,8 +3704,23 @@
             else if (bl.includes('LAB')) catSelect.value = 'LAB';
             else catSelect.value = 'SUPPLY';
 
+            // User explicitly selects vendor sheet — no keyword guessing!
+            const vendorSelect = document.getElementById('finalizeAssignedVendor');
+            if (vendorSelect) {
+                const assigned = tender.assigned_vendor || tender.vendor_id;
+                if (assigned && ['drone', 'power_supply', 'biometrics', 'none'].includes(assigned)) {
+                    vendorSelect.value = assigned;
+                } else {
+                    vendorSelect.value = 'none';
+                }
+                updateFinalizeVendorPreview();
+            }
+
             document.getElementById('finalizeApproval').value = 'TO BE SUBMIT';
             document.getElementById('finalizeRemarks').value = analysis.pre_bid_date ? `Pre-bid: ${analysis.pre_bid_date}` : '';
+            if (document.getElementById('finalizeTechSpecUrl')) {
+                document.getElementById('finalizeTechSpecUrl').value = '';
+            }
 
             // Show dynamic webhook status banner
             const syncNotice = document.getElementById('finalizeSyncStatusNotice');
@@ -3728,6 +3743,35 @@
             document.getElementById('finalizeConfirmModal').style.display = 'flex';
         }
 
+        function updateFinalizeVendorPreview() {
+            const select = document.getElementById('finalizeAssignedVendor');
+            const badge = document.getElementById('finalizeVendorBadgePreview');
+            if (!select || !badge) return;
+            const val = select.value;
+            if (val === 'drone') {
+                badge.style.background = 'rgba(239, 68, 68, 0.2)';
+                badge.style.color = '#ef4444';
+                badge.style.border = '1px solid rgba(239, 68, 68, 0.4)';
+                badge.innerText = '🔴 Rajiv Mittal (Red)';
+            } else if (val === 'power_supply') {
+                badge.style.background = 'rgba(234, 179, 8, 0.2)';
+                badge.style.color = '#eab308';
+                badge.style.border = '1px solid rgba(234, 179, 8, 0.4)';
+                badge.innerText = '🟡 Rajiv Tyagi (Yellow)';
+            } else if (val === 'biometrics') {
+                badge.style.background = 'rgba(59, 130, 246, 0.2)';
+                badge.style.color = '#60a5fa';
+                badge.style.border = '1px solid rgba(59, 130, 246, 0.4)';
+                badge.innerText = '🔵 Hanmars (Blue)';
+            } else {
+                badge.style.background = 'rgba(255, 255, 255, 0.08)';
+                badge.style.color = 'var(--text-secondary)';
+                badge.style.border = '1px solid var(--border-color)';
+                badge.innerText = '⚪ Master Only';
+            }
+        }
+        window.updateFinalizeVendorPreview = updateFinalizeVendorPreview;
+
         function closeQuickFinalize() {
             document.getElementById('finalizeConfirmModal').style.display = 'none';
         }
@@ -3740,6 +3784,8 @@
             const approval = document.getElementById('finalizeApproval').value;
             const oemAuth = document.getElementById('finalizeOemAuth').value;
             const remarks = document.getElementById('finalizeRemarks').value;
+            const assignedVendor = document.getElementById('finalizeAssignedVendor') ? document.getElementById('finalizeAssignedVendor').value : 'auto';
+            const techSpecUrl = document.getElementById('finalizeTechSpecUrl') ? document.getElementById('finalizeTechSpecUrl').value.trim() : '';
 
             const btn = document.getElementById('btnSubmitFinalize');
             const origHtml = btn.innerHTML;
@@ -3757,12 +3803,33 @@
                             work_category: workCat,
                             approval: approval,
                             oem_authorization: oemAuth,
-                            remarks: remarks
+                            remarks: remarks,
+                            assigned_vendor: assignedVendor,
+                            tech_spec_url: techSpecUrl
                         }
                     })
                 });
                 const data = await res.json();
                 if (data.status === 'ok') {
+                    // If a spec file was selected directly during finalize, upload it immediately
+                    const fileInput = document.getElementById('finalizeTechSpecFile');
+                    if (fileInput && fileInput.files && fileInput.files.length > 0) {
+                        btn.innerHTML = '<span>Uploading Spec PDF...</span>';
+                        try {
+                            const formData = new FormData();
+                            formData.append('bid_no', bidNo);
+                            formData.append('file', fileInput.files[0]);
+                            if (techSpecUrl) formData.append('tech_spec_url', techSpecUrl);
+                            if (assignedVendor) formData.append('assigned_vendor', assignedVendor);
+                            await fetch('/api/finalized/upload-spec-sheet', {
+                                method: 'POST',
+                                body: formData
+                            });
+                        } catch (err) {
+                            console.error("Error uploading spec sheet file during finalize:", err);
+                        }
+                    }
+
                     closeQuickFinalize();
                     await loadFinalizedData();
                     const gRes = data.google_response || {};
@@ -3827,26 +3894,75 @@
             }
         }
 
+        let activeVendorFilter = 'all';
+
+        function setVendorFilter(vendorKey) {
+            activeVendorFilter = vendorKey;
+            ['all', 'drone', 'power_supply', 'biometrics', 'general'].forEach(k => {
+                const btn = document.getElementById(`vfBtn_${k}`);
+                if (btn) {
+                    if (k === vendorKey) btn.classList.add('active');
+                    else btn.classList.remove('active');
+                }
+            });
+            renderFinalizedTable();
+        }
+        window.setVendorFilter = setVendorFilter;
+
         function renderFinalizedTable() {
             const tbody = document.getElementById('finalizedTableBody');
             if (!tbody) return;
 
-            let filtered = finalizedData.records || [];
+            let tabFiltered = finalizedData.records || [];
             if (activeFinalizedTab === 'study') {
-                filtered = filtered.filter(r => (r.target_sheet || 'UNDER DETAILED STUDY') === 'UNDER DETAILED STUDY');
+                tabFiltered = tabFiltered.filter(r => (r.target_sheet || 'UNDER DETAILED STUDY') === 'UNDER DETAILED STUDY');
             } else if (activeFinalizedTab === 'master') {
-                filtered = filtered.filter(r => r.target_sheet === 'MASTER');
+                tabFiltered = tabFiltered.filter(r => r.target_sheet === 'MASTER');
             } else if (activeFinalizedTab === 'part') {
-                filtered = filtered.filter(r => (r.target_sheet || '').includes('PARTICIPATED'));
+                tabFiltered = tabFiltered.filter(r => (r.target_sheet || '').includes('PARTICIPATED'));
+            }
+
+            // Update category count badges for the current sheet tab
+            const counts = { all: tabFiltered.length, drone: 0, power_supply: 0, biometrics: 0, general: 0 };
+            tabFiltered.forEach(r => {
+                const vid = r.vendor_id;
+                if (vid === 'drone' || (r.vendor_name && r.vendor_name.includes('Mittal'))) counts.drone++;
+                else if (vid === 'power_supply' || (r.vendor_name && r.vendor_name.includes('Tyagi'))) counts.power_supply++;
+                else if (vid === 'biometrics' || (r.vendor_name && r.vendor_name.includes('Hanmars'))) counts.biometrics++;
+                else counts.general++;
+            });
+
+            ['all', 'drone', 'power_supply', 'biometrics', 'general'].forEach(k => {
+                const badge = document.getElementById(`vfCount_${k}`);
+                if (badge) badge.innerText = counts[k];
+            });
+
+            // Filter by active vendor category
+            let filtered = tabFiltered;
+            if (activeVendorFilter === 'drone') {
+                filtered = filtered.filter(r => r.vendor_id === 'drone' || (r.vendor_name && r.vendor_name.includes('Mittal')));
+            } else if (activeVendorFilter === 'power_supply') {
+                filtered = filtered.filter(r => r.vendor_id === 'power_supply' || (r.vendor_name && r.vendor_name.includes('Tyagi')));
+            } else if (activeVendorFilter === 'biometrics') {
+                filtered = filtered.filter(r => r.vendor_id === 'biometrics' || (r.vendor_name && r.vendor_name.includes('Hanmars')));
+            } else if (activeVendorFilter === 'general') {
+                filtered = filtered.filter(r => !r.vendor_id || r.vendor_id === 'none' || r.vendor_id === 'general' || (!['drone', 'power_supply', 'biometrics'].includes(r.vendor_id) && !r.vendor_name));
             }
 
             if (filtered.length === 0) {
+                const catLabels = {
+                    drone: '🔴 Drone / UAV (Rajiv Mittal)',
+                    power_supply: '🟡 Power Supply (Rajiv Tyagi)',
+                    biometrics: '🔵 Biometrics (Hanmars)',
+                    general: '⚪ Master Only'
+                };
+                const catName = catLabels[activeVendorFilter] || '';
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="9" style="text-align: center; padding: 2.5rem; color: var(--text-secondary);">
+                        <td colspan="11" style="text-align: center; padding: 2.5rem; color: var(--text-secondary);">
                             <div style="font-size: 2rem; margin-bottom: 0.5rem;">📋</div>
-                            <div>No tenders finalized in this sheet yet.</div>
-                            <div style="font-size: 0.75rem; margin-top: 0.25rem;">Click <strong>⭐ Finalize</strong> on any tender card to add it here.</div>
+                            <div>No ${catName ? `<strong>${catName}</strong> ` : ''}tenders in this sheet view.</div>
+                            <div style="font-size: 0.75rem; margin-top: 0.25rem;">Choose a different category filter or click <strong>⭐ Finalize</strong> to add tenders.</div>
                         </td>
                     </tr>
                 `;
@@ -3876,15 +3992,48 @@
                     statusBadge = `<span class="chip-study">Detailed Study</span>`;
                 }
 
+                let vendorBadge = '<span style="color: var(--text-muted); font-size: 0.78rem;">General</span>';
+                if (r.vendor_id === 'drone' || (r.vendor_name && r.vendor_name.includes('Mittal'))) {
+                    vendorBadge = `<span style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.35); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 700; white-space: nowrap;">🔴 Rajiv Mittal</span>`;
+                } else if (r.vendor_id === 'power_supply' || (r.vendor_name && r.vendor_name.includes('Tyagi'))) {
+                    vendorBadge = `<span style="background: rgba(234, 179, 8, 0.15); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.35); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 700; white-space: nowrap;">🟡 Rajiv Tyagi</span>`;
+                } else if (r.vendor_id === 'biometrics' || (r.vendor_name && r.vendor_name.includes('Hanmars'))) {
+                    vendorBadge = `<span style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.35); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 700; white-space: nowrap;">🔵 Hanmars</span>`;
+                } else if (r.vendor_name) {
+                    vendorBadge = `<span style="background: rgba(255, 255, 255, 0.08); color: var(--text-primary); border: 1px solid var(--border-color); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; white-space: nowrap;">${escapeHtml(r.vendor_name)}</span>`;
+                }
+
                 const isParticipated = (r.target_sheet || '').includes('PARTICIPATED');
                 const encodedBid = encodeURIComponent(r.bid_no);
+
+                let specSheetHtml = '';
+                if (r.tech_spec_url) {
+                    const isDoc = r.tech_spec_url.includes('docs.google.com') || r.tech_spec_url.includes('drive.google.com');
+                    const label = isDoc ? '📄 Google Doc ↗' : '📄 Spec Sheet ↗';
+                    specSheetHtml = `
+                        <div style="display: inline-flex; align-items: center; gap: 4px;">
+                            <a href="${escapeHtml(r.tech_spec_url)}" target="_blank" rel="noopener" class="gdrive-link-badge" style="background: rgba(37,99,235,0.12); color: #60a5fa; border-color: rgba(37,99,235,0.35); font-size: 0.74rem;" title="${escapeHtml(r.tech_spec_filename || 'Open Spec Document')}">
+                                ${label}
+                            </a>
+                            <button onclick="openSpecSheetModal('${encodedBid}')" title="Update Spec Sheet" style="background:none; border:none; cursor:pointer; font-size: 0.8rem; padding: 2px; color: var(--text-secondary);">✏️</button>
+                        </div>
+                    `;
+                } else {
+                    specSheetHtml = `
+                        <button onclick="openSpecSheetModal('${encodedBid}')" class="btn-table-action" style="color: #d97706; background: rgba(217,119,6,0.1); border: 1px dashed rgba(217,119,6,0.35); font-weight: 600; font-size: 0.72rem; padding: 0.2rem 0.45rem; cursor: pointer; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;">
+                            ➕ Attach Spec
+                        </button>
+                    `;
+                }
 
                 return `
                     <tr>
                         <td><span class="badge-sl">#${r.sl_no}</span></td>
                         <td style="font-weight: 700; font-family: var(--font-mono); color: var(--primary-accent); font-size: 0.9rem;">${escapeHtml(r.bid_no)}</td>
-                        <td style="max-width: 340px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.88rem; font-weight: 500;" title="${escapeHtml(r.title)}">${escapeHtml(r.title)}</td>
-                        <td style="max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85rem; color: var(--text-secondary);" title="${escapeHtml(r.organisation)}">${escapeHtml(r.organisation)}</td>
+                        <td style="max-width: 320px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.88rem; font-weight: 500;" title="${escapeHtml(r.title)}">${escapeHtml(r.title)}</td>
+                        <td style="max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85rem; color: var(--text-secondary);" title="${escapeHtml(r.organisation)}">${escapeHtml(r.organisation)}</td>
+                        <td>${vendorBadge}</td>
+                        <td style="white-space: nowrap;">${specSheetHtml}</td>
                         <td><span class="tag tag-keyword" style="font-size: 0.78rem; padding: 0.2rem 0.5rem; font-weight: 600;">${escapeHtml(r.work_category || 'SUPPLY')}</span></td>
                         <td style="white-space: nowrap; font-size: 0.85rem; font-weight: 600;">${escapeHtml(r.end_date || 'N/A')}</td>
                         <td>${linkHtml}</td>
@@ -3905,6 +4054,117 @@
                 `;
             }).join('');
         }
+
+        let currentSpecBidNo = '';
+        function openSpecSheetModal(encodedBidNo) {
+            const bidNo = decodeURIComponent(encodedBidNo);
+            currentSpecBidNo = bidNo;
+            const tender = (finalizedData.records || []).find(r => r.bid_no === bidNo);
+            if (!tender) return;
+
+            document.getElementById('specModalBidNo').innerText = tender.bid_no || '';
+            document.getElementById('specModalTitle').innerText = tender.title || 'Untitled Tender';
+
+            // Vendor dropdown in spec modal
+            const specVendorSelect = document.getElementById('specModalVendorSelect');
+            if (specVendorSelect) {
+                specVendorSelect.value = tender.vendor_id || 'none';
+            }
+            document.getElementById('specModalDocUrl').value = tender.tech_spec_url || '';
+            if (document.getElementById('specModalFile')) document.getElementById('specModalFile').value = '';
+
+            const notice = document.getElementById('specModalStatusNotice');
+            if (notice) {
+                notice.style.display = 'none';
+                notice.innerHTML = '';
+            }
+
+            document.getElementById('modalSpecSheet').style.display = 'flex';
+        }
+        window.openSpecSheetModal = openSpecSheetModal;
+
+        function closeSpecSheetModal() {
+            const modal = document.getElementById('modalSpecSheet');
+            if (modal) modal.style.display = 'none';
+        }
+        window.closeSpecSheetModal = closeSpecSheetModal;
+
+        async function submitSpecSheet() {
+            if (!currentSpecBidNo) return;
+            const btn = document.getElementById('btnSubmitSpecSheet');
+            const origHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span>Saving & Syncing...</span>';
+
+            const docUrl = document.getElementById('specModalDocUrl').value.trim();
+            const fileInput = document.getElementById('specModalFile');
+            const specVendorSelect = document.getElementById('specModalVendorSelect');
+            const assignedVendor = specVendorSelect ? specVendorSelect.value : null;
+            const notice = document.getElementById('specModalStatusNotice');
+
+            try {
+                let resData = null;
+                if (fileInput && fileInput.files && fileInput.files.length > 0) {
+                    const formData = new FormData();
+                    formData.append('bid_no', currentSpecBidNo);
+                    formData.append('file', fileInput.files[0]);
+                    if (docUrl) formData.append('tech_spec_url', docUrl);
+                    if (assignedVendor) formData.append('assigned_vendor', assignedVendor);
+
+                    const res = await fetch('/api/finalized/upload-spec-sheet', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    resData = await res.json();
+                } else {
+                    const res = await fetch('/api/finalized/update-spec-sheet', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            bid_no: currentSpecBidNo,
+                            tech_spec_url: docUrl,
+                            assigned_vendor: assignedVendor
+                        })
+                    });
+                    resData = await res.json();
+                }
+
+                if (resData && resData.status === 'ok') {
+                    if (notice) {
+                        notice.style.display = 'block';
+                        notice.style.background = 'rgba(16, 185, 129, 0.15)';
+                        notice.style.color = '#34d399';
+                        notice.style.border = '1px solid rgba(16, 185, 129, 0.35)';
+                        notice.innerText = '✅ Tech spec sheet linked & synced to vendor sheet!';
+                    }
+                    await loadFinalizedData();
+                    setTimeout(() => {
+                        closeSpecSheetModal();
+                        showFinalizeNotification(`📑 Tech Spec sheet updated for ${currentSpecBidNo}`);
+                    }, 650);
+                } else {
+                    if (notice) {
+                        notice.style.display = 'block';
+                        notice.style.background = 'rgba(239, 68, 68, 0.15)';
+                        notice.style.color = '#ef4444';
+                        notice.style.border = '1px solid rgba(239, 68, 68, 0.35)';
+                        notice.innerText = '❌ Failed: ' + (resData ? (resData.error || resData.message) : 'Unknown error');
+                    }
+                }
+            } catch (err) {
+                if (notice) {
+                    notice.style.display = 'block';
+                    notice.style.background = 'rgba(239, 68, 68, 0.15)';
+                    notice.style.color = '#ef4444';
+                    notice.style.border = '1px solid rgba(239, 68, 68, 0.35)';
+                    notice.innerText = '❌ Network Error: ' + err;
+                }
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origHtml;
+            }
+        }
+        window.submitSpecSheet = submitSpecSheet;
 
         async function deleteFinalizedPrompt(encodedBidNo, slNo) {
             const bidNo = decodeURIComponent(encodedBidNo);
@@ -3998,6 +4258,13 @@
                     document.getElementById('cfgAppsScriptUrl').value = cfg.apps_script_url || '';
                     document.getElementById('cfgDriveMountPath').value = cfg.google_drive_mount_path || '';
                     document.getElementById('cfgLocalExcelPath').value = cfg.local_master_excel_path || '';
+                    const vs = cfg.vendor_sheets || {};
+                    const droneInput = document.getElementById('cfgVendorDroneUrl');
+                    if (droneInput) droneInput.value = (vs.drone && (vs.drone.spreadsheet_url || vs.drone.spreadsheet_id)) || '';
+                    const powerInput = document.getElementById('cfgVendorPowerUrl');
+                    if (powerInput) powerInput.value = (vs.power_supply && (vs.power_supply.spreadsheet_url || vs.power_supply.spreadsheet_id)) || '';
+                    const bioInput = document.getElementById('cfgVendorBioUrl');
+                    if (bioInput) bioInput.value = (vs.biometrics && (vs.biometrics.spreadsheet_url || vs.biometrics.spreadsheet_id)) || '';
                 }
             } catch (e) {
                 console.error("Error loading finalized config:", e);
@@ -4008,6 +4275,33 @@
             const appsScriptUrl = document.getElementById('cfgAppsScriptUrl').value.trim();
             const driveMount = document.getElementById('cfgDriveMountPath').value.trim();
             const localExcel = document.getElementById('cfgLocalExcelPath').value.trim();
+            const vendorDrone = document.getElementById('cfgVendorDroneUrl') ? document.getElementById('cfgVendorDroneUrl').value.trim() : '';
+            const vendorPower = document.getElementById('cfgVendorPowerUrl') ? document.getElementById('cfgVendorPowerUrl').value.trim() : '';
+            const vendorBio = document.getElementById('cfgVendorBioUrl') ? document.getElementById('cfgVendorBioUrl').value.trim() : '';
+
+            const vendorSheetsPayload = {
+                drone: {
+                    name: "Rajiv Mittal",
+                    category: "Drone / UAV",
+                    spreadsheet_id: vendorDrone,
+                    spreadsheet_url: vendorDrone,
+                    color: "#FEE2E2"
+                },
+                power_supply: {
+                    name: "Rajiv Tyagi",
+                    category: "Power Supply / Electrical",
+                    spreadsheet_id: vendorPower,
+                    spreadsheet_url: vendorPower,
+                    color: "#FEF08A"
+                },
+                biometrics: {
+                    name: "Hanmars",
+                    category: "Biometrics & Facial Recognition",
+                    spreadsheet_id: vendorBio,
+                    spreadsheet_url: vendorBio,
+                    color: "#BFDBFE"
+                }
+            };
 
             try {
                 const res = await fetch('/api/finalized/config', {
@@ -4016,12 +4310,13 @@
                     body: JSON.stringify({
                         apps_script_url: appsScriptUrl,
                         google_drive_mount_path: driveMount,
-                        local_master_excel_path: localExcel
+                        local_master_excel_path: localExcel,
+                        vendor_sheets: vendorSheetsPayload
                     })
                 });
                 const data = await res.json();
                 if (data.status === 'ok') {
-                    showFinalizeNotification("⚙️ Google Sheet & Drive settings saved successfully.");
+                    showFinalizeNotification("⚙️ Google Sheet & Vendor settings saved successfully.");
                 }
             } catch (e) {
                 alert("Failed saving config: " + e);
