@@ -1,180 +1,3 @@
-        // Global Fetch Interceptor for Token Authentication
-        const originalFetch = window.fetch;
-        window.fetch = async function(url, options = {}) {
-            options = options || {};
-            options.headers = options.headers || {};
-            const token = localStorage.getItem('gemsentry_auth_token');
-            if (token) {
-                if (options.headers instanceof Headers) {
-                    options.headers.set('Authorization', `Bearer ${token}`);
-                } else {
-                    options.headers['Authorization'] = `Bearer ${token}`;
-                }
-            }
-            const res = await originalFetch(url, options);
-            if (res.status === 401 && typeof url === 'string' && !url.includes('/api/auth/')) {
-                openAuthModal(true);
-            }
-            return res;
-        };
-
-        function authHeaders() {
-            const token = localStorage.getItem('gemsentry_auth_token');
-            return token ? {'Authorization': `Bearer ${token}`} : {};
-        }
-
-        async function downloadSummaryExcel() {
-            // Fetched with the bearer header rather than ?token=, which would
-            // leak the access key into server logs, browser history and any
-            // outgoing Referer.
-            try {
-                const res = await originalFetch('/api/export/summary.xlsx', {headers: authHeaders()});
-                if (!res.ok) {
-                    if (res.status === 401) openAuthModal(true);
-                    return;
-                }
-                const blob = await res.blob();
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `tender_summary_${new Date().toISOString().slice(0, 10)}.xlsx`;
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                URL.revokeObjectURL(url);
-            } catch (err) {
-                console.error('Summary download failed:', err);
-            }
-        }
-
-        async function checkAuthRequirement() {
-            try {
-                const res = await originalFetch('/api/auth/status');
-                const data = await res.json();
-                const authBtn = document.getElementById('authKeyBtn');
-                if (data.auth_required) {
-                    if (authBtn) authBtn.style.display = 'flex';
-                    const stored = localStorage.getItem('gemsentry_auth_token');
-                    if (!stored) {
-                        openAuthModal(true);
-                    } else {
-                        const verifyRes = await originalFetch('/api/auth/verify', {
-                            method: 'POST',
-                            headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({token: stored})
-                        });
-                        if (!verifyRes.ok) {
-                            openAuthModal(true);
-                        }
-                    }
-                } else {
-                    if (authBtn) authBtn.style.display = 'none';
-                }
-            } catch (err) {
-                console.warn("Could not check auth status:", err);
-            }
-        }
-
-        function openAuthModal(forced = false) {
-            const modal = document.getElementById('authModal');
-            const closeBtn = document.getElementById('authCloseBtn');
-            const forgetBtn = document.getElementById('authForgetBtn');
-            const input = document.getElementById('authTokenInput');
-            const feedback = document.getElementById('authFeedback');
-            if (!modal) return;
-            if (feedback) feedback.style.display = 'none';
-            if (input) {
-                input.value = localStorage.getItem('gemsentry_auth_token') || '';
-            }
-            if (closeBtn) closeBtn.style.display = forced ? 'none' : 'block';
-            if (forgetBtn) forgetBtn.style.display = localStorage.getItem('gemsentry_auth_token') ? 'inline-flex' : 'none';
-            modal.style.display = 'flex';
-            if (input) setTimeout(() => input.focus(), 100);
-        }
-
-        function closeAuthModal() {
-            const modal = document.getElementById('authModal');
-            if (modal) modal.style.display = 'none';
-        }
-
-        async function submitAuthToken(event) {
-            event.preventDefault();
-            const input = document.getElementById('authTokenInput');
-            const feedback = document.getElementById('authFeedback');
-            const submitBtn = document.getElementById('authSubmitBtn');
-            const token = (input ? input.value : '').trim();
-            if (!token) return;
-
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.textContent = 'Verifying...';
-            }
-
-            try {
-                const res = await originalFetch('/api/auth/verify', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({token: token})
-                });
-                const data = await res.json();
-                if (res.ok && data.valid) {
-                    localStorage.setItem('gemsentry_auth_token', token);
-                    // The navigation cookie is set HttpOnly by /api/auth/verify;
-                    // the page must not mint a script-readable duplicate.
-                    if (feedback) {
-                        feedback.style.display = 'block';
-                        feedback.style.background = 'rgba(16, 185, 129, 0.15)';
-                        feedback.style.color = '#34d399';
-                        feedback.textContent = 'Access granted! Loading dashboard...';
-                    }
-                    setTimeout(() => {
-                        closeAuthModal();
-                        refreshData();
-                        loadKeywordsForModal();
-                        loadPresets();
-                        loadScoringConfig();
-                        loadCompanyProfile();
-                    }, 400);
-                } else {
-                    if (feedback) {
-                        feedback.style.display = 'block';
-                        feedback.style.background = 'rgba(239, 68, 68, 0.15)';
-                        feedback.style.color = '#f87171';
-                        feedback.textContent = data.error || 'Invalid access key.';
-                    }
-                }
-            } catch (err) {
-                if (feedback) {
-                    feedback.style.display = 'block';
-                    feedback.style.background = 'rgba(239, 68, 68, 0.15)';
-                    feedback.style.color = '#f87171';
-                    feedback.textContent = 'Connection error. Please try again.';
-                }
-            } finally {
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = 'Unlock Portal';
-                }
-            }
-        }
-
-        function forgetAuthToken() {
-            localStorage.removeItem('gemsentry_auth_token');
-            originalFetch('/api/auth/logout', {method: 'POST', headers: authHeaders()})
-                .catch(() => {});
-            const input = document.getElementById('authTokenInput');
-            if (input) input.value = '';
-            const feedback = document.getElementById('authFeedback');
-            if (feedback) {
-                feedback.style.display = 'block';
-                feedback.style.background = 'rgba(239, 68, 68, 0.15)';
-                feedback.style.color = '#f87171';
-                feedback.textContent = 'Saved access key removed.';
-            }
-            const forgetBtn = document.getElementById('authForgetBtn');
-            if (forgetBtn) forgetBtn.style.display = 'none';
-        }
-
         // Default filters state
         let currentKeyword = 'all';
         let currentStatus = 'all';
@@ -277,29 +100,29 @@
         const DEFAULT_COMPANY_PROFILE = {
             version: 1,
             company: {
-                legal_name: "Earnest Tactical Solutions Pvt. Ltd.",
-                short_name: "ETSPL",
-                incorporation_ym: "2020-03",
-                hq_state: "Haryana",
-                hq_city: "Gurgaon"
+                legal_name: "Example Company",
+                short_name: "Example",
+                incorporation_ym: "",
+                hq_state: "",
+                hq_city: ""
             },
             eligibility: {
-                annual_turnover_inr: 1800000,
-                years_experience: 6,
+                annual_turnover_inr: 0,
+                years_experience: 0,
                 registrations: {
-                    mse_udyam: true,
-                    startup_dpiit: true
+                    mse_udyam: false,
+                    startup_dpiit: false
                 },
-                certifications: ["ISO 9001:2015"],
-                can_meet_make_in_india: true,
+                certifications: [],
+                can_meet_make_in_india: false,
                 max_order_value_inr: null,
-                turnover_waivable_by_exemption: true
+                turnover_waivable_by_exemption: false
             },
             serviceability: {
                 all_india: true,
-                soft_avoid_states: ["Tamil Nadu", "Kerala", "Karnataka", "Andhra Pradesh", "Telangana", "Puducherry"],
-                soft_avoid_reason: "Local monopoly on these product categories in South India",
-                soft_avoid_penalty: 0.5
+                soft_avoid_states: [],
+                soft_avoid_reason: "",
+                soft_avoid_penalty: 0
             },
             business_lines: [
                 { id: "drone", label: "Drone / UAV", priority: 1.0, keywords: ["drone", "drones", "uav", "unmanned aerial", "multirotor", "quadcopter", "aerostat", "gis", "mapping", "surveillance", "reconnaissance"] },
@@ -307,15 +130,7 @@
                 { id: "ai_it", label: "AI / IT / Electronics", priority: 1.0, keywords: ["artificial intelligence", "ai based", "ai-based", "software", "server", "radar", "cctv", "camera", "connectors", "harness", "rugged laptop", "military grade", "repairing", "electronics", "data acquisition", "network switch", "router", "display", "laptop", "notebook"] },
                 { id: "gis_dgps_survey", label: "DGPS & GIS Survey / Geospatial", priority: 1.0, keywords: ["dgps", "dgps survey", "gis survey", "gis mapping", "topographic survey", "cadastral survey", "drone survey", "lidar survey", "total station survey", "geospatial survey", "land survey", "contour survey", "rtk survey", "gnss survey"] }
             ],
-            buyer_affinity: {
-                "INDIAN AIR FORCE": 1.0,
-                "INDIAN ARMY": 0.85,
-                "INDIAN NAVY": 0.75,
-                "HAL": 0.75,
-                "DRDO": 0.65,
-                "BHARAT PETROLEUM": 0.5,
-                "DEFENCE": 0.6
-            },
+            buyer_affinity: {},
             value_preference: {
                 sweet_min_inr: 500000,
                 sweet_max_inr: 30000000
@@ -410,8 +225,8 @@
             const config = companyProfile || DEFAULT_COMPANY_PROFILE;
             
             const elig = config.eligibility || {};
-            document.getElementById('profile_turnover').value = elig.annual_turnover_inr !== undefined ? elig.annual_turnover_inr : 1800000;
-            document.getElementById('profile_experience').value = elig.years_experience !== undefined ? elig.years_experience : 6;
+            document.getElementById('profile_turnover').value = elig.annual_turnover_inr !== undefined ? elig.annual_turnover_inr : 0;
+            document.getElementById('profile_experience').value = elig.years_experience !== undefined ? elig.years_experience : 0;
             
             const reg = elig.registrations || {};
             document.getElementById('profile_mse_udyam').checked = !!reg.mse_udyam;
@@ -423,7 +238,7 @@
 
             const svc = config.serviceability || {};
             document.getElementById('profile_soft_avoid_states').value = (svc.soft_avoid_states || []).join(', ');
-            document.getElementById('profile_soft_avoid_penalty').value = svc.soft_avoid_penalty !== undefined ? svc.soft_avoid_penalty : 0.5;
+            document.getElementById('profile_soft_avoid_penalty').value = svc.soft_avoid_penalty !== undefined ? svc.soft_avoid_penalty : 0;
             document.getElementById('profile_soft_avoid_reason').value = svc.soft_avoid_reason || '';
 
             const vp = config.value_preference || {};
@@ -691,11 +506,11 @@
             const payload = {
                 version: companyProfile ? (companyProfile.version || 1) : 1,
                 company: companyProfile ? companyProfile.company : {
-                    legal_name: "Earnest Tactical Solutions Pvt. Ltd.",
-                    short_name: "ETSPL",
-                    incorporation_ym: "2020-03",
-                    hq_state: "Haryana",
-                    hq_city: "Gurgaon"
+                    legal_name: "Example Company",
+                    short_name: "Example",
+                    incorporation_ym: "",
+                    hq_state: "",
+                    hq_city: ""
                 },
                 eligibility: {
                     annual_turnover_inr: turnover,
@@ -3462,6 +3277,7 @@
 
             grid.innerHTML = filtered.map(src => {
                 const isEnabled = src.enabled !== false;
+                const portalUrl = /^https?:\/\//i.test(src.url || '') ? src.url : '#';
                 // A portal only actually fetches when it is enabled AND has an
                 // adapter for its engine. `native` = GeM, driven by the main
                 // scrape pipeline rather than the multi-source fan-out.
@@ -3469,7 +3285,9 @@
                     `<span style="background: ${colour}26; color: ${colour}; border: 1px solid ${colour}4d; font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; white-space: nowrap;">${text}</span>`;
 
                 let statusBadge;
-                if (!isEnabled) {
+                if (src.supported === false && !src.native) {
+                    statusBadge = badge('NO ADAPTER', 'var(--warning-color)');
+                } else if (!isEnabled) {
                     statusBadge = badge('DISABLED', 'var(--failed-color)');
                 } else if (src.native) {
                     statusBadge = badge('NATIVE', 'var(--primary-accent)');
@@ -3483,25 +3301,25 @@
                     <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 10px; padding: 0.85rem; display: flex; flex-direction: column; justify-content: space-between; gap: 0.6rem;">
                         <div>
                             <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.25rem;">
-                                <h4 style="margin: 0; font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">${src.name}</h4>
+                                <h4 style="margin: 0; font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">${escapeHtml(src.name)}</h4>
                                 ${statusBadge}
                             </div>
-                            <p style="margin: 0 0 0.4rem 0; font-size: 0.75rem; color: var(--text-secondary); line-height: 1.35;">${src.description || 'Monitored e-Procurement Portal'}</p>
+                            <p style="margin: 0 0 0.4rem 0; font-size: 0.75rem; color: var(--text-secondary); line-height: 1.35;">${escapeHtml(src.description || 'e-Procurement Portal')}</p>
                             <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
-                                <span style="font-size: 0.68rem; font-weight: 600; text-transform: uppercase; background: var(--primary-accent-soft); color: var(--primary-accent); padding: 1px 5px; border-radius: 3px;">${src.category}</span>
-                                <span style="font-size: 0.68rem; color: var(--text-secondary);">Engine: <strong>${src.engine}</strong></span>
+                                <span style="font-size: 0.68rem; font-weight: 600; text-transform: uppercase; background: var(--primary-accent-soft); color: var(--primary-accent); padding: 1px 5px; border-radius: 3px;">${escapeHtml(src.category)}</span>
+                                <span style="font-size: 0.68rem; color: var(--text-secondary);">Engine: <strong>${escapeHtml(src.engine)}</strong></span>
                             </div>
-                            ${(isEnabled && src.supported === false && !src.native)
-                                ? `<p style="margin: 0.35rem 0 0 0; font-size: 0.68rem; color: var(--warning-color);">Not scraped: ${src.blocked_reason || `no adapter for the <strong>${src.engine}</strong> engine yet.`}</p>`
+                            ${(src.supported === false && !src.native)
+                                ? `<p style="margin: 0.35rem 0 0 0; font-size: 0.68rem; color: var(--warning-color);">Not scraped: ${escapeHtml(src.blocked_reason) || `no adapter for the <strong>${escapeHtml(src.engine)}</strong> engine yet.`}</p>`
                                 : ''}
                         </div>
 
                         <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.5rem; margin-top: 0.25rem;">
-                            <a href="${src.url}" target="_blank" style="font-size: 0.75rem; color: var(--primary-accent); text-decoration: none; display: flex; align-items: center; gap: 0.2rem;">
+                            <a href="${escapeHtml(portalUrl)}" target="_blank" rel="noopener noreferrer" style="font-size: 0.75rem; color: var(--primary-accent); text-decoration: none; display: flex; align-items: center; gap: 0.2rem;">
                                 🌐 Open Portal
                             </a>
                             <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; font-size: 0.78rem; color: var(--text-primary); font-weight: 500;">
-                                <input type="checkbox" ${isEnabled ? 'checked' : ''} onchange="toggleSourceStatus('${src.id}', this.checked)" style="width: 15px; height: 15px; cursor: pointer;">
+                                <input type="checkbox" data-source-id="${escapeHtml(src.id)}" ${isEnabled ? 'checked' : ''} ${src.supported === false && !src.native ? 'disabled' : ''} onchange="toggleSourceStatus(this.dataset.sourceId, this.checked)" style="width: 15px; height: 15px; cursor: pointer;">
                                 Enable
                             </label>
                         </div>
@@ -3524,6 +3342,7 @@
                     renderSourcesList();
                 } else {
                     alert(data.error || "Failed to update source");
+                    renderSourcesList();
                 }
             } catch (err) {
                 console.error("Error toggling source:", err);
@@ -3752,17 +3571,17 @@
                 badge.style.background = 'rgba(239, 68, 68, 0.2)';
                 badge.style.color = '#ef4444';
                 badge.style.border = '1px solid rgba(239, 68, 68, 0.4)';
-                badge.innerText = '🔴 Rajiv Mittal (Red)';
+                badge.innerText = '🔴 Drone vendor (Red)';
             } else if (val === 'power_supply') {
                 badge.style.background = 'rgba(234, 179, 8, 0.2)';
                 badge.style.color = '#eab308';
                 badge.style.border = '1px solid rgba(234, 179, 8, 0.4)';
-                badge.innerText = '🟡 Rajiv Tyagi (Yellow)';
+                badge.innerText = '🟡 Power supply vendor (Yellow)';
             } else if (val === 'biometrics') {
                 badge.style.background = 'rgba(59, 130, 246, 0.2)';
                 badge.style.color = '#60a5fa';
                 badge.style.border = '1px solid rgba(59, 130, 246, 0.4)';
-                badge.innerText = '🔵 Hanmars (Blue)';
+                badge.innerText = '🔵 Biometrics vendor (Blue)';
             } else {
                 badge.style.background = 'rgba(255, 255, 255, 0.08)';
                 badge.style.color = 'var(--text-secondary)';
@@ -3926,9 +3745,9 @@
             const counts = { all: tabFiltered.length, drone: 0, power_supply: 0, biometrics: 0, general: 0 };
             tabFiltered.forEach(r => {
                 const vid = r.vendor_id;
-                if (vid === 'drone' || (r.vendor_name && r.vendor_name.includes('Mittal'))) counts.drone++;
-                else if (vid === 'power_supply' || (r.vendor_name && r.vendor_name.includes('Tyagi'))) counts.power_supply++;
-                else if (vid === 'biometrics' || (r.vendor_name && r.vendor_name.includes('Hanmars'))) counts.biometrics++;
+                if (vid === 'drone') counts.drone++;
+                else if (vid === 'power_supply') counts.power_supply++;
+                else if (vid === 'biometrics') counts.biometrics++;
                 else counts.general++;
             });
 
@@ -3940,20 +3759,20 @@
             // Filter by active vendor category
             let filtered = tabFiltered;
             if (activeVendorFilter === 'drone') {
-                filtered = filtered.filter(r => r.vendor_id === 'drone' || (r.vendor_name && r.vendor_name.includes('Mittal')));
+                filtered = filtered.filter(r => r.vendor_id === 'drone');
             } else if (activeVendorFilter === 'power_supply') {
-                filtered = filtered.filter(r => r.vendor_id === 'power_supply' || (r.vendor_name && r.vendor_name.includes('Tyagi')));
+                filtered = filtered.filter(r => r.vendor_id === 'power_supply');
             } else if (activeVendorFilter === 'biometrics') {
-                filtered = filtered.filter(r => r.vendor_id === 'biometrics' || (r.vendor_name && r.vendor_name.includes('Hanmars')));
+                filtered = filtered.filter(r => r.vendor_id === 'biometrics');
             } else if (activeVendorFilter === 'general') {
                 filtered = filtered.filter(r => !r.vendor_id || r.vendor_id === 'none' || r.vendor_id === 'general' || (!['drone', 'power_supply', 'biometrics'].includes(r.vendor_id) && !r.vendor_name));
             }
 
             if (filtered.length === 0) {
                 const catLabels = {
-                    drone: '🔴 Drone / UAV (Rajiv Mittal)',
-                    power_supply: '🟡 Power Supply (Rajiv Tyagi)',
-                    biometrics: '🔵 Biometrics (Hanmars)',
+                    drone: '🔴 Drone / UAV (Drone vendor)',
+                    power_supply: '🟡 Power Supply (Power supply vendor)',
+                    biometrics: '🔵 Biometrics (Biometrics vendor)',
                     general: '⚪ Master Only'
                 };
                 const catName = catLabels[activeVendorFilter] || '';
@@ -3993,12 +3812,12 @@
                 }
 
                 let vendorBadge = '<span style="color: var(--text-muted); font-size: 0.78rem;">General</span>';
-                if (r.vendor_id === 'drone' || (r.vendor_name && r.vendor_name.includes('Mittal'))) {
-                    vendorBadge = `<span style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.35); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 700; white-space: nowrap;">🔴 Rajiv Mittal</span>`;
-                } else if (r.vendor_id === 'power_supply' || (r.vendor_name && r.vendor_name.includes('Tyagi'))) {
-                    vendorBadge = `<span style="background: rgba(234, 179, 8, 0.15); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.35); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 700; white-space: nowrap;">🟡 Rajiv Tyagi</span>`;
-                } else if (r.vendor_id === 'biometrics' || (r.vendor_name && r.vendor_name.includes('Hanmars'))) {
-                    vendorBadge = `<span style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.35); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 700; white-space: nowrap;">🔵 Hanmars</span>`;
+                if (r.vendor_id === 'drone') {
+                    vendorBadge = `<span style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.35); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 700; white-space: nowrap;">🔴 ${escapeHtml(r.vendor_name || 'Drone vendor')}</span>`;
+                } else if (r.vendor_id === 'power_supply') {
+                    vendorBadge = `<span style="background: rgba(234, 179, 8, 0.15); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.35); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 700; white-space: nowrap;">🟡 ${escapeHtml(r.vendor_name || 'Power supply vendor')}</span>`;
+                } else if (r.vendor_id === 'biometrics') {
+                    vendorBadge = `<span style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.35); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 700; white-space: nowrap;">🔵 ${escapeHtml(r.vendor_name || 'Biometrics vendor')}</span>`;
                 } else if (r.vendor_name) {
                     vendorBadge = `<span style="background: rgba(255, 255, 255, 0.08); color: var(--text-primary); border: 1px solid var(--border-color); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; white-space: nowrap;">${escapeHtml(r.vendor_name)}</span>`;
                 }
@@ -4256,6 +4075,9 @@
                 const cfg = await res.json();
                 if (cfg) {
                     document.getElementById('cfgAppsScriptUrl').value = cfg.apps_script_url || '';
+                    const secretInput = document.getElementById('cfgWebhookSecret');
+                    secretInput.value = '';
+                    secretInput.placeholder = cfg.webhook_secret_configured ? 'Configured; leave blank to keep' : 'Paste the Apps Script shared secret';
                     document.getElementById('cfgDriveMountPath').value = cfg.google_drive_mount_path || '';
                     document.getElementById('cfgLocalExcelPath').value = cfg.local_master_excel_path || '';
                     const vs = cfg.vendor_sheets || {};
@@ -4281,21 +4103,18 @@
 
             const vendorSheetsPayload = {
                 drone: {
-                    name: "Rajiv Mittal",
                     category: "Drone / UAV",
                     spreadsheet_id: vendorDrone,
                     spreadsheet_url: vendorDrone,
                     color: "#FEE2E2"
                 },
                 power_supply: {
-                    name: "Rajiv Tyagi",
                     category: "Power Supply / Electrical",
                     spreadsheet_id: vendorPower,
                     spreadsheet_url: vendorPower,
                     color: "#FEF08A"
                 },
                 biometrics: {
-                    name: "Hanmars",
                     category: "Biometrics & Facial Recognition",
                     spreadsheet_id: vendorBio,
                     spreadsheet_url: vendorBio,
@@ -4309,6 +4128,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         apps_script_url: appsScriptUrl,
+                        webhook_secret: document.getElementById('cfgWebhookSecret').value.trim(),
                         google_drive_mount_path: driveMount,
                         local_master_excel_path: localExcel,
                         vendor_sheets: vendorSheetsPayload
@@ -4316,6 +4136,7 @@
                 });
                 const data = await res.json();
                 if (data.status === 'ok') {
+                    await loadFinalizedConfig();
                     showFinalizeNotification("⚙️ Google Sheet & Vendor settings saved successfully.");
                 }
             } catch (e) {
@@ -4338,7 +4159,7 @@
                 const res = await fetch('/api/finalized/test-webhook', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ apps_script_url: url })
+                    body: JSON.stringify({ apps_script_url: url, webhook_secret: document.getElementById('cfgWebhookSecret').value.trim() })
                 });
                 const data = await res.json();
                 if (data.status === 'ok') {

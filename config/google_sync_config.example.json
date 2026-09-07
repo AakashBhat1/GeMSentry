@@ -2,9 +2,15 @@
   "spreadsheet_id": "",
   "spreadsheet_url": "",
   "apps_script_url": "",
+  "webhook_secret": "",
   "google_drive_mount_path": "",
   "local_master_excel_path": "",
   "sync_to_local_excel": true,
   "sync_to_google_sheet": true,
-  "default_sheet": "UNDER DETAILED STUDY"
+  "default_sheet": "UNDER DETAILED STUDY",
+  "vendor_sheets": {
+    "drone": {"name": "Drone vendor", "spreadsheet_id": "", "spreadsheet_url": ""},
+    "power_supply": {"name": "Power supply vendor", "spreadsheet_id": "", "spreadsheet_url": ""},
+    "biometrics": {"name": "Biometrics vendor", "spreadsheet_id": "", "spreadsheet_url": ""}
+  }
 }

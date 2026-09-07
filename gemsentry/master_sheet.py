@@ -21,18 +21,18 @@ import datetime
 import threading
 from typing import Any
 
-import requests
 import openpyxl
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 
 import paths
 from gemsentry.dateparse import parse_gem_date
+from gemsentry.google_webhook import post_webhook
 from gemsentry.storage import find_existing_pdf_file
 
 logger = logging.getLogger("gemsentry.master_sheet")
 
 CONFIG_PATH = os.path.join(paths.CONFIG_DIR, "google_sync_config.json")
-FINALIZED_STORE_PATH = os.path.join(paths.DATA_DIR, "finalized_tenders.json")
+FINALIZED_STORE_PATH = os.path.join(paths.DATA_DIR, "finalized_tenders.local.json")
 # Falls back to the copy in the repo root rather than one developer's Downloads
 # folder. Override with GEMSENTRY_MASTER_XLSX or local_master_excel_path.
 DEFAULT_LOCAL_MASTER_PATH = os.environ.get(
@@ -62,13 +62,13 @@ PARTICIPATED_COLUMNS = [
 ]
 
 # Vendor definitions with color coding:
-# - Drone -> Rajiv Mittal (Red)
-# - Power Supply & Electrical -> Rajiv Tyagi (Yellow)
-# - Face Rec & Biometrics -> Hanmars (Blue)
+# - Drone -> Drone vendor (Red)
+# - Power Supply & Electrical -> Power supply vendor (Yellow)
+# - Face Rec & Biometrics -> Biometrics vendor (Blue)
 VENDOR_DEFINITIONS = {
     "drone": {
         "id": "drone",
-        "name": "Rajiv Mittal",
+        "name": "Drone vendor",
         "category_label": "Drone / UAV",
         "hex_color": "FEE2E2",  # Soft Red
         "web_color": "#FEE2E2",
@@ -79,7 +79,7 @@ VENDOR_DEFINITIONS = {
     },
     "power_supply": {
         "id": "power_supply",
-        "name": "Rajiv Tyagi",
+        "name": "Power supply vendor",
         "category_label": "Power Supply / Electrical",
         "hex_color": "FEF08A",  # Soft Yellow
         "web_color": "#FEF08A",
@@ -91,7 +91,7 @@ VENDOR_DEFINITIONS = {
     },
     "biometrics": {
         "id": "biometrics",
-        "name": "Hanmars",
+        "name": "Biometrics vendor",
         "category_label": "Biometrics & Facial Recognition",
         "hex_color": "BFDBFE",  # Soft Blue
         "web_color": "#BFDBFE",
@@ -104,18 +104,21 @@ VENDOR_DEFINITIONS = {
 }
 
 
-def detect_vendor(tender: dict[str, Any] | None, custom_vendor: str | None = None) -> dict[str, Any]:
+def detect_vendor(tender: dict[str, Any] | None, custom_vendor: str | None = None,
+                  vendor_sheets: dict | None = None) -> dict[str, Any]:
     """Detects the assigned vendor and master sheet color for a tender.
 
     Vendors:
-    - Rajiv Mittal (Drone / UAV) -> Red (FEE2E2)
-    - Rajiv Tyagi (Power Supply / Electrical) -> Yellow (FEF08A)
-    - Hanmars (Biometrics & Face Recognition) -> Blue (BFDBFE)
+    - Drone vendor (Drone / UAV) -> Red (FEE2E2)
+    - Power supply vendor (Power Supply / Electrical) -> Yellow (FEF08A)
+    - Biometrics vendor (Biometrics & Face Recognition) -> Blue (BFDBFE)
     """
     tender = tender or {}
+    definitions = {key: {**value, "name": ((vendor_sheets or {}).get(key) or {}).get("name") or value["name"]}
+                   for key, value in VENDOR_DEFINITIONS.items()}
     override = str(custom_vendor or tender.get("assigned_vendor") or "").strip().lower()
     if override:
-        for vid, vinfo in VENDOR_DEFINITIONS.items():
+        for vid, vinfo in definitions.items():
             if override in (vid, vinfo["name"].lower(), vinfo["category_label"].lower()) or vid in override:
                 return vinfo
         if override in ("none", "unassigned", "default", "general"):
@@ -127,11 +130,11 @@ def detect_vendor(tender: dict[str, Any] | None, custom_vendor: str | None = Non
     bl_label = str(bl.get("label") or "").lower()
 
     if bl_id == "drone" or "drone" in bl_label or "uav" in bl_label:
-        return VENDOR_DEFINITIONS["drone"]
+        return definitions["drone"]
     if bl_id in ("power_supply", "components") or "power" in bl_label or "electrical" in bl_label:
-        return VENDOR_DEFINITIONS["power_supply"]
+        return definitions["power_supply"]
     if bl_id == "biometrics" or "biometric" in bl_label or "face" in bl_label:
-        return VENDOR_DEFINITIONS["biometrics"]
+        return definitions["biometrics"]
 
     # No keyword heuristic guessing — only route if explicitly chosen by user
     return {"id": None, "name": None, "category_label": "General", "hex_color": None, "web_color": None}
@@ -148,13 +151,12 @@ class MasterSheetManager:
 
     def _load_config(self) -> dict[str, Any]:
         default_cfg = {
-            # No live IDs or webhook URLs baked into the source. An Apps Script
-            # /exec URL is a bearer capability -- anyone holding it can write to
-            # the sheet -- so it belongs in the gitignored config file or the
-            # environment, never in a tracked default.
+            # Private IDs, URLs and the shared secret belong in ignored local
+            # configuration or environment variables, never tracked defaults.
             "spreadsheet_id": "",
             "spreadsheet_url": "",
             "apps_script_url": "",
+            "webhook_secret": "",
             "google_drive_mount_path": "",
             "local_master_excel_path": DEFAULT_LOCAL_MASTER_PATH,
             "sync_to_local_excel": True,
@@ -162,21 +164,21 @@ class MasterSheetManager:
             "default_sheet": "UNDER DETAILED STUDY",
             "vendor_sheets": {
                 "drone": {
-                    "name": "Rajiv Mittal",
+                    "name": "Drone vendor",
                     "category": "Drone / UAV",
                     "spreadsheet_id": "",
                     "spreadsheet_url": "",
                     "color": "#FEE2E2"
                 },
                 "power_supply": {
-                    "name": "Rajiv Tyagi",
+                    "name": "Power supply vendor",
                     "category": "Power Supply / Electrical",
                     "spreadsheet_id": "",
                     "spreadsheet_url": "",
                     "color": "#FEF08A"
                 },
                 "biometrics": {
-                    "name": "Hanmars",
+                    "name": "Biometrics vendor",
                     "category": "Biometrics & Facial Recognition",
                     "spreadsheet_id": "",
                     "spreadsheet_url": "",
@@ -198,6 +200,7 @@ class MasterSheetManager:
             ("GEMSENTRY_SHEET_ID", "spreadsheet_id"),
             ("GEMSENTRY_SHEET_URL", "spreadsheet_url"),
             ("GEMSENTRY_APPS_SCRIPT_URL", "apps_script_url"),
+            ("GEMSENTRY_WEBHOOK_SECRET", "webhook_secret"),
             ("GEMSENTRY_MASTER_XLSX", "local_master_excel_path"),
         ):
             if os.environ.get(env_name):
@@ -221,6 +224,17 @@ class MasterSheetManager:
 
     def save_config(self, new_config: dict[str, Any]) -> dict[str, Any]:
         with self.lock:
+            if not isinstance(new_config, dict):
+                raise ValueError("Configuration must be an object.")
+            if "webhook_secret" in new_config and not isinstance(new_config["webhook_secret"], str):
+                raise ValueError("Webhook secret must be text.")
+            new_config = dict(new_config)
+            if "webhook_secret" in new_config:
+                new_config["webhook_secret"] = new_config["webhook_secret"].strip()
+            new_config.pop("webhook_secret_configured", None)
+            # A blank password field means keep the existing secret.
+            if not new_config.get("webhook_secret"):
+                new_config.pop("webhook_secret", None)
             if "vendor_sheets" in new_config and isinstance(new_config["vendor_sheets"], dict):
                 current_vs = self.config.get("vendor_sheets") or {}
                 for k, v in new_config["vendor_sheets"].items():
@@ -364,21 +378,20 @@ class MasterSheetManager:
             try:
                 with open(abs_pdf, "rb") as f:
                     pdf_b64 = base64.b64encode(f.read()).decode("utf-8")
-                resp = requests.post(
-                    apps_script_url,
-                    json={
+                data = post_webhook(
+                    self.config,
+                    {
                         "action": "upload_pdf_to_drive",
                         "filename": f"{re.sub(r'[\\\\/*?:\"<>|]', '_', bid_no)}.pdf",
                         "base64_data": pdf_b64
                     },
                     timeout=20
                 )
-                data = resp.json()
                 if data.get("drive_link"):
                     logger.info("Uploaded tender PDF to Google Drive via Apps Script: %s", data["drive_link"])
                     return data["drive_link"]
             except Exception as e:
-                logger.warning("Failed uploading PDF to Google Drive via Apps Script: %s", e)
+                logger.warning("Google Drive upload failed (%s).", type(e).__name__)
 
         # 4. Fallback: GeM PDF link or local relative path
         return tender.get("pdf_url") or local_pdf or ""
@@ -598,13 +611,13 @@ class MasterSheetManager:
         if not apps_script_url:
             return {"status": "skipped", "message": "No Google Apps Script Webhook URL configured."}
         try:
-            resp = requests.post(apps_script_url, json=payload, timeout=12)
-            data = resp.json()
-            logger.info("Google Sheet sync response: %s", data)
+            data = post_webhook(self.config, payload)
+            logger.info("Google Sheet sync status: %s", data.get("status", "unknown"))
             return data
         except Exception as e:
-            logger.warning("Failed communicating with Google Sheet Webhook: %s", e)
-            return {"status": "error", "message": str(e)}
+            logger.warning("Google Sheet webhook request failed (%s).", type(e).__name__)
+            message = str(e) if isinstance(e, ValueError) else "Google Sheet webhook request failed."
+            return {"status": "error", "message": message}
 
     def _build_gsheet_payload(
         self,
@@ -693,7 +706,7 @@ class MasterSheetManager:
 
             # Vendor Detection & Assignment
             vendor_override = custom_fields.get("assigned_vendor")
-            vendor_info = detect_vendor(tender, vendor_override)
+            vendor_info = detect_vendor(tender, vendor_override, self.config.get("vendor_sheets"))
 
             record = {
                 "sl_no": sl_no,
@@ -869,7 +882,7 @@ class MasterSheetManager:
 
             # If user selected / updated the destination vendor
             if assigned_vendor is not None:
-                vinfo = detect_vendor(record, custom_vendor=assigned_vendor)
+                vinfo = detect_vendor(record, custom_vendor=assigned_vendor, vendor_sheets=self.config.get("vendor_sheets"))
                 record["vendor_id"] = vinfo.get("id")
                 record["vendor_name"] = vinfo.get("name")
                 record["vendor_color"] = vinfo.get("hex_color")
@@ -995,7 +1008,7 @@ class MasterSheetManager:
                 sheets_count[s] = sheets_count.get(s, 0) + 1
                 # Auto-backfill vendor metadata for older records if missing
                 if not r.get("vendor_id") and (r.get("work_category") or r.get("title")):
-                    v = detect_vendor(r)
+                    v = detect_vendor(r, custom_vendor=r.get("vendor_name"), vendor_sheets=self.config.get("vendor_sheets"))
                     if v.get("id"):
                         r["vendor_id"] = v.get("id")
                         r["vendor_name"] = v.get("name")

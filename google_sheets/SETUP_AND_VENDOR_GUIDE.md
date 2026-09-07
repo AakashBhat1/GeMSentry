@@ -8,9 +8,9 @@ This guide explains how to connect your **3 separate vendor Google Sheets** and 
 
 | Vendor | Category | Data Row Color | Header Color | What the Vendor Sees |
 | :--- | :--- | :--- | :--- | :--- |
-| **Rajiv Mittal** | Drone / UAV | **Soft Red** (`#FEE2E2`) | **Bold Red** (`#DC2626`) | **S.No, Item / Work Description, Tech Spec Link, Participate or Not Dropdown** |
-| **Rajiv Tyagi** | Power Supply / Electrical | **Soft Yellow** (`#FEF08A`) | **Bold Amber** (`#D97706`) | **S.No, Item / Work Description, Tech Spec Link, Participate or Not Dropdown** |
-| **Hanmars** | Biometrics & Face Rec | **Soft Blue** (`#BFDBFE`) | **Bold Blue** (`#1D4ED8`) | **S.No, Item / Work Description, Tech Spec Link, Participate or Not Dropdown** |
+| **Drone vendor** | Drone / UAV | **Soft Red** (`#FEE2E2`) | **Bold Red** (`#DC2626`) | **S.No, Item / Work Description, Tech Spec Link, Participate or Not Dropdown** |
+| **Power supply vendor** | Power Supply / Electrical | **Soft Yellow** (`#FEF08A`) | **Bold Amber** (`#D97706`) | **S.No, Item / Work Description, Tech Spec Link, Participate or Not Dropdown** |
+| **Biometrics vendor** | Biometrics & Face Rec | **Soft Blue** (`#BFDBFE`) | **Bold Blue** (`#1D4ED8`) | **S.No, Item / Work Description, Tech Spec Link, Participate or Not Dropdown** |
 
 > [!IMPORTANT]
 > **Strict Confidentiality & Zero Tender/Bid Disclosure Enforced:**
@@ -28,15 +28,15 @@ This guide explains how to connect your **3 separate vendor Google Sheets** and 
 ## 2. Setting Up Your 3 Vendor Spreadsheets
 
 1. In Google Drive, create 3 separate Google Sheets (or use existing ones):
-   - Sheet 1: `ETSPL Requirements - Rajiv Mittal (Drone)`
-   - Sheet 2: `ETSPL Requirements - Rajiv Tyagi (Power Supply)`
-   - Sheet 3: `ETSPL Requirements - Hanmars (Biometrics)`
+   - Sheet 1: `ETSPL Requirements - Drone vendor (Drone)`
+   - Sheet 2: `ETSPL Requirements - Power supply vendor (Power Supply)`
+   - Sheet 3: `ETSPL Requirements - Biometrics vendor (Biometrics)`
 2. Copy the URL or ID of each sheet from your browser address bar:
-   - Format: `https://docs.google.com/spreadsheets/d/`**`1WbeJJ8goLPGLryyJfcJNbiXtIxXjC9Z0g8viueh5oOk`**`/edit`
+   - Format: `https://docs.google.com/spreadsheets/d/`**`YOUR_SHEET_ID`**`/edit`
 3. Enter these 3 IDs in the GeMSentry Dashboard:
    - Go to **GeMSentry Dashboard &rarr; Settings &rarr; Vendor Spreadsheets**
    - Paste each URL or ID in its corresponding box and click **Save Settings**.
-   - *(Optional: You can also paste them directly into `VENDOR_CONFIG` at the top of `gemsentry/google_sync_script.gs`)*.
+   - Names and IDs are stored in ignored `config/google_sync_config.json` and sent with authenticated requests. Keep them out of the script source.
 
 ---
 
@@ -47,8 +47,8 @@ Only **ONE** deployment is required — on your **Master Google Sheet**:
 1. Open your **Master Google Sheet** in your browser.
 2. In the top menu, click **Extensions &rarr; Apps Script**.
 3. Delete any default code in `Code.gs`.
-4. Copy the entire contents of [`gemsentry/google_sync_script.gs`](file:///c:/dev/GEM/gemsentry/google_sync_script.gs) and paste it into the editor.
-5. Click **Save (💾)**.
+4. Copy the entire contents of [`gemsentry/google_sync_script.example.gs`](../gemsentry/google_sync_script.example.gs) and paste it into the editor. A local deployment copy named `google_sync_script.gs` is ignored by Git.
+5. Click **Save (💾)**. Open **Project Settings → Script properties** and add `GEMSENTRY_WEBHOOK_SECRET` with a long random secret. Set the same value in the dashboard's **Webhook shared secret** field, or in local `google_sync_config.json` as `webhook_secret`. The environment override is `GEMSENTRY_WEBHOOK_SECRET`.
 6. In the top right, click **Deploy &rarr; New deployment**.
 7. Click the gear icon next to "Select type" and choose **Web app**:
    - **Description**: `GeMSentry Multi-Vendor Live Webhook`
@@ -56,6 +56,9 @@ Only **ONE** deployment is required — on your **Master Google Sheet**:
    - **Who has access**: `Anyone` *(Important: required for GeMSentry webhooks to communicate)*
 8. Click **Deploy**, click **Authorize access**, and copy the **Web app URL** (`https://script.google.com/macros/s/.../exec`).
 9. Paste this URL into **GeMSentry Dashboard &rarr; Settings &rarr; Google Apps Script Webhook URL** and click **Save Settings**.
+10. Click **Test Webhook**. It must succeed with the correct secret. Missing or incorrect secrets must return `Unauthorized`. All data reads and writes now require POST; opening the webhook URL in a browser returns `Authenticated POST required`.
+
+For an existing deployment, replace the deployed code, configure the script property, and use **Deploy → Manage deployments → Edit → New version → Deploy**. Updating the local file alone does not secure the running web app. Retire obsolete unauthenticated deployments. Do not put the secret in a query string or commit it to Git.
 
 ---
 

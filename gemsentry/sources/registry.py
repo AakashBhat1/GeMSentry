@@ -135,6 +135,8 @@ class SourceRegistry:
         with self._lock:
             for source in self.sources:
                 if source.get("id") == source_id:
+                    if enabled and (source.get("engine") or "").lower() not in {*ENGINES, *NATIVE_ENGINES}:
+                        raise ValueError("This portal has no working adapter and cannot be enabled.")
                     source["enabled"] = bool(enabled)
                     self._save_sources()
                     self._build_adapters()

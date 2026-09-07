@@ -10,7 +10,13 @@ import openpyxl
 from gemsentry.master_sheet import MasterSheetManager
 
 @pytest.fixture
-def temp_manager(tmp_path):
+def temp_manager(tmp_path, monkeypatch):
+    # Tests must not consume private config or write into the operator's data.
+    import gemsentry.master_sheet as module
+    import paths
+    monkeypatch.setattr(module, "CONFIG_PATH", str(tmp_path / "sync.json"))
+    monkeypatch.setattr(module, "FINALIZED_STORE_PATH", str(tmp_path / "records.json"))
+    monkeypatch.setattr(paths, "TECH_SPECS_DIR", str(tmp_path / "specs"))
     mgr = MasterSheetManager()
     test_wb_path = str(tmp_path / "test_master.xlsx")
 
@@ -205,7 +211,7 @@ def test_api_finalized_endpoints(monkeypatch):
 
 
 def test_vendor_detection_and_coloring(temp_manager):
-    # 1. Drone tender -> Rajiv Mittal (Red: FEE2E2)
+    # 1. Drone tender -> Drone vendor (Red: FEE2E2)
     drone_tender = {
         "bid_no": "TEST/DRONE/001",
         "title": "Quadrotor UAV Surveillance Drone System",
@@ -216,10 +222,10 @@ def test_vendor_detection_and_coloring(temp_manager):
     assert res_drone["status"] == "ok"
     rec_drone = res_drone["record"]
     assert rec_drone["vendor_id"] == "drone"
-    assert rec_drone["vendor_name"] == "Rajiv Mittal"
+    assert rec_drone["vendor_name"] == "Drone vendor"
     assert rec_drone["vendor_color"] == "FEE2E2"
 
-    # 2. Power Supply tender -> Rajiv Tyagi (Yellow: FEF08A)
+    # 2. Power Supply tender -> Power supply vendor (Yellow: FEF08A)
     power_tender = {
         "bid_no": "TEST/POWER/002",
         "title": "High Voltage Static Convertor and Rectifier Unit",
@@ -230,10 +236,10 @@ def test_vendor_detection_and_coloring(temp_manager):
     assert res_power["status"] == "ok"
     rec_power = res_power["record"]
     assert rec_power["vendor_id"] == "power_supply"
-    assert rec_power["vendor_name"] == "Rajiv Tyagi"
+    assert rec_power["vendor_name"] == "Power supply vendor"
     assert rec_power["vendor_color"] == "FEF08A"
 
-    # 3. Biometrics tender -> Hanmars (Blue: BFDBFE)
+    # 3. Biometrics tender -> Biometrics vendor (Blue: BFDBFE)
     bio_tender = {
         "bid_no": "TEST/BIO/003",
         "title": "Aadhaar Facial Recognition and Biometric Attendance Terminal",
@@ -244,7 +250,7 @@ def test_vendor_detection_and_coloring(temp_manager):
     assert res_bio["status"] == "ok"
     rec_bio = res_bio["record"]
     assert rec_bio["vendor_id"] == "biometrics"
-    assert rec_bio["vendor_name"] == "Hanmars"
+    assert rec_bio["vendor_name"] == "Biometrics vendor"
     assert rec_bio["vendor_color"] == "BFDBFE"
 
     # 4. Manual Vendor Override
@@ -259,7 +265,7 @@ def test_vendor_detection_and_coloring(temp_manager):
     )
     rec_over = res_over["record"]
     assert rec_over["vendor_id"] == "drone"
-    assert rec_over["vendor_name"] == "Rajiv Mittal"
+    assert rec_over["vendor_name"] == "Drone vendor"
     assert rec_over["vendor_color"] == "FEE2E2"
 
     # 5. Check Excel workbook cell fill colors
@@ -287,7 +293,7 @@ def test_vendor_detection_and_coloring(temp_manager):
     # 6. Check payload structure
     payload = temp_manager._build_gsheet_payload(rec_drone, target_sheet="MASTER")
     assert payload["vendor_id"] == "drone"
-    assert payload["vendor_name"] == "Rajiv Mittal"
+    assert payload["vendor_name"] == "Drone vendor"
     assert payload["vendor_color"] == "FEE2E2"
     assert "vendor_sheets" in payload
     assert "tech_spec_url" in payload
@@ -315,7 +321,7 @@ def test_tech_spec_attachment_and_sync(temp_manager):
     assert res["status"] == "ok"
     assert res["tech_spec_url"] == doc_url
     assert res["vendor_id"] == "drone"
-    assert res["vendor_name"] == "Rajiv Mittal"
+    assert res["vendor_name"] == "Drone vendor"
 
     # Verify record in manager
     rec = temp_manager.get_record("TEST/SPEC/001")

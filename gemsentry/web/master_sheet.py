@@ -3,12 +3,12 @@
 import logging
 import os
 
-import requests
 from flask import Blueprint, jsonify, request, send_from_directory
 from werkzeug.utils import secure_filename
 
 import paths
 from gemsentry.master_sheet import master_sheet_manager
+from gemsentry.google_webhook import post_webhook, public_config
 from gemsentry.web.context import fail, is_apps_script_url
 
 logger = logging.getLogger("gemsentry")
@@ -184,8 +184,10 @@ def finalized_config_endpoint():
         if request.method == "POST":
             data = request.json or {}
             saved = master_sheet_manager.save_config(data)
-            return jsonify({"status": "ok", "config": saved})
-        return jsonify(master_sheet_manager.config)
+            return jsonify({"status": "ok", "config": public_config(saved)})
+        return jsonify(public_config(master_sheet_manager.load_config()))
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
         return fail(e)
 
@@ -208,8 +210,12 @@ def test_google_webhook_endpoint():
                 "message": "Only https://script.google.com/ URLs can be pinged.",
             }), 400
 
-        resp = requests.post(url, json={"action": "ping"}, timeout=10)
-        return jsonify(resp.json())
+        config = {**master_sheet_manager.load_config(), "apps_script_url": url}
+        if data.get("webhook_secret"):
+            config["webhook_secret"] = data["webhook_secret"]
+        return jsonify(post_webhook(config, {"action": "ping"}, timeout=10))
+    except ValueError as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
     except Exception as e:
         logger.exception("Webhook ping failed: %s", e)
         return jsonify({"status": "error", "message": "Webhook ping failed."}), 502
@@ -219,7 +225,7 @@ def test_google_webhook_endpoint():
 def get_apps_script_code_endpoint():
     """Get the source code of the Google Apps Script helper."""
     try:
-        script_path = os.path.join(paths.ROOT, "gemsentry", "google_sync_script.gs")
+        script_path = os.path.join(paths.ROOT, "gemsentry", "google_sync_script.example.gs")
         if os.path.exists(script_path):
             with open(script_path, encoding="utf-8") as f:
                 code = f.read()

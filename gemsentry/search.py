@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 import json
+import os
 import re
 from collections.abc import Iterable
 
@@ -85,7 +86,8 @@ def load_search_concepts(path: str | None = None) -> dict[str, dict]:
 
 def load_company_profile(path: str | None = None) -> dict:
     """Load business-line vocabulary used for profile-wide search planning."""
-    profile_path = path or paths.COMPANY_PROFILE_PATH
+    profile_path = path or (paths.COMPANY_PROFILE_PATH if os.path.exists(paths.COMPANY_PROFILE_PATH)
+                            else paths.COMPANY_PROFILE_EXAMPLE_PATH)
     try:
         with open(profile_path, encoding="utf-8") as handle:
             payload = json.load(handle)

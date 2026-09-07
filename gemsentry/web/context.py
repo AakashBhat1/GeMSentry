@@ -19,6 +19,7 @@ import logging_setup
 import paths
 import scraper
 from gemsentry import tender_view
+from gemsentry.google_webhook import is_apps_script_url  # noqa: F401 (stable re-export)
 from gemsentry.live_excel import live_excel_manager
 from gemsentry.search import expand_keywords
 from gemsentry.sources import SourceRegistry
@@ -46,15 +47,16 @@ def fail(exc, status=500):
     return jsonify({"error": "Internal server error. See the server log for details."}), status
 
 
-def is_auth_enabled() -> bool:
-    cfg = paths.load_server_config()
+def is_auth_enabled(cfg=None) -> bool:
+    cfg = paths.load_server_config() if cfg is None else cfg
     return bool(cfg.get("auth_token", "").strip())
 
 
-def check_auth(token_to_test: str | None) -> bool:
-    if not is_auth_enabled():
+def check_auth(token_to_test: str | None, cfg=None) -> bool:
+    cfg = paths.load_server_config() if cfg is None else cfg
+    if not is_auth_enabled(cfg):
         return True
-    expected = paths.load_server_config().get("auth_token", "").strip()
+    expected = cfg.get("auth_token", "").strip()
     if not token_to_test:
         return False
     # Constant-time: a plain `==` leaks the shared secret one byte at a time
@@ -72,18 +74,6 @@ PUBLIC_PATHS = {"/", "/favicon.ico", "/api/auth/status", "/api/auth/verify",
                 "/api/auth/logout"}
 
 
-APPS_SCRIPT_HOSTS = {"script.google.com", "script.googleusercontent.com"}
-
-
-def is_apps_script_url(url: str) -> bool:
-    """True only for an https Google Apps Script endpoint."""
-    try:
-        parsed = urlparse((url or "").strip())
-    except ValueError:
-        return False
-    return parsed.scheme == "https" and parsed.hostname in APPS_SCRIPT_HOSTS
-
-
 def _bearer_token() -> str | None:
     header = request.headers.get("Authorization", "")
     if header.startswith("Bearer "):
@@ -92,11 +82,20 @@ def _bearer_token() -> str | None:
 
 
 def enforce_auth():
-    if not is_auth_enabled():
+    # One config read per request, keeping the decision and comparison consistent.
+    cfg = paths.load_server_config()
+    if not is_auth_enabled(cfg):
+        forwarded = any(request.headers.get(name) for name in (
+            "Forwarded", "X-Forwarded-For", "X-Forwarded-Host",
+            "X-Forwarded-Proto", "CF-Connecting-IP",
+        ))
+        host = urlparse(request.host_url).hostname
+        if forwarded or not paths.is_loopback(host) or not paths.is_loopback(request.remote_addr):
+            return jsonify({"error": "Remote or proxied access requires a configured access key."}), 403
         return None
-    if request.path in PUBLIC_PATHS or request.path.endswith(".png"):
+    if request.path in PUBLIC_PATHS:
         return None
-    if request.path.startswith("/static/"):
+    if request.endpoint == "static":
         return None
 
     token = _bearer_token()
@@ -111,7 +110,7 @@ def enforce_auth():
     if token is None and request.method not in UNSAFE_METHODS:
         token = request.cookies.get("gemsentry_token")
 
-    if not check_auth(token):
+    if not check_auth(token, cfg):
         return jsonify({
             "error": "Unauthorized: Authentication required.",
             "auth_required": True

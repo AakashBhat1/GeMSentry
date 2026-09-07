@@ -1,38 +1,29 @@
 {
   "version": 1,
   "company": {
-    "legal_name": "Earnest Tactical Solutions Pvt. Ltd.",
-    "short_name": "ETSPL",
-    "incorporation_ym": "2020-03",
-    "hq_state": "Haryana",
-    "hq_city": "Gurgaon"
+    "legal_name": "Example Company",
+    "short_name": "Example",
+    "incorporation_ym": "",
+    "hq_state": "",
+    "hq_city": ""
   },
   "eligibility": {
-    "annual_turnover_inr": 1800000,
-    "years_experience": 6,
+    "annual_turnover_inr": 0,
+    "years_experience": 0,
     "registrations": {
-      "mse_udyam": true,
-      "startup_dpiit": true
+      "mse_udyam": false,
+      "startup_dpiit": false
     },
-    "certifications": [
-      "ISO 9001:2015"
-    ],
-    "can_meet_make_in_india": true,
+    "certifications": [],
+    "can_meet_make_in_india": false,
     "max_order_value_inr": null,
-    "turnover_waivable_by_exemption": true
+    "turnover_waivable_by_exemption": false
   },
   "serviceability": {
     "all_india": true,
-    "soft_avoid_states": [
-      "Tamil Nadu",
-      "Kerala",
-      "Karnataka",
-      "Andhra Pradesh",
-      "Telangana",
-      "Puducherry"
-    ],
-    "soft_avoid_reason": "Local monopoly on these product categories in South India",
-    "soft_avoid_penalty": 0.5
+    "soft_avoid_states": [],
+    "soft_avoid_reason": "",
+    "soft_avoid_penalty": 0
   },
   "business_lines": [
     {
@@ -762,24 +753,7 @@
       ]
     }
   ],
-  "buyer_affinity": {
-    "BHARAT PETROLEUM": 0.5,
-    "DEFENCE": 0.6,
-    "DISCOM": 0.85,
-    "DRDO": 0.65,
-    "HAL": 0.75,
-    "INDIAN AIR FORCE": 1,
-    "INDIAN ARMY": 0.85,
-    "INDIAN NAVY": 0.75,
-    "MNRE": 0.85,
-    "NHPC": 0.85,
-    "NLC INDIA": 0.85,
-    "NTPC": 0.9,
-    "REC PDCL": 0.9,
-    "SECI": 0.95,
-    "SJVN": 0.85,
-    "STATE ELECTRICITY BOARD": 0.85
-  },
+  "buyer_affinity": {},
   "value_preference": {
     "sweet_min_inr": 60000,
     "sweet_max_inr": 200000
@@ -811,7 +785,7 @@
       "workspace": "personel"
     },
     "gis_survey": {
-      "label": "DGPS & GIS Survey (\u20b91L\u2013\u20b95Cr)",
+      "label": "DGPS & GIS Survey (₹1L–₹5Cr)",
       "sweet_min_inr": 100000,
       "sweet_max_inr": 50000000,
       "keywords": [

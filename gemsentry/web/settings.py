@@ -172,6 +172,8 @@ def manage_sources():
             "total": len(sources),
             "runnable": len(source_registry.runnable_adapters()),
         })
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
         return fail(e)
 

@@ -82,29 +82,21 @@ DEFAULT_SCORING_CONFIG = {
 DEFAULT_COMPANY_PROFILE = {
     "version": 1,
     "company": {
-        "legal_name": "Earnest Tactical Solutions Pvt. Ltd.",
-        "short_name": "ETSPL",
-        "incorporation_ym": "2020-03",
-        "hq_state": "Haryana",
-        "hq_city": "Gurgaon"
+        "legal_name": "Example Company", "short_name": "Example",
+        "incorporation_ym": "", "hq_state": "", "hq_city": "",
     },
     "eligibility": {
-        "annual_turnover_inr": 1800000,
-        "years_experience": 6,
-        "registrations": {"mse_udyam": True, "startup_dpiit": True},
-        "certifications": ["ISO 9001:2015"],
-        "can_meet_make_in_india": True,
+        "annual_turnover_inr": 0,
+        "years_experience": 0,
+        "registrations": {"mse_udyam": False, "startup_dpiit": False},
+        "certifications": [],
+        "can_meet_make_in_india": False,
         "max_order_value_inr": None,
-        "turnover_waivable_by_exemption": True
+        "turnover_waivable_by_exemption": False,
     },
     "serviceability": {
-        "all_india": True,
-        "soft_avoid_states": [
-            "Tamil Nadu", "Kerala", "Karnataka",
-            "Andhra Pradesh", "Telangana", "Puducherry"
-        ],
-        "soft_avoid_reason": "Local monopoly on these product categories in South India",
-        "soft_avoid_penalty": 0.5
+        "all_india": True, "soft_avoid_states": [],
+        "soft_avoid_reason": "", "soft_avoid_penalty": 0,
     },
     "business_lines": [
         {
@@ -321,24 +313,7 @@ DEFAULT_COMPANY_PROFILE = {
             ]
         }
     ],
-    "buyer_affinity": {
-        "INDIAN AIR FORCE": 1.0,
-        "INDIAN ARMY": 0.85,
-        "INDIAN NAVY": 0.75,
-        "HAL": 0.75,
-        "DRDO": 0.65,
-        "BHARAT PETROLEUM": 0.5,
-        "DEFENCE": 0.6,
-        "SECI": 0.95,
-        "NTPC": 0.9,
-        "NHPC": 0.85,
-        "SJVN": 0.85,
-        "NLC INDIA": 0.85,
-        "REC PDCL": 0.9,
-        "DISCOM": 0.85,
-        "MNRE": 0.85,
-        "STATE ELECTRICITY BOARD": 0.85
-    },
+    "buyer_affinity": {},
     "value_preference": {
         "sweet_min_inr": 500000,
         "sweet_max_inr": 50000000

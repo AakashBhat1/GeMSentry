@@ -41,7 +41,7 @@ HEADERS = [
     ("Buyer / Department", 40), ("Est. Value (INR)", 15), ("Days Left", 9),
     ("End Date", 18), ("EMD", 22), ("Startup Exemption", 16),
     ("MSE Exemption", 16), ("Confidence", 10), ("Keyword", 22),
-    ("GeM Portal", 11), ("Local PDF", 10),
+    ("GeM Portal", 11), ("RFP PDF", 18),
 ]
 
 HEADER_FILL = PatternFill("solid", fgColor="1F3864")
@@ -126,9 +126,11 @@ def _write_sheet(wb, name: str, tenders: list[dict[str, Any]], tab_color: str | 
         else:
             gem.value = "—"
         pdf = ws.cell(row=row, column=19)
-        uri = _file_uri(t.get("local_pdf_path"))
+        remote_url = t.get("drive_link") or t.get("pdf_url") or ""
+        portable = urllib.parse.urlparse(remote_url).scheme in ("https", "http")
+        uri = remote_url if portable else _file_uri(t.get("local_pdf_path"))
         if uri:
-            pdf.value = "Open PDF"
+            pdf.value = "Open PDF" if portable else "Local PDF (this PC)"
             pdf.hyperlink = uri
             pdf.font = LINK_FONT
         else:

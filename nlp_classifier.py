@@ -1,7 +1,7 @@
 """
-GeMSentry NLP Tender Segregation & Classification Engine.
+GeMSentry rule-based tender classification engine.
 
-Categorizes tender RFPs into semantic canonical industry domains based on
+Categorizes tender RFPs into canonical industry domains using keyword and regex rules on
 title, item category, primary item, business line, and PDF content text.
 """
 from __future__ import annotations

@@ -15,7 +15,7 @@ def load_company_profile():
     """Load company_profile.json; missing/corrupt → defaults + warning (BE-07)."""
     defaults = copy.deepcopy(DEFAULT_COMPANY_PROFILE)
     cfg_path = _resolve_config_path(
-        COMPANY_PROFILE_PATH, paths.LEGACY_COMPANY_PROFILE_PATH, "company_profile.json"
+        COMPANY_PROFILE_PATH, paths.COMPANY_PROFILE_EXAMPLE_PATH, "company_profile.json"
     )
     if not cfg_path:
         logger.warning("%s not found; using default company profile.", COMPANY_PROFILE_PATH)
@@ -168,8 +168,6 @@ def validate_company_profile(payload):
     affinity = payload.get("buyer_affinity")
     if not isinstance(affinity, dict):
         return "buyer_affinity must be an object."
-    if len(affinity) == 0:
-        return "buyer_affinity must not be empty."
     for k, v in affinity.items():
         try:
             av = float(v)
@@ -193,7 +191,7 @@ def validate_company_profile(payload):
 
 
 def save_company_profile(payload):
-    """Atomically write company_profile.json. Rejects invalid payloads (BE-18)."""
+    """Atomically write the ignored local profile; reject invalid payloads."""
     err = validate_company_profile(payload)
     if err:
         raise ValueError(f"Invalid company profile: {err}")

@@ -105,7 +105,7 @@ powershell -ExecutionPolicy Bypass -File .\run_search.ps1
 
 | Path | Purpose |
 |------|---------|
-| `config/` | Tunable knobs: `keywords.csv`, `scoring_config.json`, `company_profile.json` |
+| `config/` | Tunable knobs: `keywords.csv`, `scoring_config.json`, ignored `company_profile.local.json` (generic example: `company_profile.json`) |
 | `data/` | Runtime / imported state (`history.json`, optional `source/` inputs) |
 | `logs/` | App log (`gemsentry.log`) + per-scrape session files under `logs/scrapes/` |
 | `tenders/` | Tender metadata + downloaded RFP PDFs (`tenders/downloads/`) |
@@ -125,6 +125,8 @@ a debounced background writer. An existing `metadata.json` is migrated into the
 database automatically on first run.
 
 ## Security
+
+See [Security setup and migration](SECURITY_SETUP.md) for the required Apps Script secret/redeployment, private local configuration, and tunnel preflight.
 
 The server binds `127.0.0.1` by default. Binding any other interface requires an
 auth token, and startup refuses otherwise:

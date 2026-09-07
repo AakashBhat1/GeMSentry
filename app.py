@@ -37,7 +37,7 @@ from gemsentry.web.tenders import tenders_bp  # noqa: E402
 
 logger = logging.getLogger("gemsentry")
 
-app = Flask(__name__, static_folder=".", static_url_path="")
+app = Flask(__name__, static_folder="static", static_url_path="/static")
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(tenders_bp)

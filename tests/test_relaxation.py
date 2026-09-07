@@ -15,12 +15,17 @@ Run:  python tests/test_relaxation.py   (or pytest tests/test_relaxation.py)
 """
 import os
 import sys
+import copy
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import scraper  # noqa: E402
 
-PROFILE = scraper.load_company_profile()
+from gemsentry.defaults import DEFAULT_COMPANY_PROFILE
+
+# A synthetic bidder makes boundary tests independent of private operator data.
+PROFILE = copy.deepcopy(DEFAULT_COMPANY_PROFILE)
+PROFILE["eligibility"].update({"annual_turnover_inr": 1000000, "years_experience": 4})
 
 # --- Verbatim corpus samples -------------------------------------------------
 # Both criteria, refused (GEM_2026_B_7684162)

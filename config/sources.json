@@ -70,7 +70,7 @@
       "url": "https://srijandefence.gov.in/",
       "category": "defence_indigenization",
       "engine": "srijan",
-      "enabled": true,
+      "enabled": false,
       "description": "Opportunities for Make in India in Defence",
       "blocked_reason": "Indigenisation product catalogue, not a tender listing (zero tender records on the site)."
     },
@@ -80,7 +80,7 @@
       "url": "https://ireps.gov.in/",
       "category": "railways",
       "engine": "ireps",
-      "enabled": true,
+      "enabled": false,
       "description": "Indian Railways Official Tender Portal",
       "blocked_reason": "Tender search is CAPTCHA-gated (anonymSearch.do) and all navigation is JavaScript-only."
     },
@@ -90,7 +90,7 @@
       "url": "https://eproc.hal-india.co.in/HAL/",
       "category": "defence_psu",
       "engine": "hal",
-      "enabled": true,
+      "enabled": false,
       "description": "Hindustan Aeronautics Limited e-Procurement",
       "blocked_reason": "Tenderwizard single-page app behind an auto-submitting form; no server-rendered listing."
     },
@@ -100,7 +100,7 @@
       "url": "https://hal-india.co.in/Tenders/M__63",
       "category": "defence_psu",
       "engine": "hal_tenders",
-      "enabled": true,
+      "enabled": false,
       "description": "Hindustan Aeronautics Limited Active Tenders",
       "blocked_reason": "hal-india.co.in/Tenders does not respond (connection times out)."
     },
@@ -110,7 +110,7 @@
       "url": "https://bdl-india.in/",
       "category": "defence_psu",
       "engine": "bdl",
-      "enabled": true,
+      "enabled": false,
       "description": "Bharat Dynamics Limited Tenders & Vendor Portal",
       "blocked_reason": "Tenders are hosted on the third-party abcprocure portal behind a search session; the public page exposes one ticker item."
     },
@@ -139,7 +139,7 @@
       "url": "https://makeinindiadefence.gov.in/industry_registration",
       "category": "defence_indigenization",
       "engine": "mii_defence",
-      "enabled": true,
+      "enabled": false,
       "description": "Make in India Defence Opportunities & Registration",
       "blocked_reason": "URL is an industry-registration form, not a tender listing, and returns HTTP 503."
     },
@@ -149,7 +149,7 @@
       "url": "https://idex.gov.in/",
       "category": "defence_innovation",
       "engine": "idex",
-      "enabled": true,
+      "enabled": false,
       "description": "iDEX Defence Innovation Challenges & Grants",
       "blocked_reason": "Innovation challenges and grants rather than tenders; the site is CAPTCHA-protected."
     },
@@ -159,7 +159,7 @@
       "url": "https://enivida.odisha.gov.in/",
       "category": "railways_psu",
       "engine": "railtel",
-      "enabled": true,
+      "enabled": false,
       "description": "RailTel e-Nivida e-Procurement",
       "blocked_reason": "eNivida listing is an AJAX DataTable requiring a search session. Note: the configured URL is Odisha eNivida, not RailTel."
     },

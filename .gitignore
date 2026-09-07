@@ -16,6 +16,14 @@ lead
 .coverage
 htmlcov/
 
+# Local Apps Script deployment copy; the sanitized example stays tracked.
+/gemsentry/google_sync_script.gs
+
+# Local environment files and credentials (keep distributable examples).
+.env
+.env.*
+!.env.example
+!.env.sample
 # Virtual environments
 .venv/
 venv/
@@ -41,6 +49,9 @@ EtsplCompanyProfile_2026.pdf
 TENDER MASTER SHEET*.xlsx
 history.json
 data/history.json
+data/finalized_tenders.json
+data/source/*
+!data/source/.gitkeep
 scratch/
 
 # Derived cache — rebuildable from the PDFs, keyed by content hash
@@ -60,14 +71,25 @@ logs/**
 !logs/scrapes/
 !logs/scrapes/.gitkeep
 .agents
+.codex/
 
 # Server auth config & cloudflared binaries
 config/server_config.json
 
-# Google Sync config: holds the Apps Script /exec URL, which is a bearer
-# capability -- anyone with it can write to the sheet. Copy
+# Google Sync config: holds private sheet IDs, URL and webhook secret. Copy
 # config/google_sync_config.example.json and fill it in locally, or set
 # GEMSENTRY_APPS_SCRIPT_URL / GEMSENTRY_SHEET_ID in the environment.
 config/google_sync_config.json
+config/company_profile.local.json
+data/finalized_tenders.local.json
+config/*.local.json
+data/*.local.json
+data/*.db
+data/*.db-wal
+data/*.db-shm
+data/*.sqlite
+data/*.sqlite-wal
+data/*.sqlite-shm
+data/tech_specs/**
 tools/cloudflared.exe
 .cloudflared/

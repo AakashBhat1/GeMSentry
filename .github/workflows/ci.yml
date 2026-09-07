@@ -29,6 +29,9 @@ jobs:
         # Network-marked tests hit live portals; they cannot run in CI.
         run: uv run pytest -m "not network" --cov=gemsentry --cov-report=term-missing
 
+      - name: JavaScript security tests
+        run: node --test tests/auth.test.cjs tests/google_sync_script.test.cjs
+
   bind-safety:
     # Guards the one setting that would expose the API to the network.
     runs-on: ubuntu-latest

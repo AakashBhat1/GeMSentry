@@ -908,9 +908,9 @@
                     </div>
                     <select id="finalizeAssignedVendor" onchange="updateFinalizeVendorPreview()" style="width: 100%; padding: 0.6rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.85rem;">
                         <option value="none" selected>⚪ Master Sheet Only (Internal — No Vendor Sheet)</option>
-                        <option value="drone">🔴 Rajiv Mittal (Drone / UAV Sheet)</option>
-                        <option value="power_supply">🟡 Rajiv Tyagi (Power Supply & Electrical Sheet)</option>
-                        <option value="biometrics">🔵 Hanmars (Biometrics & Face Recognition Sheet)</option>
+                        <option value="drone">🔴 Drone vendor (Drone / UAV Sheet)</option>
+                        <option value="power_supply">🟡 Power supply vendor (Power Supply & Electrical Sheet)</option>
+                        <option value="biometrics">🔵 Biometrics vendor (Biometrics & Face Recognition Sheet)</option>
                     </select>
                     <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.35rem;">
                         Select where this requirement should go. No keyword guessing.
@@ -1053,9 +1053,9 @@
                         <label style="color: var(--text-muted); font-size: 0.72rem; font-weight: 700; text-transform: uppercase;">Destination Vendor Sheet</label>
                         <select id="specModalVendorSelect" style="padding: 0.35rem 0.65rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.8rem; font-weight: 600;">
                             <option value="none">⚪ Master Sheet Only (Unassigned)</option>
-                            <option value="drone">🔴 Rajiv Mittal (Drone / UAV Sheet)</option>
-                            <option value="power_supply">🟡 Rajiv Tyagi (Power Supply & Electrical Sheet)</option>
-                            <option value="biometrics">🔵 Hanmars (Biometrics & Face Rec Sheet)</option>
+                            <option value="drone">🔴 Drone vendor (Drone / UAV Sheet)</option>
+                            <option value="power_supply">🟡 Power supply vendor (Power Supply & Electrical Sheet)</option>
+                            <option value="biometrics">🔵 Biometrics vendor (Biometrics & Face Rec Sheet)</option>
                         </select>
                     </div>
                 </div>
@@ -1117,7 +1117,7 @@
                     <button class="btn btn-secondary" onclick="syncAllFinalizedToGoogle()" id="btnHeaderSyncAll" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; border-color: rgba(59, 130, 246, 0.4); color: #60a5fa;">
                         <span>🔄 Sync All to Sheet</span>
                     </button>
-                    <a id="btnOpenGSheetLink" href="https://docs.google.com/spreadsheets/d/1WbeJJ8goLPGLryyJfcJNbiXtIxXjC9Z0g8viueh5oOk/edit?usp=sharing" target="_blank" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; border-color: rgba(16, 185, 129, 0.4); color: #34d399;">
+                    <a id="btnOpenGSheetLink" href="https://sheets.google.com/" target="_blank" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; border-color: rgba(16, 185, 129, 0.4); color: #34d399;">
                         <span>Open Google Sheet ↗</span>
                     </a>
                     <button class="close-btn" onclick="closeFinalizedModal()">&times;</button>
@@ -1152,15 +1152,15 @@
                         <span class="badge-count" id="vfCount_all">0</span>
                     </button>
                     <button type="button" class="vendor-filter-pill pill-drone" id="vfBtn_drone" onclick="setVendorFilter('drone')">
-                        <span>🔴 Drone / UAV (Rajiv Mittal)</span>
+                        <span>🔴 Drone / UAV (Drone vendor)</span>
                         <span class="badge-count" id="vfCount_drone">0</span>
                     </button>
                     <button type="button" class="vendor-filter-pill pill-power" id="vfBtn_power_supply" onclick="setVendorFilter('power_supply')">
-                        <span>🟡 Power Supply (Rajiv Tyagi)</span>
+                        <span>🟡 Power Supply (Power supply vendor)</span>
                         <span class="badge-count" id="vfCount_power_supply">0</span>
                     </button>
                     <button type="button" class="vendor-filter-pill pill-bio" id="vfBtn_biometrics" onclick="setVendorFilter('biometrics')">
-                        <span>🔵 Biometrics (Hanmars)</span>
+                        <span>🔵 Biometrics (Biometrics vendor)</span>
                         <span class="badge-count" id="vfCount_biometrics">0</span>
                     </button>
                     <button type="button" class="vendor-filter-pill" id="vfBtn_general" onclick="setVendorFilter('general')">
@@ -1215,6 +1215,12 @@
                             <div id="webhookTestResult" style="font-size: 0.8rem; margin-top: 0.35rem; display: none;"></div>
                         </div>
 
+                        <div>
+                            <label for="cfgWebhookSecret">Webhook shared secret</label>
+                            <input type="password" id="cfgWebhookSecret" autocomplete="new-password" placeholder="Paste the Apps Script shared secret" style="width: 100%; padding: 0.6rem; margin-top: 0.25rem;">
+                            <p style="font-size: 0.8rem; color: var(--text-secondary);">Set the same value in Apps Script property GEMSENTRY_WEBHOOK_SECRET. Leave blank to keep the saved secret.</p>
+                        </div>
+
                         <!-- 3 Dedicated Vendor Google Sheets -->
                         <div style="border-top: 1px solid var(--border-color); padding-top: 0.85rem; margin-top: 0.35rem;">
                             <label style="font-size: 0.78rem; font-weight: 700; color: var(--primary-accent); text-transform: uppercase; display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.6rem;">
@@ -1224,26 +1230,26 @@
                             <div style="display: flex; flex-direction: column; gap: 0.65rem;">
                                 <div style="background: rgba(239, 68, 68, 0.08); padding: 0.65rem 0.85rem; border-radius: 6px; border: 1px solid rgba(239, 68, 68, 0.25);">
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-                                        <span style="font-size: 0.8rem; font-weight: 700; color: #ef4444;">🔴 Rajiv Mittal (Drone / UAV) — Red Tint</span>
+                                        <span style="font-size: 0.8rem; font-weight: 700; color: #ef4444;">🔴 Drone vendor (Drone / UAV) — Red Tint</span>
                                         <span style="font-size: 0.72rem; color: var(--text-muted);">Sheet ID or URL</span>
                                     </div>
-                                    <input type="text" id="cfgVendorDroneUrl" placeholder="Paste Rajiv Mittal Google Sheet ID or URL" style="width: 100%; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.82rem;">
+                                    <input type="text" id="cfgVendorDroneUrl" placeholder="Paste Drone vendor Google Sheet ID or URL" style="width: 100%; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.82rem;">
                                 </div>
 
                                 <div style="background: rgba(234, 179, 8, 0.08); padding: 0.65rem 0.85rem; border-radius: 6px; border: 1px solid rgba(234, 179, 8, 0.25);">
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-                                        <span style="font-size: 0.8rem; font-weight: 700; color: #eab308;">🟡 Rajiv Tyagi (Power Supply & Electrical) — Yellow Tint</span>
+                                        <span style="font-size: 0.8rem; font-weight: 700; color: #eab308;">🟡 Power supply vendor (Power Supply & Electrical) — Yellow Tint</span>
                                         <span style="font-size: 0.72rem; color: var(--text-muted);">Sheet ID or URL</span>
                                     </div>
-                                    <input type="text" id="cfgVendorPowerUrl" placeholder="Paste Rajiv Tyagi Google Sheet ID or URL" style="width: 100%; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.82rem;">
+                                    <input type="text" id="cfgVendorPowerUrl" placeholder="Paste Power supply vendor Google Sheet ID or URL" style="width: 100%; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.82rem;">
                                 </div>
 
                                 <div style="background: rgba(59, 130, 246, 0.08); padding: 0.65rem 0.85rem; border-radius: 6px; border: 1px solid rgba(59, 130, 246, 0.25);">
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-                                        <span style="font-size: 0.8rem; font-weight: 700; color: #60a5fa;">🔵 Hanmars (Face Rec & Biometrics) — Blue Tint</span>
+                                        <span style="font-size: 0.8rem; font-weight: 700; color: #60a5fa;">🔵 Biometrics vendor (Face Rec & Biometrics) — Blue Tint</span>
                                         <span style="font-size: 0.72rem; color: var(--text-muted);">Sheet ID or URL</span>
                                     </div>
-                                    <input type="text" id="cfgVendorBioUrl" placeholder="Paste Hanmars Google Sheet ID or URL" style="width: 100%; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.82rem;">
+                                    <input type="text" id="cfgVendorBioUrl" placeholder="Paste Biometrics vendor Google Sheet ID or URL" style="width: 100%; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 0.82rem;">
                                 </div>
                             </div>
                         </div>
@@ -1269,15 +1275,17 @@
                 <!-- Google Apps Script Setup Guide -->
                 <div style="border: 1px solid var(--border-color); padding: 1.25rem; border-radius: 10px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-                        <h4 style="margin: 0; font-size: 0.95rem; font-weight: 700;">⚡ 30-Second Google Apps Script Setup</h4>
+                        <h4 style="margin: 0; font-size: 0.95rem; font-weight: 700;">Google Apps Script Setup</h4>
                         <button class="btn btn-secondary" onclick="copyAppsScriptCode()" style="padding: 0.4rem 0.85rem; font-size: 0.8rem; border-color: var(--primary-accent); color: var(--primary-accent);">
                             <span id="btnCopyScriptText">📋 Copy Apps Script Code</span>
                         </button>
                     </div>
                     <ol style="margin: 0; padding-left: 1.25rem; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.6;">
-                        <li>Open your <a href="https://docs.google.com/spreadsheets/d/1WbeJJ8goLPGLryyJfcJNbiXtIxXjC9Z0g8viueh5oOk/edit?usp=sharing" target="_blank" style="color: var(--primary-accent); text-decoration: underline;">Google Sheet</a>, click <strong>Extensions &gt; Apps Script</strong>.</li>
+                        <li>Open your <a href="https://sheets.google.com/" target="_blank" style="color: var(--primary-accent); text-decoration: underline;">Google Sheet</a>, click <strong>Extensions &gt; Apps Script</strong>.</li>
                         <li>Click <strong>Copy Apps Script Code</strong> above, paste it into the editor, and click Save (💾).</li>
+                        <li>In <strong>Project Settings &gt; Script properties</strong>, set <code>GEMSENTRY_WEBHOOK_SECRET</code> to the same secret saved above.</li>
                         <li>Click <strong>Deploy &gt; New deployment &gt; Web app</strong>. Set <em>Execute as: Me</em>, <em>Who has access: Anyone</em>. Click Deploy, copy the Web app URL, and paste it into the field above!</li>
+                        <li>For an existing deployment, deploy a <strong>new version</strong>. Save settings, then click <strong>Test Webhook</strong>.</li>
                     </ol>
                 </div>
             </div>
@@ -1296,6 +1304,7 @@
     </div>
 
     <!-- Script loading and dynamic injector -->
+    <script src="/static/auth.js"></script>
     <script src="/static/app.js"></script>
 </body>
 </html>

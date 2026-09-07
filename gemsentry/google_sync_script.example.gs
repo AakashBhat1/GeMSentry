@@ -4,35 +4,34 @@
  * ============================================================================
  * VENDOR CONFIGURATION
  * ============================================================================
- * Paste your 3 Google Sheet IDs or full URLs below.
+ * Set GEMSENTRY_WEBHOOK_SECRET in Apps Script Project Settings > Script properties.
+ * Vendor names and IDs arrive from the authenticated local Google sync configuration.
+ * Do not put private IDs or names in this source file.
  * To get a Sheet ID from its URL:
- * https://docs.google.com/spreadsheets/d/1WbeJJ8goLPGLryyJfcJNbiXtIxXjC9Z0g8viueh5oOk/edit
- * The ID is the long string between /d/ and /edit : 1WbeJJ8goLPGLryyJfcJNbiXtIxXjC9Z0g8viueh5oOk
+ * https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit
+ * The ID is the long string between /d/ and /edit : YOUR_SHEET_ID
  */
 const VENDOR_CONFIG = {
   drone: {
-    vendor: "Rajiv Mittal",
+    vendor: "Drone vendor",
     category: "Drone / UAV",
     color: "#FEE2E2",       // Soft Red data row tint
     headerColor: "#DC2626", // Bold Red header
-    // RAJIV MITTAL (DRONE):
-    spreadsheetId: "1erdw38drZwY799tUa1z9A0qtxegfgRAk51HsIQaKBek"
+    spreadsheetId: ""
   },
   power_supply: {
-    vendor: "Rajiv Tyagi",
+    vendor: "Power supply vendor",
     category: "Power Supply / Electrical",
     color: "#FEF08A",       // Soft Yellow data row tint
     headerColor: "#D97706", // Bold Amber header
-    // RAJIV TYAGI (POWER SUPPLY & ELECTRICAL):
-    spreadsheetId: "1MKgR96WAnIE3urI5F2fch6godAgbt2AshhMfbIkAyTc"
+    spreadsheetId: ""
   },
   biometrics: {
-    vendor: "Hanmars",
+    vendor: "Biometrics vendor",
     category: "Biometrics & Facial Recognition",
     color: "#BFDBFE",       // Soft Blue data row tint
     headerColor: "#1D4ED8", // Bold Royal Blue header
-    // HANMARS (FACE REC & BIOMETRICS):
-    spreadsheetId: "1jnXkU-AvDrJ4cqP6QGo4Q1cqd_gR8bLEAjz4XpKPVM0"
+    spreadsheetId: ""
   }
 };
 
@@ -92,13 +91,17 @@ function detectVendorInfo(payload) {
     payload.work_category || tender.work_category || ''
   ).toLowerCase().trim();
 
-  if (customVendor === 'drone' || customVendor.includes('drone') || customVendor.includes('mittal')) {
+  for (const vendor of Object.values(VENDOR_CONFIG)) {
+    if (customVendor && customVendor === vendor.vendor.toLowerCase()) return vendor;
+  }
+
+  if (customVendor === 'drone' || customVendor.includes('drone')) {
     return VENDOR_CONFIG.drone;
   }
-  if (customVendor === 'power_supply' || customVendor.includes('power') || customVendor.includes('tyagi')) {
+  if (customVendor === 'power_supply' || customVendor.includes('power')) {
     return VENDOR_CONFIG.power_supply;
   }
-  if (customVendor === 'biometrics' || customVendor.includes('bio') || customVendor.includes('hanmars')) {
+  if (customVendor === 'biometrics' || customVendor.includes('bio')) {
     return VENDOR_CONFIG.biometrics;
   }
 
@@ -150,29 +153,27 @@ function testSetup() {
   return "Setup completed. Check Apps Script Execution Log for details.";
 }
 
+// Credentials belong in POST bodies, never URLs, browser history or referrers.
 function doGet(e) {
-  const action = (e && e.parameter && e.parameter.action) || 'ping';
-  if (action === 'ping') {
-    return jsonResponse({
-      status: 'ok',
-      message: 'GeMSentry Multi-Vendor Google Sheet Webhook is active.',
-      spreadsheetId: SpreadsheetApp.getActiveSpreadsheet().getId(),
-      vendors: {
-        drone: { name: VENDOR_CONFIG.drone.vendor, color: VENDOR_CONFIG.drone.color, configured: !!cleanSpreadsheetId(VENDOR_CONFIG.drone.spreadsheetId) },
-        power_supply: { name: VENDOR_CONFIG.power_supply.vendor, color: VENDOR_CONFIG.power_supply.color, configured: !!cleanSpreadsheetId(VENDOR_CONFIG.power_supply.spreadsheetId) },
-        biometrics: { name: VENDOR_CONFIG.biometrics.vendor, color: VENDOR_CONFIG.biometrics.color, configured: !!cleanSpreadsheetId(VENDOR_CONFIG.biometrics.spreadsheetId) }
-      },
-      timestamp: new Date().toISOString()
-    });
+  return jsonResponse({status: 'error', error: 'Authenticated POST required.'});
+}
+
+function authorizedPayload(payload) {
+  const expected = PropertiesService.getScriptProperties().getProperty('GEMSENTRY_WEBHOOK_SECRET');
+  const supplied = payload && payload.webhook_secret;
+  if (!expected || typeof supplied !== 'string' || supplied.length !== expected.length) return false;
+  let difference = 0;
+  for (let i = 0; i < expected.length; i++) difference |= expected.charCodeAt(i) ^ supplied.charCodeAt(i);
+  return difference === 0;
+}
+
+function configureVendors(payload) {
+  const vendors = payload.vendor_sheets || {};
+  for (const key of Object.keys(VENDOR_CONFIG)) {
+    const configured = vendors[key] || {};
+    VENDOR_CONFIG[key].spreadsheetId = cleanSpreadsheetId(configured.spreadsheet_id || configured.spreadsheet_url);
+    VENDOR_CONFIG[key].vendor = String(configured.name || VENDOR_CONFIG[key].category);
   }
-  if (action === 'get_all') {
-    return jsonResponse(getAllFinalizedData());
-  }
-  if (action === 'format_sheet') {
-    const sname = (e && e.parameter && e.parameter.sheet_name) || 'UNDER DETAILED STUDY';
-    return jsonResponse(formatEntireSheet(SpreadsheetApp.getActiveSpreadsheet(), sname));
-  }
-  return jsonResponse({ error: 'Unknown GET action: ' + action });
 }
 
 function doPost(e) {
@@ -181,7 +182,12 @@ function doPost(e) {
     if (e && e.postData && e.postData.contents) {
       payload = JSON.parse(e.postData.contents);
     }
+    if (!authorizedPayload(payload)) {
+      return jsonResponse({status: 'error', error: 'Unauthorized.'});
+    }
+    configureVendors(payload);
     const action = payload.action || 'ping';
+    if (action === 'get_all') return jsonResponse(getAllFinalizedData());
 
     if (action === 'ping') {
       return jsonResponse({ status: 'ok', connected: true });
@@ -216,7 +222,7 @@ function doPost(e) {
 
     return jsonResponse({ error: 'Unknown action: ' + action });
   } catch (err) {
-    return jsonResponse({ error: err.toString(), stack: err.stack });
+    return jsonResponse({status: 'error', error: 'Webhook request failed. Check configuration and execution logs.'});
   }
 }
 
