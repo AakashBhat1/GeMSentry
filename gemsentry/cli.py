@@ -21,7 +21,8 @@ SORT_CHOICES = [
 def build_parser():
     parser = argparse.ArgumentParser(description="GeM RFP Acquisition CLI Scraper")
     parser.add_argument("--keywords", nargs="+", help="Keywords list to search")
-    parser.add_argument("--pages", type=int, default=2, help="Max pages limit per keyword")
+    parser.add_argument("--pages", type=int, default=None,
+                        help="Optional page limit per query; default continues through results")
     parser.add_argument("--sort", default="Bid-Start-Date-Latest", choices=SORT_CHOICES,
                         help="Sort order option")
     parser.add_argument("--min-days-left", type=int, default=None,

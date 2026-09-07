@@ -143,6 +143,16 @@ def _load_metadata_csv(tenders_dir):
     return existing_tenders
 
 
+class StorageError(RuntimeError):
+    """A workspace write did not commit; the caller must not treat it as saved.
+
+    The database is the store of record. Continuing past a failed commit --
+    which is what logging the error and carrying on amounted to -- published
+    exports for data that was never stored, so the files and the store
+    disagreed while the caller believed the save had succeeded.
+    """
+
+
 # metadata.json is rewritten wholesale by several threads (the scrape worker,
 # the rescore worker, and /api/tenders/status). Serialise them so two writers
 # can never interleave, and so a reader never races a swap.
@@ -185,6 +195,12 @@ def save_metadata(tenders_list, tenders_dir=None):
 
     For changing a single record, prefer ``update_record`` -- this function
     rewrites everything by design.
+
+    Returns the records as stored, which can differ from ``tenders_list`` by a
+    status the user pinned while the caller was working -- those decisions are
+    merged back in inside the write transaction. Raises ``StorageError`` if the
+    commit fails; the exports are then left untouched rather than published for
+    data the store never accepted.
     """
     tenders_dir = tenders_dir if tenders_dir is not None else workspace_paths()[0]
     os.makedirs(tenders_dir, exist_ok=True)
@@ -193,23 +209,44 @@ def save_metadata(tenders_list, tenders_dir=None):
         try:
             conn = db.connect(tenders_dir)
             try:
-                db.replace_all(conn, tenders_list)
+                stored = db.replace_all(conn, tenders_list)
             finally:
                 conn.close()
         except sqlite3.Error as e:
             logger.error("Could not write the tender database: %s", e)
+            raise StorageError(
+                f"Tender database commit failed for {tenders_dir}: {e}"
+            ) from e
 
-        write_exports(tenders_list, tenders_dir)
+        if not write_exports(stored, tenders_dir):
+            # The data *is* saved; only the derived files are behind. Worth
+            # shouting about, but not a failed save.
+            logger.error(
+                "Tender records were committed, but the JSON/CSV exports in %s "
+                "could not be refreshed; they are now stale.", tenders_dir,
+            )
+        return stored
 
 
 def write_exports(tenders_list, tenders_dir):
-    """Refresh the JSON and CSV exports of the store, atomically."""
+    """Refresh the JSON and CSV exports of the store, atomically.
+
+    Returns True when both files were refreshed. An export failure is reported
+    separately from a database failure: the store of record is already
+    committed by this point, so a stale export is a warning, not a lost save.
+    A record that cannot be serialised at all still raises -- that is a bug in
+    the caller's data, not an I/O problem.
+    """
     os.makedirs(tenders_dir, exist_ok=True)
+    ok = True
     with _save_lock:
         json_path = os.path.join(tenders_dir, "metadata.json")
-        atomic_write_text(
-            json_path, json.dumps(tenders_list, indent=2, ensure_ascii=False)
-        )
+        payload = json.dumps(tenders_list, indent=2, ensure_ascii=False)
+        try:
+            atomic_write_text(json_path, payload)
+        except OSError as e:
+            logger.error("Error saving JSON metadata: %s", e)
+            ok = False
 
         # metadata.js used to be written here as a third copy of the same
         # payload. Nothing reads it -- the dashboard fetches /api/tenders --
@@ -234,6 +271,8 @@ def write_exports(tenders_list, tenders_dir):
             logger.info("Saved metadata CSV: %s", csv_path)
         except Exception as e:
             logger.error("Error saving CSV metadata: %s", e)
+            ok = False
+    return ok
 
 
 def update_record(bid_no, changes, tenders_dir=None):

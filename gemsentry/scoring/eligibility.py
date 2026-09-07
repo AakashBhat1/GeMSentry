@@ -1,5 +1,25 @@
 """Turnover/experience eligibility gating."""
 
+from gemsentry.parsing.amounts import CONFLICTING, NOT_REQUIRED, NOT_STATED, PARSED
+
+# States in which the document did give us a trustworthy answer about the
+# turnover bar. Anything else has to go to a human: a field we could not read,
+# or one the document contradicts itself about, is not evidence of eligibility.
+_TRUSTED_TURNOVER_STATES = {PARSED, NOT_REQUIRED, NOT_STATED}
+
+
+def _turnover_state(signals):
+    """Extraction state for the RFP turnover bar, tolerant of older records.
+
+    Records written before the state was tracked carry only the amount, so
+    infer the state the old code implied: a value means parsed, its absence
+    means the label was never found.
+    """
+    state = signals.get("rfp_min_turnover_state")
+    if state:
+        return state
+    return PARSED if signals.get("rfp_min_turnover_inr") is not None else NOT_STATED
+
 
 def compute_eligibility(signals, st_turn, mse_turn, profile, exemptions_na=False,
                         relax_turnover_inr=None):
@@ -43,6 +63,38 @@ def compute_eligibility(signals, st_turn, mse_turn, profile, exemptions_na=False
     )
     turn_exempt_unknown = (st_turn == "unknown" and mse_turn == "unknown")
 
+    # A requirement we could not read, or one the document states twice with
+    # different figures, must not be scored as "no requirement" -- that is the
+    # path that reported a ₹75 lakh bar as eligible. It only stops mattering
+    # when the criterion is waived outright, or when a partial relaxation has
+    # already replaced it with an explicit bar we can test.
+    turnover_state = _turnover_state(signals)
+    if (turnover_state not in _TRUSTED_TURNOVER_STATES
+            and not turn_exempt
+            and "turnover_bar_relaxed" not in flags):
+        flags.append(
+            "turnover_req_conflicting" if turnover_state == CONFLICTING
+            else "turnover_req_unreadable"
+        )
+        if turnover_state == CONFLICTING and rfp_turn is not None:
+            detail_parts.append(
+                f"The document states conflicting minimum turnovers "
+                f"(highest read: ₹{rfp_turn:,}); needs review before bidding."
+            )
+        else:
+            detail_parts.append(
+                "A minimum-turnover requirement is stated but its amount could "
+                "not be read; eligibility needs review before bidding."
+            )
+        evidence = signals.get("rfp_min_turnover_evidence")
+        if evidence:
+            detail_parts.append(f"Source text: \"{evidence}\"")
+        return {
+            "verdict": "unknown",
+            "flags": flags,
+            "detail": " ".join(detail_parts),
+        }
+
     if exemptions_na:
         # Bid-type doc without exemption tables — neutral, not a denial
         flags.append("no_exemption_data_in_doc_type")
@@ -78,8 +130,13 @@ def compute_eligibility(signals, st_turn, mse_turn, profile, exemptions_na=False
             verdict = "unknown"
             flags.append("turnover_req_unparsed")
             detail_parts.append("RFP turnover requirement and exemptions unparsed.")
+        elif turnover_state == NOT_REQUIRED:
+            verdict = "eligible"
+            detail_parts.append(
+                "The RFP explicitly states no minimum-turnover requirement."
+            )
         else:
-            # no requirement found; assume eligible
+            # Label absent from the document: a genuine absence, not a failed read.
             verdict = "eligible"
             detail_parts.append("No RFP min-turnover found; treated as eligible.")
     elif rfp_turn <= company_turn:

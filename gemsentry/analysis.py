@@ -360,7 +360,11 @@ def analyze_rfp_pdf(pdf_path, start_date_str=None, end_date_str=None,
         for k in (
             "est_value_inr", "primary_item", "item_category",
             "buyer_org", "buyer_dept", "consignee_state",
-            "mii_required", "mse_pref"
+            "mii_required", "mse_pref",
+            # Eligibility evidence: the bar we read, how confidently, and the
+            # source text -- so the dashboard can show why a verdict is unsure.
+            "rfp_min_turnover_inr", "rfp_min_turnover_state",
+            "rfp_min_turnover_evidence", "rfp_min_experience_years",
         ):
             analysis[k] = signals.get(k)
         analysis["signal_parsed"] = sum(1 for v in signal_flags.values() if v)

@@ -1,6 +1,5 @@
 """Dashboard, tender list/detail, scrape control and workspace reset."""
 
-import datetime
 import logging
 import threading
 
@@ -13,9 +12,10 @@ from gemsentry import tender_view
 from gemsentry import storage
 from gemsentry.sources import annotate_sources
 from gemsentry.web.context import (
-    _gzip_if_accepted, add_log, fail, normalize_scrape_payload,
-    run_scraper_id_thread, run_scraper_thread, scrape_status, source_registry,
-    status_lock, tenders_cache,
+    JOB_RUNNING, OUTCOME_FAILED, OUTCOME_SUCCEEDED, _gzip_if_accepted, add_log,
+    begin_job, fail, finish_job, normalize_scrape_payload, run_scraper_id_thread,
+    run_scraper_thread, scrape_status, source_registry, status_lock,
+    tenders_cache,
 )
 
 logger = logging.getLogger("gemsentry")
@@ -109,7 +109,14 @@ def get_status():
             else scrape_status.get("log_session_path")
         )
         return jsonify({
+            # "status" is only whether a job is running; "outcome" says how the
+            # last one ended, so the dashboard never has to guess from the mere
+            # presence of log lines.
             "status": scrape_status["status"],
+            "job": scrape_status.get("job"),
+            "outcome": scrape_status.get("outcome"),
+            "error": scrape_status.get("error"),
+            "warnings": list(scrape_status.get("warnings") or []),
             "current_keyword": scrape_status["current_keyword"],
             "new_count": scrape_status["new_count"],
             "logs": logs,
@@ -127,14 +134,9 @@ def trigger_scrape():
         return jsonify({"error": str(exc)}), 400
 
     with status_lock:
-        if scrape_status["status"] == "running":
+        if scrape_status["status"] == JOB_RUNNING:
             return jsonify({"error": "Scraper is already running."}), 400
-
-        scrape_status["status"] = "running"
-        scrape_status["new_count"] = 0
-        scrape_status["start_time"] = datetime.datetime.now().isoformat()
-        scrape_status["log_session_path"] = None
-        logging_setup.clear_log_buffer()
+        begin_job("scrape")
 
     thread = threading.Thread(
         target=run_scraper_thread,
@@ -153,7 +155,7 @@ def trigger_scrape():
 def trigger_scrape_id():
     global scrape_status
     with status_lock:
-        if scrape_status["status"] == "running":
+        if scrape_status["status"] == JOB_RUNNING:
             return jsonify({"error": "Scraper is already running."}), 400
 
         data = request.json or {}
@@ -162,11 +164,7 @@ def trigger_scrape_id():
         if not bid_id:
             return jsonify({"error": "No Bid ID provided."}), 400
 
-        scrape_status["status"] = "running"
-        scrape_status["new_count"] = 0
-        scrape_status["start_time"] = datetime.datetime.now().isoformat()
-        scrape_status["log_session_path"] = None
-        logging_setup.clear_log_buffer()
+        begin_job("single_bid")
 
     thread = threading.Thread(
         target=run_scraper_id_thread,
@@ -217,12 +215,9 @@ def trigger_rescore():
     take effect immediately instead of 'on next scrape'."""
     global scrape_status
     with status_lock:
-        if scrape_status["status"] == "running":
+        if scrape_status["status"] == JOB_RUNNING:
             return jsonify({"error": "Scraper is already running."}), 400
-        scrape_status["status"] = "running"
-        scrape_status["new_count"] = 0
-        scrape_status["start_time"] = datetime.datetime.now().isoformat()
-        logging_setup.clear_log_buffer()
+        begin_job("rescore")
 
     data = request.json or {}
     # Default fast mode: re-derive from stored signals (~instant).
@@ -239,11 +234,13 @@ def trigger_rescore():
                 f"Status: {summary['status_counts']}. "
                 f"Recommendations: {summary['recommendation_counts']}."
             )
+            finish_job(OUTCOME_SUCCEEDED)
         except Exception as e:
+            # A rescore that could not save leaves the stored verdicts as they
+            # were; saying so beats a green message over an unchanged corpus.
             add_log(f"Rescore failed: {e}")
-        finally:
-            with status_lock:
-                scrape_status["status"] = "idle"
+            logger.exception("Rescore failed")
+            finish_job(OUTCOME_FAILED, error=str(e))
 
     threading.Thread(target=run_rescore, daemon=True).start()
     return jsonify({"message": "Rescore started (local, no network)."})
@@ -255,7 +252,7 @@ def clear_workspace():
     downloaded PDFs, and generated report. Other workspaces are untouched.
     Requires {"confirm": true} so the dashboard must ask the user first."""
     with status_lock:
-        if scrape_status["status"] == "running":
+        if scrape_status["status"] == JOB_RUNNING:
             return jsonify({"error": "Scraper is running; wait for it to finish."}), 400
 
     data = request.json or {}

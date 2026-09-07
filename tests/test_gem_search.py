@@ -166,7 +166,8 @@ class TestSearchTimeoutAndRetry(unittest.TestCase):
             if calls["n"] == 1:
                 raise urllib.error.URLError(TimeoutError("timed out"))
             search_bid, payload, _form = _decode_search_bid(request)
-            self.assertEqual(search_bid, "IOT ENERGY METER")
+            if search_bid != "IOT ENERGY METER":
+                return _FakeJsonResponse([])
             self.assertEqual(payload["param"]["searchType"], "fullText")
             return _FakeJsonResponse([{
                 "id": "1",
@@ -178,7 +179,7 @@ class TestSearchTimeoutAndRetry(unittest.TestCase):
         tenders = fetch_keyword_bids_api(
             "IOT ENERGY METER", "", "", max_pages=1, timeout=5, retries=1, deadline=30,
         )
-        self.assertEqual(calls["n"], 2)
+        self.assertEqual(calls["n"], 1 + len(gem_client.build_search_plan("IOT ENERGY METER").queries))
         self.assertEqual(len(tenders), 1)
         self.assertEqual(tenders[0]["keyword"], "IOT ENERGY METER")
 

@@ -32,6 +32,13 @@ DEFAULT_DOWNLOAD_TIMEOUT = 15
 DEFAULT_SEARCH_TIMEOUT = 20
 DEFAULT_SEARCH_RETRIES = 1
 DEFAULT_KEYWORD_DEADLINE = 60
+DEFAULT_AUTO_SEARCH_DEADLINE = 300
+MAX_SEARCH_PAGES = 1000
+
+
+def search_deadline(max_pages):
+    return DEFAULT_AUTO_SEARCH_DEADLINE if max_pages is None else DEFAULT_KEYWORD_DEADLINE
+
 
 GEM_BIDPLUS = "https://bidplus.gem.gov.in"
 GEM_ALL_BIDS_DATA = f"{GEM_BIDPLUS}/all-bids-data"
@@ -150,9 +157,7 @@ def build_search_payload(keyword, page_num=1, sort_order="Bid-Start-Date-Latest"
         "searchBid": normalize_search_keyword(keyword),
         "searchType": "fullText",
     }
-    if page_num > 1:
-        param["page"] = page_num
-    return {
+    payload = {
         "param": param,
         "filter": {
             "bidStatusType": "ongoing_bids",
@@ -162,6 +167,11 @@ def build_search_payload(keyword, page_num=1, sort_order="Bid-Start-Date-Latest"
             "sort": sort_order,
         },
     }
+    # GeM's loadBids() posts page beside param/filter. Nesting it inside
+    # param is silently ignored and returns page 1 over and over.
+    if page_num > 1:
+        payload["page"] = page_num
+    return payload
 
 
 def encode_search_form(payload_dict, csrf_token=""):
@@ -252,7 +262,11 @@ def parse_cards(html, keyword):
                         r'(?i)(?:Estimated\s*(?:Value|Bid\s*Value)|Bid\s*Value|Contract\s*Value|Value\s*:)',
                         txt
                     ):
-                        amt = _parse_inr_amount(txt)
+                        value_text = re.split(
+                            r'(?i)(?:Estimated\s*(?:Bid\s*)?Value|Bid\s*Value|Contract\s*Value|Value\s*:)',
+                            txt, maxsplit=1,
+                        )[-1].lstrip(" :")
+                        amt = _parse_inr_amount(value_text)
                         if amt is not None and amt >= 1000:
                             est_value_inr = amt
 
@@ -512,6 +526,9 @@ def doc_to_tender(doc, keyword):
         doc, "bd_category_name", "b_category_name", default=summary_category
     )).strip()
     title = summary_category or item_category or "N/A"
+    boq_title = str(_first_doc_value(doc, "bbt_title", default="")).strip()
+    if boq_title and boq_title.casefold() not in title.casefold():
+        title = f"{title} - {boq_title}"
     primary_item = (item_category or title).split(",", 1)[0].strip()
 
     quantity = str(_first_doc_value(doc, "b_total_quantity", default="N/A"))
@@ -575,6 +592,10 @@ def _is_timeout(exc):
     return "timed out" in str(exc).lower()
 
 
+def _is_transient_http_error(exc):
+    return isinstance(exc, urllib.error.HTTPError) and exc.code in {408, 429, 500, 502, 503, 504}
+
+
 def _post_search_page(keyword, cookie_header, csrf_token, page_num, sort_order,
                       timeout=DEFAULT_SEARCH_TIMEOUT):
     """POST one all-bids-data page. Raises on HTTP/network failure."""
@@ -601,18 +622,21 @@ def fetch_keyword_bids_api(
     keyword,
     cookie_header,
     csrf_token,
-    max_pages=2,
+    max_pages=None,
     sort_order="Bid-Start-Date-Latest",
     target_count=None,
     min_days_left=None,
     max_days_left=None,
     timeout=DEFAULT_SEARCH_TIMEOUT,
     retries=DEFAULT_SEARCH_RETRIES,
-    deadline=DEFAULT_KEYWORD_DEADLINE,
+    deadline=None,
 ):
     tenders = []
     seen_bid_nos = set()
-    safety_max_pages = 30 if target_count else max_pages
+    safety_max_pages = MAX_SEARCH_PAGES if max_pages is None else max_pages
+    if not isinstance(safety_max_pages, int) or not 1 <= safety_max_pages <= MAX_SEARCH_PAGES:
+        raise ValueError("max_pages must be None or an integer between 1 and 1000")
+    deadline = search_deadline(max_pages) if deadline is None else deadline
     matching_target_count = 0
     now = datetime.datetime.now()
     started = time.monotonic()
@@ -628,12 +652,17 @@ def fetch_keyword_bids_api(
         if target_count and matching_target_count >= target_count:
             break
         if deadline - (time.monotonic() - started) <= 0:
+            logger.warning("Search incomplete for '%s': %ss deadline reached before all queries finished.", keyword, deadline)
             break
         query = normalize_search_keyword(search_query)
         if query != (search_query or "").strip():
             logger.info("Query '%s' normalised to GeM query '%s'", search_query, query)
 
         last_error = None
+        seen_documents = set()
+        scanned = 0
+        excluded = 0
+        outside_dates = 0
         for page_num in range(1, safety_max_pages + 1):
             remaining = deadline - (time.monotonic() - started)
             if remaining <= 0:
@@ -643,10 +672,15 @@ def fetch_keyword_bids_api(
                 )
                 break
 
-            page_timeout = min(timeout, max(1, remaining))
             res_json = None
+            page_timeout = min(timeout, remaining)
             attempts = 1 + max(0, int(retries))
             for attempt in range(1, attempts + 1):
+                remaining = deadline - (time.monotonic() - started)
+                if remaining <= 0:
+                    last_error = KeywordSearchTimeout("keyword deadline reached")
+                    break
+                page_timeout = min(timeout, remaining)
                 try:
                     res_json = _post_search_page(
                         query, cookie_header, csrf_token, page_num, sort_order,
@@ -656,9 +690,9 @@ def fetch_keyword_bids_api(
                     break
                 except Exception as exc:
                     last_error = exc
-                    if _is_timeout(exc) and attempt < attempts:
+                    if (_is_timeout(exc) or _is_transient_http_error(exc)) and attempt < attempts:
                         logger.warning(
-                            "Keyword '%s' (query '%s') page %d timed out (attempt %d/%d, %ss); retrying.",
+                            "Keyword '%s' (query '%s') page %d temporarily failed (attempt %d/%d, %ss); retrying.",
                             keyword, query, page_num, attempt, attempts, page_timeout,
                         )
                         continue
@@ -686,12 +720,24 @@ def fetch_keyword_bids_api(
             )
             if not docs:
                 break
+            # Track raw results, including rejected cards and RA children. A
+            # portal repeating a page must not consume the entire time budget.
+            document_keys = {
+                str(_first_doc_value(doc, "id", "b_id", "b_bid_number", default=json.dumps(doc, sort_keys=True)))
+                for doc in docs
+            }
+            if document_keys <= seen_documents:
+                logger.warning("Search incomplete for query '%s': GeM repeated results on page %d.", query, page_num)
+                break
+            seen_documents.update(document_keys)
+            scanned += len(docs)
             for doc in docs:
                 t = doc_to_tender(doc, plan.canonical_keyword)
                 bid_no = t.get("bid_no")
                 if not bid_no or bid_no in seen_bid_nos:
                     continue
                 if not matches_search_result(t, plan):
+                    excluded += 1
                     logger.debug(
                         "Discarding %s: card does not verify search concept '%s'",
                         bid_no, plan.concept_id,
@@ -701,6 +747,7 @@ def fetch_keyword_bids_api(
                 if min_days_left is not None or max_days_left is not None:
                     end_dt = parse_gem_date(t.get("end_date"))
                     if not end_dt:
+                        outside_dates += 1
                         logger.debug(
                             "Skipping tender %s: deadline is not parseable.", bid_no
                         )
@@ -709,6 +756,7 @@ def fetch_keyword_bids_api(
                     min_d = float(min_days_left) if min_days_left is not None else 0.0
                     max_d = float(max_days_left) if max_days_left is not None else 9999.0
                     if not (min_d <= rem_days <= max_d):
+                        outside_dates += 1
                         logger.debug(
                             "Skipping tender %s (%.1f days left) - outside "
                             "filter window [%.1f-%.1f] days.",
@@ -728,7 +776,25 @@ def fetch_keyword_bids_api(
                 )
                 break
 
-        if last_error is not None:
+            total_found = (res_json or {}).get("response", {}).get("response", {}).get("numFound")
+            if total_found is not None:
+                try:
+                    if scanned >= int(total_found):
+                        break
+                except (ValueError, TypeError):
+                    pass
+        else:
+            logger.warning(
+                "Search incomplete for query '%s': page limit %d reached; more results may exist.",
+                query, safety_max_pages,
+            )
+
+        logger.info(
+            "Query '%s': scanned %d listings; %d unrelated, %d outside date window; %d unique matches so far.",
+            query, scanned, excluded, outside_dates, len(tenders),
+        )
+
+        if last_error is not None and not _is_transient_http_error(last_error):
             break
         if target_count and matching_target_count >= target_count:
             break

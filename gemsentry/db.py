@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS tenders (
     bid_no       TEXT PRIMARY KEY,
     data         TEXT NOT NULL,
     status       TEXT,
+    status_source TEXT,
     source_id    TEXT,
     end_date     TEXT,
     first_seen   TEXT,
@@ -64,7 +65,33 @@ def connect(tenders_dir):
     conn.execute("PRAGMA synchronous=NORMAL")
     conn.execute("PRAGMA foreign_keys=ON")
     conn.executescript(SCHEMA)
+    _ensure_status_source_column(conn)
     return conn
+
+
+def _ensure_status_source_column(conn):
+    """Add and backfill ``status_source`` on databases created before it existed.
+
+    Manual pins are protected by reading this column inside the write
+    transaction, so a workspace opened from an older build has to grow it
+    before the first save, not on the next full rebuild.
+    """
+    columns = {row["name"] for row in conn.execute("PRAGMA table_info(tenders)")}
+    if "status_source" in columns:
+        return
+    with conn:
+        conn.execute("ALTER TABLE tenders ADD COLUMN status_source TEXT")
+        for row in conn.execute("SELECT bid_no, data FROM tenders").fetchall():
+            try:
+                record = _row_to_record(row)
+            except ValueError:
+                continue
+            conn.execute(
+                "UPDATE tenders SET status_source = ? WHERE bid_no = ?",
+                (record.get("status_source"), row["bid_no"]),
+            )
+    logger.info("Added status_source column to %s (manual pins now protected).",
+                DB_FILENAME)
 
 
 def _columns(record):
@@ -75,6 +102,7 @@ def _columns(record):
         score = None
     return (
         record.get("status") or "Pending Review",
+        record.get("status_source"),
         record.get("source_id") or "gem",
         record.get("end_date") or "",
         record.get("first_seen") or "",
@@ -136,15 +164,57 @@ def get(conn, bid_no):
     return _row_to_record(row) if row else None
 
 
+MANUAL_STATUS_SOURCE = "manual"
+
+
+def manual_pins(conn):
+    """``{bid_no: status}`` for every tender a user has decided by hand."""
+    return {
+        row["bid_no"]: row["status"]
+        for row in conn.execute(
+            "SELECT bid_no, status FROM tenders WHERE status_source = ?",
+            (MANUAL_STATUS_SOURCE,),
+        )
+        if row["status"]
+    }
+
+
+def apply_manual_pins(conn, records):
+    """Return ``records`` with any manual decision already in the store folded in.
+
+    A scrape reads the workspace, works for minutes, then writes its snapshot
+    back. A tender the user shortlisted in that gap would be overwritten by the
+    stale copy and silently revert to Pending Review. Re-reading the pins here
+    -- inside the write transaction, from the store of record -- closes the gap.
+    Records are copied rather than mutated so the caller's snapshot is untouched.
+    """
+    pins = manual_pins(conn)
+    if not pins:
+        return list(records)
+
+    merged = []
+    for record in records:
+        if isinstance(record, dict):
+            pinned = pins.get(record.get("bid_no"))
+            if pinned and (record.get("status") != pinned
+                           or record.get("status_source") != MANUAL_STATUS_SOURCE):
+                record = {**record, "status": pinned,
+                          "status_source": MANUAL_STATUS_SOURCE}
+        merged.append(record)
+    return merged
+
+
 def upsert_many(conn, records):
     """Insert or replace ``records`` in one transaction. Returns the count."""
     rows = _rows_for(records)
     with conn:
         conn.executemany(
-            "INSERT INTO tenders(bid_no, data, status, source_id, end_date, "
-            "first_seen, score) VALUES(?, ?, ?, ?, ?, ?, ?) "
+            "INSERT INTO tenders(bid_no, data, status, status_source, "
+            "source_id, end_date, first_seen, score) "
+            "VALUES(?, ?, ?, ?, ?, ?, ?, ?) "
             "ON CONFLICT(bid_no) DO UPDATE SET "
             "data=excluded.data, status=excluded.status, "
+            "status_source=excluded.status_source, "
             "source_id=excluded.source_id, end_date=excluded.end_date, "
             "first_seen=excluded.first_seen, score=excluded.score",
             rows,
@@ -153,18 +223,29 @@ def upsert_many(conn, records):
     return len(rows)
 
 
-def replace_all(conn, records):
-    """Make the store contain exactly ``records``. Atomic: all or nothing."""
-    rows = _rows_for(records)
+def replace_all(conn, records, preserve_manual=True):
+    """Make the store contain exactly ``records``. Atomic: all or nothing.
+
+    Returns the records as actually stored, which is what the JSON/CSV exports
+    must be written from -- with ``preserve_manual`` they can differ from the
+    caller's list by a status the user pinned while the caller was working.
+    """
     with conn:
+        # BEGIN IMMEDIATE takes the write lock *before* the pins are read.
+        # Without it the read runs outside the transaction sqlite3 opens on the
+        # DELETE, leaving a window in which a pin could still be lost.
+        conn.execute("BEGIN IMMEDIATE")
+        stored = apply_manual_pins(conn, records) if preserve_manual else list(records)
+        rows = _rows_for(stored)
         conn.execute("DELETE FROM tenders")
         conn.executemany(
-            "INSERT INTO tenders(bid_no, data, status, source_id, end_date, "
-            "first_seen, score) VALUES(?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO tenders(bid_no, data, status, status_source, "
+            "source_id, end_date, first_seen, score) "
+            "VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
             rows,
         )
         bump_revision(conn)
-    return len(rows)
+    return stored
 
 
 def update_one(conn, bid_no, changes):
@@ -173,6 +254,9 @@ def update_one(conn, bid_no, changes):
     This is the path that used to rewrite the entire corpus to pin a status.
     """
     with conn:
+        # Read-modify-write: hold the write lock across both halves so two
+        # concurrent updates to one tender cannot clobber each other.
+        conn.execute("BEGIN IMMEDIATE")
         row = conn.execute(
             "SELECT data FROM tenders WHERE bid_no = ?", (bid_no,)
         ).fetchone()
@@ -180,8 +264,8 @@ def update_one(conn, bid_no, changes):
             return None
         record = {**_row_to_record(row), **changes}
         conn.execute(
-            "UPDATE tenders SET data=?, status=?, source_id=?, end_date=?, "
-            "first_seen=?, score=? WHERE bid_no=?",
+            "UPDATE tenders SET data=?, status=?, status_source=?, "
+            "source_id=?, end_date=?, first_seen=?, score=? WHERE bid_no=?",
             (json.dumps(record, ensure_ascii=False), *_columns(record), bid_no),
         )
         bump_revision(conn)

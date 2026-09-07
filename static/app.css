@@ -679,6 +679,15 @@
             border: 1px solid var(--success-border) !important;
         }
 
+        /* Eligibility we could not confirm. Deliberately not green: an
+           unreadable or contradictory requirement is a prompt to read the
+           document, not a pass. */
+        .tag-eligibility-unknown {
+            background-color: var(--warning-bg) !important;
+            color: var(--warning-color) !important;
+            border: 1px solid var(--warning-border) !important;
+        }
+
         .tag-urgency-critical {
             background-color: var(--failed-bg) !important;
             color: var(--failed-color) !important;

@@ -110,6 +110,15 @@ def status_from_score(score, cfg, current_status=None):
 # irrelevant-but-clean bids). Manual pins (status_source == "manual") always win.
 
 
+# Eligibility flags that mean "the document said something about the turnover
+# bar that we could not resolve". A bid carrying one of these must not be
+# presented as a confident Pursue -- a human has to read the requirement.
+UNRESOLVED_ELIGIBILITY_FLAGS = {
+    "turnover_req_unreadable",
+    "turnover_req_conflicting",
+}
+
+
 RECOMMENDATION_TO_STATUS = {
     "Pursue": "Shortlisted",
     "Review": "Pending Review",
@@ -217,6 +226,12 @@ def compute_recommendation(fit_score, risk_score, eligibility, is_expired, cfg,
     else:
         verdict = (eligibility or {}).get("verdict")
         if verdict == "turnover_gap" and rec == "Pursue":
+            rec = "Review"
+        # An eligibility requirement we could not read is not a clean bill of
+        # health. Narrower than "verdict != eligible" on purpose: card-only
+        # bids are unknown for want of a PDF, which is a different situation.
+        elig_flags = set((eligibility or {}).get("flags") or ())
+        if rec == "Pursue" and elig_flags & UNRESOLVED_ELIGIBILITY_FLAGS:
             rec = "Review"
         if risk_score is None and rec == "Pursue":
             rec = "Review"

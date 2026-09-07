@@ -5,6 +5,7 @@ application object -- app.py imports the blueprints, so the reverse direction
 would be circular.
 """
 
+import datetime
 import gzip
 import hmac
 import logging
@@ -116,15 +117,61 @@ def enforce_auth():
             "auth_required": True
         }), 401
 
-# Threading and status control
+# Threading and status control.
+#
+# "status" answers only "is a job running right now?". How the last job *ended*
+# is a separate fact, in "outcome" -- conflating the two is what let a crashed
+# scrape return to idle and be reported to the user as a success.
+JOB_RUNNING = "running"
+JOB_IDLE = "idle"
+
+OUTCOME_SUCCEEDED = "succeeded"
+OUTCOME_PARTIAL = "partial"
+OUTCOME_FAILED = "failed"
+
 status_lock = threading.Lock()
 scrape_status = {
-    "status": "idle",
+    "status": JOB_IDLE,
+    "job": None,          # scrape | single_bid | rescore
+    "outcome": None,      # succeeded | partial | failed, for the last finished job
+    "error": None,        # user-facing summary when the job failed
+    "warnings": [],       # non-fatal problems worth surfacing on a partial run
     "current_keyword": "",
     "new_count": 0,
     "start_time": None,
     "log_session_path": None,
 }
+
+
+def begin_job(job):
+    """Mark ``job`` as started, clearing the previous run's outcome.
+
+    The caller must already hold ``status_lock`` and have checked that no job
+    is running.
+    """
+    scrape_status.update({
+        "status": JOB_RUNNING,
+        "job": job,
+        "outcome": None,
+        "error": None,
+        "warnings": [],
+        "new_count": 0,
+        "start_time": datetime.datetime.now().isoformat(),
+        "log_session_path": None,
+    })
+    logging_setup.clear_log_buffer()
+
+
+def finish_job(outcome, error=None, warnings=None):
+    """Record how a background job ended and release the running flag."""
+    with status_lock:
+        scrape_status["status"] = JOB_IDLE
+        scrape_status["outcome"] = outcome
+        scrape_status["error"] = error
+        scrape_status["warnings"] = list(warnings or [])
+        sess = logging_setup.get_session_path()
+        if sess:
+            scrape_status["log_session_path"] = paths.repo_relative(sess)
 
 # Bounded live buffer (also mirrored via logging_setup.log_buffer)
 LOG_BUFFER_MAX = logging_setup.LOG_BUFFER_MAX
@@ -170,8 +217,8 @@ def normalize_scrape_payload(data):
             seen.add(key)
     if not keywords:
         raise ValueError("keywords must contain at least one non-empty value")
-    if len(keywords) > 250:
-        raise ValueError("keywords may contain at most 250 values")
+    if len(keywords) > 1000:
+        raise ValueError("keywords may contain at most 1000 values")
 
     sort_order = data.get("sort_order", "Bid-Start-Date-Latest")
     if sort_order not in ALLOWED_SCRAPE_SORTS:
@@ -200,7 +247,8 @@ def normalize_scrape_payload(data):
     )
     return {
         "keywords": keywords,
-        "max_pages": _number(data.get("max_pages", 2), "max_pages", 1, 30, integer=True),
+        "max_pages": (None if data.get("max_pages") is None else
+                      _number(data["max_pages"], "max_pages", 1, 1000, integer=True)),
         "sort_order": sort_order,
         "target_count": target_count,
         "min_days_left": min_days_left,
@@ -216,6 +264,7 @@ def add_log(message):
 
 def run_scraper_thread(keywords, max_pages, sort_order, target_count=None, min_days_left=None, max_days_left=None):
     global scrape_status
+    warnings = []
     try:
         if target_count:
             add_log(f"Starting background scrape for {len(keywords)} keyword(s) with target goal: {target_count} tenders per keyword in [{min_days_left}-{max_days_left}] days window...")
@@ -240,6 +289,8 @@ def run_scraper_thread(keywords, max_pages, sort_order, target_count=None, min_d
         )
 
         # Fan out to the non-GeM portals (DefProc, BEL, CPPP, NTPC, states...).
+        # A portal being down is a partial result, not a failed scrape: the GeM
+        # half already landed, and the user needs to know which half is missing.
         try:
             source_registry.reload_sources()
             runnable = source_registry.runnable_adapters()
@@ -247,13 +298,14 @@ def run_scraper_thread(keywords, max_pages, sort_order, target_count=None, min_d
                 add_log(f"Querying {len(runnable)} external portal(s) in parallel...")
                 external_keywords = expand_keywords(keywords)
                 extra_tenders = source_registry.fetch_from_all_active(
-                    external_keywords, max_pages=max_pages
+                    external_keywords, max_pages=max_pages or 30
                 )
                 if extra_tenders:
                     add_log(f"Multi-source portals returned {len(extra_tenders)} unique tenders.")
                     new_count += scraper.ingest_external_tenders(extra_tenders)
         except Exception as ms_err:
             add_log(f"Multi-source fetch error: {ms_err}")
+            warnings.append(f"External portal search did not complete: {ms_err}")
 
         with status_lock:
             # Capture session path before scraper's finally clears handler
@@ -261,6 +313,7 @@ def run_scraper_thread(keywords, max_pages, sort_order, target_count=None, min_d
             sess = logging_setup.get_session_path()
             if sess:
                 scrape_status["log_session_path"] = paths.repo_relative(sess)
+            scrape_status["new_count"] = new_count
 
         add_log(f"Scraping completed. Discovered {new_count} total new tenders across all portals.")
         try:
@@ -268,17 +321,16 @@ def run_scraper_thread(keywords, max_pages, sort_order, target_count=None, min_d
             add_log("Live Excel session started after scrape (10-minute curation window open).")
         except Exception as le_err:
             logger.warning("Could not initiate live excel session after scrape: %s", le_err)
+            warnings.append(f"Live Excel curation session did not start: {le_err}")
 
-        with status_lock:
-            scrape_status["status"] = "idle"
-            scrape_status["new_count"] = new_count
-            sess = logging_setup.get_session_path()
-            if sess:
-                scrape_status["log_session_path"] = paths.repo_relative(sess)
+        finish_job(
+            OUTCOME_PARTIAL if warnings else OUTCOME_SUCCEEDED,
+            warnings=warnings,
+        )
     except Exception as e:
         add_log(f"Scraping thread crashed: {e}")
-        with status_lock:
-            scrape_status["status"] = "idle"
+        logger.exception("Background scrape failed")
+        finish_job(OUTCOME_FAILED, error=str(e), warnings=warnings)
 
 
 def run_scraper_id_thread(bid_id):
@@ -298,24 +350,30 @@ def run_scraper_id_thread(bid_id):
             add_log(f"Acquisition completed. Tender {tender['bid_no']} successfully imported.")
             with status_lock:
                 scrape_status["new_count"] = 1
+            warnings = []
             try:
                 live_excel_manager.on_scrape_completed()
-            except Exception:
-                pass
+            except Exception as le_err:
+                logger.warning("Could not initiate live excel session: %s", le_err)
+                warnings.append(f"Live Excel curation session did not start: {le_err}")
+            finish_job(
+                OUTCOME_PARTIAL if warnings else OUTCOME_SUCCEEDED,
+                warnings=warnings,
+            )
         else:
+            # Nothing was imported. The job did not crash, but calling that a
+            # success is exactly the lie this outcome field exists to prevent.
             add_log(f"Acquisition failed. No tender was imported for ID: '{bid_id}'.")
             with status_lock:
                 scrape_status["new_count"] = 0
-
-        with status_lock:
-            scrape_status["status"] = "idle"
-            sess = logging_setup.get_session_path()
-            if sess:
-                scrape_status["log_session_path"] = paths.repo_relative(sess)
+            finish_job(
+                OUTCOME_FAILED,
+                error=f"No tender on GeM matched the ID '{bid_id}'.",
+            )
     except Exception as e:
         add_log(f"Single bid scraping thread crashed: {e}")
-        with status_lock:
-            scrape_status["status"] = "idle"
+        logger.exception("Single bid acquisition failed")
+        finish_job(OUTCOME_FAILED, error=str(e))
 
 def _metadata_path():
     return os.path.join(scraper.workspace_paths()[0], "metadata.json")

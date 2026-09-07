@@ -34,6 +34,17 @@ class SearchPlan:
 _HYPHEN_AS_SEPARATOR = re.compile(r"(?<=[A-Za-z0-9])-(?=[A-Za-z0-9])")
 
 
+def discovery_keyword(keyword: str) -> str:
+    """Search product families across capacities (12V 100AH battery -> battery)."""
+    clean = " ".join(str(keyword or "").split())
+    broad = re.sub(
+        r"\b\d+(?:\.\d+)?\s*(?:kwh|mwh|kwp|kw|mw|kva|ah|mah|wh|v)\b",
+        " ", clean, flags=re.IGNORECASE,
+    )
+    broad = " ".join(broad.split()).strip(" -/")
+    return broad if re.search(r"[a-zA-Z]", broad) else clean
+
+
 def _clean_keyword_casing(keyword: str) -> str:
     text = " ".join(str(keyword or "").split())
     return _HYPHEN_AS_SEPARATOR.sub(" ", text).strip()
@@ -188,20 +199,20 @@ def _profile_search_plan(clean_keyword: str, profile: dict) -> SearchPlan | None
 
     line, canonical = selected
     clean_norm = _clean_keyword_casing(clean_keyword)
-    is_exact = _normalize(clean_norm) == _normalize(canonical)
+    is_exact = (
+        _normalize(clean_norm) == _normalize(canonical)
+        or (len(normalized.split()) == 1 and normalized in _normalize(canonical).split())
+    )
     if is_exact:
         canonical = clean_norm
     related = _related_profile_terms(canonical, line)
     positive_terms = _dedupe([canonical, *related])[:_MAX_PROFILE_POSITIVE_TERMS]
-    if is_exact:
-        queries = (canonical,)
-    else:
-        queries = _dedupe([
-            canonical,
-            clean_keyword,
-            *_query_anchors(canonical),
-            *related,
-        ])[:_MAX_PROFILE_QUERIES]
+    queries = _dedupe([
+        canonical,
+        *_query_anchors(canonical),
+        clean_keyword,
+        *related,
+    ])[:_MAX_PROFILE_QUERIES]
     concept_slug = re.sub(r"[^a-z0-9]+", "_", _normalize(canonical)).strip("_")
     return SearchPlan(
         canonical_keyword=str(canonical),
@@ -218,7 +229,7 @@ def build_search_plan(
     profile: dict | None = None,
 ) -> SearchPlan:
     """Resolve a keyword to a configurable concept and its query variants."""
-    clean_keyword = re.sub(r"\s+", " ", str(keyword or "")).strip()
+    clean_keyword = discovery_keyword(keyword)
     if not clean_keyword:
         raise ValueError("keyword must not be empty")
 

@@ -1,6 +1,7 @@
 """Filename, date and free-text normalisation helpers."""
 
 import datetime
+import math
 import re
 
 from gemsentry.constants import _INDIAN_STATES
@@ -31,17 +32,23 @@ def _parse_inr_amount(raw):
     """Parse an INR amount string that may contain commas/rupees markers."""
     if raw is None:
         return None
+    if isinstance(raw, bool):
+        return None
     if isinstance(raw, (int, float)):
-        return int(raw)
+        return raw if math.isfinite(raw) and raw >= 0 else None
     s = str(raw).strip()
-    s = re.sub(r'[₹Rs\.INR\s]', '', s, flags=re.IGNORECASE)
+    # Currency markers are whole tokens; a character class also ate decimal dots.
+    s = re.sub(r'^(?:(?:INR|Rs\.?|₹)\s*)+', '', s, flags=re.IGNORECASE)
     s = s.replace(",", "")
     # take leading number
     m = re.match(r'([\d]+(?:\.\d+)?)', s)
     if not m:
         return None
     try:
-        return int(float(m.group(1)))
+        amount = float(m.group(1))
+        if not math.isfinite(amount):
+            return None
+        return int(amount) if amount.is_integer() else amount
     except ValueError:
         return None
 

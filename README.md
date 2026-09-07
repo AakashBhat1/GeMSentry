@@ -158,6 +158,12 @@ uv run ruff check .           # lint
 
 ### 🔍 Keywords Setup
 Modify `config/keywords.csv` to add or remove search terms. GeMSentry will automatically pick these up on the next scrape.
+
+Searches default to **Auto** pagination, following GeM's result count instead of stopping after two pages. A search has a five-minute budget and a 1,000-page safety ceiling; the console reports incomplete searches, repeated pages, and date/relevance exclusions. Select a fixed page limit for a quick scan. The API accepts up to 1,000 keywords and `max_pages: null` for Auto.
+
+Capacity-specific discovery terms are broadened automatically (`250 KW SOLAR` → `SOLAR`, `12V 100AH BATTERY` → `BATTERY`). Profile phrases also use broader word queries, with relevance checked against listing content. Drone/UAV aliases share a search plan. Rediscovered bids refresh their closing dates and listing facts before scoring.
+
+INR values preserve decimal places. To repair previously stored values from local PDFs, run `python tools/repair_bid_values.py` to preview corrections, then add `--apply`. Original records are backed up before updates; missing amounts are never repaired by guessing where a decimal belongs.
 ```csv
 POWER SUPPLY
 RADAR

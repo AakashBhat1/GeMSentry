@@ -8,6 +8,7 @@ import tempfile
 
 from gemsentry.constants import KEYWORDS_PATH, SCORING_CONFIG_PATH, logger
 from gemsentry.defaults import DEFAULT_SCORING_CONFIG
+from gemsentry.search import discovery_keyword
 
 
 def _resolve_config_path(primary: str, legacy: str, label: str) -> str | None:
@@ -39,7 +40,7 @@ def load_keywords():
 
     cleaned_keywords = []
     for kw in keywords:
-        kw_clean = kw.strip()
+        kw_clean = discovery_keyword(kw)
         if kw_clean and kw_clean.lower() not in [k.lower() for k in cleaned_keywords]:
             cleaned_keywords.append(kw_clean)
 

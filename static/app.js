@@ -1239,6 +1239,61 @@
             }
         }
 
+        // Label, colour and CSS class for an eligibility verdict. Only an
+        // explicit 'eligible' is presented as a pass — 'unknown' means the
+        // document did not tell us, which is a review, not a green light.
+        function eligibilityPresentation(verdict) {
+            if (verdict === 'eligible') {
+                return {
+                    label: 'Eligible',
+                    className: 'text-success',
+                    color: 'var(--success-color)',
+                };
+            }
+            if (verdict === 'turnover_gap') {
+                return {
+                    label: 'Turnover Gap',
+                    className: 'text-failed',
+                    color: 'var(--failed-color)',
+                };
+            }
+            return {
+                label: 'Needs Review — Eligibility Unconfirmed',
+                className: 'text-warning',
+                color: 'var(--warning-color)',
+            };
+        }
+
+        // Renders the terminating line for a finished job. The backend sets
+        // `outcome` for every job it runs (scrape, single-bid, rescore); a
+        // missing one means no job has finished in this server's lifetime.
+        function jobOutcomeMessage(data) {
+            const outcome = data && data.outcome;
+            const warnings = (data && data.warnings) || [];
+            const warningText = warnings.length
+                ? '\n' + warnings.map(w => '[WARNING] ' + w).join('\n')
+                : '';
+
+            if (outcome === 'failed') {
+                const detail = (data && data.error) ? ' ' + data.error : '';
+                return '[FAILED] Job did not complete.' + detail
+                    + ' Dashboard data may be unchanged.' + warningText;
+            }
+            if (outcome === 'partial') {
+                return '[PARTIAL] Job completed, but some results are missing.'
+                    + warningText;
+            }
+            if (outcome === 'succeeded') {
+                if (data.new_count === 0) {
+                    return '[SUCCESS] Job completed. No new tenders matched this search.'
+                        + warningText;
+                }
+                return '[SUCCESS] Job completed execution. Dashboard data updated.'
+                    + warningText;
+            }
+            return '[DONE] Job is no longer running.';
+        }
+
         async function checkScraperStatus() {
             try {
                 const response = await fetch('/api/status');
@@ -1273,7 +1328,10 @@
                     startBtn.style.opacity = '1';
                     
                     if (data.logs && data.logs.length > 0) {
-                        consoleLogs.innerText = data.logs.join('\n') + '\n\n[SUCCESS] Scraper completed execution. Dashboard data updated.';
+                        // The mere presence of log lines used to be read as
+                        // success, so a crashed scrape still reported
+                        // [SUCCESS]. Trust the backend's outcome instead.
+                        consoleLogs.innerText = data.logs.join('\n') + '\n\n' + jobOutcomeMessage(data);
                         consoleLogs.scrollTop = consoleLogs.scrollHeight;
                         
                         // Stop polling and update main dashboard
@@ -1341,7 +1399,8 @@
                 return;
             }
             
-            const maxPages = parseInt(document.getElementById('modalPageLimit').value);
+            const pageLimit = document.getElementById('modalPageLimit').value;
+            const maxPages = pageLimit === 'auto' ? null : parseInt(pageLimit);
             const sortOrder = document.getElementById('modalSortOrder').value;
             const minDaysLeftInput = document.getElementById('modalMinDaysLeft');
             const minDaysLeftVal = minDaysLeftInput ? parseInt(minDaysLeftInput.value) : 5;
@@ -2838,13 +2897,19 @@
                         businessLineTag = `<span class="tag tag-business-line"${mkTitle}>${escapeHtml(analysis.business_line.label)}</span>`;
                     }
 
-                    // Eligibility tag (Phase 2)
+                    // Eligibility tag (Phase 2). An unresolved verdict gets its
+                    // own badge — showing nothing at all read as "no concerns",
+                    // which is the same false reassurance as labelling it
+                    // Eligible.
                     if (analysis.eligibility) {
                         const verdict = analysis.eligibility.verdict;
+                        const detailTitle = escapeHtml(analysis.eligibility.detail || '');
                         if (verdict === 'turnover_gap') {
-                            eligibilityTag = `<span class="tag tag-eligibility-warning" title="${escapeHtml(analysis.eligibility.detail) || 'Turnover requirement gap'}">⚠️ Turnover Gap</span>`;
+                            eligibilityTag = `<span class="tag tag-eligibility-warning" title="${detailTitle || 'Turnover requirement gap'}">⚠️ Turnover Gap</span>`;
                         } else if (verdict === 'eligible') {
                             eligibilityTag = `<span class="tag tag-eligibility-ok">✓ Eligible</span>`;
+                        } else if (analysis.analysis_status !== 'failed') {
+                            eligibilityTag = `<span class="tag tag-eligibility-unknown" title="${detailTitle || 'Eligibility could not be confirmed'}">? Eligibility Unconfirmed</span>`;
                         }
                     }
 
@@ -3047,10 +3112,14 @@
 
                         let eligibilityDetailsHtml = '';
                         if (analysis.eligibility && analysis.eligibility.detail) {
-                            const eligibilityClass = analysis.eligibility.verdict === 'turnover_gap' ? 'text-failed' : 'text-success';
-                            const eligibilityColor = analysis.eligibility.verdict === 'turnover_gap' ? 'var(--failed-color)' : 'var(--success-color)';
-                            const eligibilityVerdictLabel = analysis.eligibility.verdict === 'turnover_gap' ? 'Turnover Gap' : 'Eligible';
-                            
+                            // Anything that is not an explicit 'eligible' is a
+                            // review, not a pass: this panel used to label every
+                            // non-gap verdict "Eligible", including 'unknown'.
+                            const presentation = eligibilityPresentation(analysis.eligibility.verdict);
+                            const eligibilityClass = presentation.className;
+                            const eligibilityColor = presentation.color;
+                            const eligibilityVerdictLabel = presentation.label;
+
                             const flagsHtml = (analysis.eligibility.flags || []).map(f => `<span class="tag tag-keyword" style="font-size: 0.7rem; padding: 0.1rem 0.4rem;">${escapeHtml(f)}</span>`).join(' ');
                             
                             eligibilityDetailsHtml = `

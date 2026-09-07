@@ -11,7 +11,7 @@ from collections import Counter
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed, wait
 from playwright.sync_api import sync_playwright
 
-from gemsentry.analysis import analyze_from_card, analyze_rfp_pdf
+from gemsentry.analysis import analyze_from_card, analyze_rfp_pdf, rederive_analysis
 from gemsentry.config_store import load_keywords, load_scoring_config
 from gemsentry.constants import logger
 from gemsentry.dateparse import check_date_policy
@@ -19,9 +19,10 @@ from gemsentry.defaults import DEFAULT_SCORING_CONFIG
 from gemsentry.profile import get_active_workspace, load_company_profile, workspace_paths
 from gemsentry.scoring.dates import evaluate_date_window, resolve_min_days_left
 from gemsentry.scoring.verdict import apply_verdict, finalize_auto_reject
+from gemsentry.search import build_search_plan
 from gemsentry.sources.attribution import build_host_index, derive_source, normalize_host
 from gemsentry.sources.gem.client import (
-    DEFAULT_DOWNLOAD_TIMEOUT, DEFAULT_KEYWORD_DEADLINE, download_pdf_http,
+    DEFAULT_DOWNLOAD_TIMEOUT, download_pdf_http, search_deadline,
     download_rfp_pdf, fetch_keyword_bids_api, is_pdf_file, looks_like_pdf_url,
     parse_cards,
 )
@@ -119,6 +120,31 @@ def analyze_downloaded_pdfs(jobs, scoring_cfg, company_profile, workers=0):
     logger.info("Analyzed %d PDF(s).", len(jobs))
 
 
+def refresh_cached_verdict(tender, scoring_cfg, company_profile):
+    """Recompute the date-sensitive layer of an already-analyzed tender.
+
+    Uses the signals already stored on the analysis, so there is no PDF read
+    and nothing is re-downloaded. Returns True when the refresh actually
+    changed the automated verdict. ``apply_verdict`` keeps a manually pinned
+    workflow status, so a user's decision survives the update.
+    """
+    analysis = tender.get("analysis")
+    if not isinstance(analysis, dict) or analysis.get("analysis_status") != "ok":
+        return False
+
+    before = (analysis.get("recommendation"), bool(analysis.get("is_expired")))
+    refreshed = rederive_analysis(tender, analysis, scoring_cfg, company_profile)
+    apply_verdict(tender, refreshed)
+    after = (refreshed.get("recommendation"), bool(refreshed.get("is_expired")))
+    if after != before:
+        logger.debug(
+            "Refreshed cached verdict for Bid %s: %s -> %s",
+            tender.get("bid_no"), before, after,
+        )
+        return True
+    return False
+
+
 def plan_downloads(tenders, scoring_cfg, company_profile, downloads_dir,
                    pdf_index=None, host_index=None, skip_zero_relevance=True):
     """Split ``tenders`` into what to fetch and what can be analyzed already.
@@ -143,14 +169,23 @@ def plan_downloads(tenders, scoring_cfg, company_profile, downloads_dir,
     skipped_date = skipped_fit = 0
     external_portals = Counter()
 
+    refreshed_cached = 0
+
     for tender in tenders:
         bid_no = tender["bid_no"]
 
-        # 1. Skip already successfully processed tenders
+        # 1. Already processed, with its PDF still on disk. Skipping the
+        # download is right; skipping the *scoring* was not -- the verdict
+        # depends on today's date, so a bid that has since expired kept the
+        # "Pursue" it earned when it still had weeks to run, and was never
+        # requeued because nothing about its listing had changed. Re-derive
+        # the date-dependent layer from stored signals: no PDF I/O, no fetch.
         if tender.get("downloaded") and tender.get("analysis") and tender.get("local_pdf_path"):
             lp = tender["local_pdf_path"]
             lp_abs = lp if os.path.isabs(lp) else os.path.join(paths.ROOT, lp)
             if os.path.exists(lp_abs):
+                if refresh_cached_verdict(tender, scoring_cfg, company_profile):
+                    refreshed_cached += 1
                 continue
 
         sanitized_bid = sanitize_filename(bid_no)
@@ -249,7 +284,8 @@ def plan_downloads(tenders, scoring_cfg, company_profile, downloads_dir,
         f"Download plan: {len(to_download)} to fetch, {len(to_analyze)} "
         f"reusable from disk, {skipped_date} skipped (date), "
         f"{skipped_fit} skipped (zero relevance), "
-        f"{skipped_external} skipped (non-GeM portal)."
+        f"{skipped_external} skipped (non-GeM portal), "
+        f"{refreshed_cached} cached verdict(s) refreshed."
     )
     if skipped_external:
         logger.info(
@@ -262,9 +298,27 @@ def plan_downloads(tenders, scoring_cfg, company_profile, downloads_dir,
     return to_download, to_analyze
 
 
+def refresh_listing_metadata(existing, discovered):
+    """Refresh portal facts, preserving downloaded documents and user decisions."""
+    changed = False
+    for key in (
+        "title", "primary_item", "item_category", "quantity", "department",
+        "start_date", "end_date", "pdf_url", "est_value_inr",
+        "gem_result_bid_no", "gem_parent_bid_no", "gem_document_id",
+    ):
+        value = discovered.get(key)
+        if value not in (None, "", "N/A"):
+            changed = changed or existing.get(key) != value
+            existing[key] = value
+    if changed and existing.get("analysis"):
+        # The download planner will re-use the local PDF and re-analyze it.
+        # Otherwise its processed-record shortcut keeps the expired verdict.
+        existing["analysis"] = None
+
+
 def scrape(
     selected_keywords=None,
-    max_pages=2,
+    max_pages=None,
     sort_order="Bid-Start-Date-Latest",
     log_callback=None,
     target_count=None,
@@ -293,6 +347,14 @@ def scrape(
             logger.info(f"Scraping {len(KEYWORDS)} selected keyword(s) for search.")
         else:
             KEYWORDS = load_keywords()
+
+        # Aliases such as drone/UAV/quadcopter share one complete query plan.
+        plans = {}
+        for keyword in KEYWORDS:
+            plan = build_search_plan(keyword, profile=active_profile)
+            plans.setdefault(plan.concept_id or plan.canonical_keyword.casefold(), plan.canonical_keyword)
+        KEYWORDS = list(plans.values())
+        logger.info("Searching %d distinct concepts; page limit: %s.", len(KEYWORDS), max_pages or "auto")
 
         # 2. Load existing metadata records (scoped to this workspace)
         all_tenders = load_existing_metadata(tenders_dir)
@@ -345,7 +407,7 @@ def scrape(
                 )
                 return kw, tenders
 
-            keyword_deadline = DEFAULT_KEYWORD_DEADLINE
+            keyword_deadline = search_deadline(max_pages)
             pool = ThreadPoolExecutor(max_workers=5)
             try:
                 future_to_kw = {pool.submit(process_keyword, kw): kw for kw in KEYWORDS}
@@ -377,6 +439,7 @@ def scrape(
                                 logger.info(f"  [New Tender Discovered] {t['bid_no']}")
                             else:
                                 existing = all_tenders[t["bid_no"]]
+                                refresh_listing_metadata(existing, t)
                                 if kw not in existing["keyword"]:
                                     existing["keyword"] += f", {kw}"
                     except Exception as e:
@@ -504,9 +567,12 @@ def scrape(
 
             browser.close()
 
-        save_metadata(tenders_list, tenders_dir)
+        # save_metadata folds back any status the user pinned while this run
+        # was working, and raises if the commit fails -- so returning its list
+        # (rather than our own snapshot) is what actually landed on disk.
+        stored = save_metadata(tenders_list, tenders_dir)
         auto_export_summary(tenders_dir, downloads_dir)
-        return tenders_list, new_tenders_count
+        return stored, new_tenders_count
     finally:
         logging_setup.end_scrape_session()
         logging_setup.detach_handler(cb_handler)
@@ -672,12 +738,16 @@ def scrape_single_bid(bid_id, log_callback=None):
 
             # Save or update in database
             all_tenders[bid_no] = target_tender
-            save_metadata(list(all_tenders.values()), tenders_dir)
+            stored = save_metadata(list(all_tenders.values()), tenders_dir)
             auto_export_summary(tenders_dir, downloads_dir)
             logger.info(f"Successfully processed and updated metadata for Bid: {bid_no}")
 
             browser.close()
-            return target_tender
+            # Return the stored record: a status the user pinned while this
+            # acquisition ran is merged in during the save.
+            return next(
+                (r for r in stored if r.get("bid_no") == bid_no), target_tender
+            )
 
     finally:
         logging_setup.end_scrape_session()

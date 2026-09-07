@@ -2,16 +2,48 @@
 
 import re
 
+from gemsentry.parsing.amounts import NOT_STATED, parse_labelled_amount
 from gemsentry.parsing.fields import parse_yes_no_field
 from gemsentry.parsing.text import _first_ascii_phrase, _first_number, _window_after
 from gemsentry.textutils import _match_indian_state, _parse_inr_amount
+
+# Ordered most specific first: the looser label is only consulted when the
+# canonical one is absent from the document.
+MIN_TURNOVER_LABELS = (
+    r'Minimum\s+Average\s+Annual\s+Turnover(?:\s+of\s+the\s+bidder)?',
+    r'Average\s+Annual\s+Turnover(?:\s+of\s+the\s+bidder)?',
+    r'Minimum\s+Annual\s+Turnover',
+)
+
+
+def parse_min_turnover(text):
+    """Read the RFP's minimum-turnover bar, with its extraction state.
+
+    Returns ``{"state", "value", "evidence"}``. The state matters as much as
+    the value: an unreadable field must not be scored as "no requirement".
+    """
+    return parse_labelled_amount(text, MIN_TURNOVER_LABELS)
+
+
+def parse_estimated_bid_value(text):
+    """Accept an amount immediately after the RFP field, never disclaimer prose."""
+    pattern = (
+        r'Estimated\s+Bid\s+Value(?:\s+in\s+INR(?:\s*\([^)]*\))?)?'
+        r'\s*:?\s*(?:INR\s*|Rs\.?\s*|₹\s*)?'
+        r'([\d,]+(?:\.\d+)?)'
+    )
+    for match in re.finditer(pattern, text or "", re.IGNORECASE):
+        amount = _parse_inr_amount(match.group(1))
+        if amount is not None and amount >= 1000:
+            return amount
+    return None
 
 
 def extract_bid_signals(text_clean, card_meta=None):
     """
     Extract Phase-2 bid signals from full PDF text (+ optional card meta).
     Returns (signals_dict, signal_parsed_flags).
-    BE-16: prefer card_meta est_value_inr; do not scrape disclaimer prose.
+    Prefer an explicit PDF value; listing metadata is the fallback.
     """
     card_meta = card_meta or {}
     flags = {
@@ -36,36 +68,22 @@ def extract_bid_signals(text_clean, card_meta=None):
         "mii_required": "unknown",
         "mse_pref": "unknown",
         "rfp_min_turnover_inr": None,
+        "rfp_min_turnover_state": NOT_STATED,
+        "rfp_min_turnover_evidence": None,
         "rfp_min_experience_years": None,
         "total_quantity": None,
     }
 
-    # --- BE-16: estimated value from card first ---
+    # Read the source field again so old, corrupted listing values cannot
+    # override a correctly parsed PDF during a local reparse.
+    signals["est_value_inr"] = parse_estimated_bid_value(text_clean)
+    flags["est_value_inr"] = signals["est_value_inr"] is not None
     card_val = card_meta.get("est_value_inr")
-    if card_val is not None:
+    if signals["est_value_inr"] is None and card_val is not None:
         amount = _parse_inr_amount(card_val)
         if amount is not None and amount > 0:
             signals["est_value_inr"] = amount
             flags["est_value_inr"] = True
-    if signals["est_value_inr"] is None:
-        # Fallback: only accept a number that sits RIGHT AFTER the label
-        # (not the disclaimer "Estimated Bid Value indicated above…")
-        snip, m = _window_after(
-            text_clean,
-            r'Estimated\s+Bid\s+Value(?:\s+in\s+INR(?:\s*\([^)]*\))?)?',
-            window=30
-        )
-        if m is not None and snip:
-            # Reject disclaimer continuation words
-            if not re.match(r'\s*(indicated|is\s+being|declared|solely|above)', snip, re.IGNORECASE):
-                num = _first_number(snip)
-                if num:
-                    amount = _parse_inr_amount(num)
-                    # Sanity: GeM bid values are typically >= 1000 INR
-                    if amount is not None and amount >= 1000:
-                        signals["est_value_inr"] = amount
-                        flags["est_value_inr"] = True
-
     # Item category / primary item (BE-15). The current GeM listing JSON
     # exposes these fields directly, so preserve that structured evidence
     # before falling back to PDF label parsing.
@@ -164,26 +182,16 @@ def extract_bid_signals(text_clean, card_meta=None):
         signals["mse_pref"] = mse_pref
         flags["mse_pref"] = True
 
-    # Min turnover / experience (eligibility inputs only)
-    # Prefer explicit "Minimum Average Annual Turnover of the bidder (For 3 Years)  X"
-    snip, m = _window_after(
-        text_clean,
-        r'Minimum\s+Average\s+Annual\s+Turnover(?:\s+of\s+the\s+bidder)?',
-        window=80
-    )
-    if not m:
-        snip, m = _window_after(
-            text_clean,
-            r'Average\s+Annual\s+Turnover(?:\s+of\s+the\s+bidder)?',
-            window=80
-        )
-    if snip:
-        num = _first_number(snip)
-        if num:
-            amount = _parse_inr_amount(num)
-            # Turnover criteria on GeM are usually >= 10,000 INR (ignore year counts)
-            if amount is not None and amount >= 10000:
-                signals["rfp_min_turnover_inr"] = amount
+    # Min turnover / experience (eligibility inputs only).
+    # "Minimum Average Annual Turnover of the bidder (For 3 Years) 75 Lakh (s)"
+    # used to yield the qualifier's 3, which was then discarded as too small --
+    # so a real ₹75 lakh bar read as no bar at all. The parser strips the
+    # qualifier, honours lakh/crore units, and reports why it failed when it
+    # cannot read a figure, because "unreadable" is not "not required".
+    turnover = parse_min_turnover(text_clean)
+    signals["rfp_min_turnover_inr"] = turnover["value"]
+    signals["rfp_min_turnover_state"] = turnover["state"]
+    signals["rfp_min_turnover_evidence"] = turnover["evidence"]
 
     snip, m = _window_after(
         text_clean,
