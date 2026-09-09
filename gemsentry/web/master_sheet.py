@@ -49,11 +49,21 @@ def finalize_tender_endpoint():
         custom_fields = data.get("custom_fields") or {}
         if "assigned_vendor" in data and "assigned_vendor" not in custom_fields:
             custom_fields["assigned_vendor"] = data["assigned_vendor"]
+        if "sl_no" in data and "sl_no" not in custom_fields:
+            custom_fields["sl_no"] = data["sl_no"]
+
+        req_sl = data.get("sl_no") or custom_fields.get("sl_no")
+        if req_sl is not None:
+            try:
+                req_sl = int(req_sl)
+            except (ValueError, TypeError):
+                req_sl = None
 
         res = master_sheet_manager.finalize_tender(
             tender=tender,
             target_sheet=target_sheet,
-            custom_fields=custom_fields
+            custom_fields=custom_fields,
+            sl_no=req_sl
         )
         return jsonify(res)
     except Exception as e:

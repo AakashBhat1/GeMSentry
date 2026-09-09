@@ -293,26 +293,35 @@ class MasterSheetManager:
                     if sname in wb.sheetnames:
                         sheet = wb[sname]
                         for row in sheet.iter_rows(values_only=True):
-                            # Only consider rows that actually have a Tender ID (col index 7 or 8)
-                            if len(row) > 7 and row[7]:
-                                val_id = str(row[7]).strip()
-                                if val_id and val_id.upper() != "TENDER ID":
-                                    val_sl = row[0]
-                                    if val_sl is not None:
-                                        try:
-                                            val = int(float(str(val_sl).strip()))
-                                            if BASELINE_SERIAL_NO <= val < 50000 and val > max_sl:
-                                                max_sl = val
-                                        except (ValueError, TypeError):
-                                            pass
+                            if not row or len(row) < 2:
+                                continue
+                            val_sl = row[0]
+                            if val_sl is None:
+                                continue
+                            # Check if the row has any non-empty data in columns after col 1
+                            has_data = any(c is not None and str(c).strip() != "" for c in row[1:])
+                            if not has_data:
+                                continue
+                            # Skip header rows
+                            str_sl = str(val_sl).strip()
+                            if str_sl.upper() in ("SL. NO", "SL NO", "S.NO", "SL", "SERIAL NO"):
+                                continue
+                            try:
+                                val = int(float(str_sl))
+                                if BASELINE_SERIAL_NO <= val < 50000 and val > max_sl:
+                                    max_sl = val
+                            except (ValueError, TypeError):
+                                pass
                 wb.close()
             except Exception as e:
                 logger.debug("Error checking baseline serial from %s: %s", path, e)
 
         self.highest_serial_no = max_sl
 
-    def get_highest_serial_number(self) -> int:
+    def get_highest_serial_number(self, refresh: bool = False) -> int:
         with self.lock:
+            if refresh:
+                self._ensure_serial_baseline()
             max_sl = getattr(self, "highest_serial_no", BASELINE_SERIAL_NO)
             for rec in self.finalized_records:
                 sl = rec.get("sl_no")
@@ -417,15 +426,14 @@ class MasterSheetManager:
 
                 header_row = 2 if "PARTICIPATED" in target_sheet else 4
 
-                # 1. Search if tender already exists in sheet to update in-place
+                # 1. Search if this exact tender already exists in sheet to update in-place
                 target_row = None
                 norm_bid = str(record.get("bid_no") or "").strip().lower()
-                target_sl = record.get("sl_no")
+                target_sl = str(record.get("sl_no")).strip() if record.get("sl_no") is not None else None
                 col_bid = 9 if "PARTICIPATED" in target_sheet else 8
                 col_ref = 10 if "PARTICIPATED" in target_sheet else 9
 
                 for r in range(header_row + 1, ws.max_row + 1):
-                    cell_sl = ws.cell(row=r, column=1).value
                     cell_id = ws.cell(row=r, column=col_bid).value
                     cell_ref = ws.cell(row=r, column=col_ref).value
 
@@ -433,17 +441,43 @@ class MasterSheetManager:
                         (cell_id and str(cell_id).strip().lower() == norm_bid) or
                         (cell_ref and str(cell_ref).strip().lower() == norm_bid)
                     )
-                    sl_match = target_sl and cell_sl and str(cell_sl).strip() == str(target_sl).strip()
-                    if id_match or sl_match:
+                    if id_match:
                         target_row = r
                         break
 
-                # 2. If not existing, find first genuinely empty row
+                # 2. If tender does not already exist, check if there is an UNOCCUPIED row matching target_sl
+                # (e.g. pre-numbered template rows like 1023..1200 that are completely empty in columns 2..19).
+                # NEVER overwrite an already occupied row to prevent erasing/superimposing existing data!
+                if not target_row and target_sl:
+                    for r in range(header_row + 1, ws.max_row + 1):
+                        cell_sl = ws.cell(row=r, column=1).value
+                        if cell_sl is not None and str(cell_sl).strip() == target_sl:
+                            max_check = max(ws.max_column, 20)
+                            row_has_data = any(
+                                ws.cell(row=r, column=c).value is not None and
+                                str(ws.cell(row=r, column=c).value).strip() != ""
+                                for c in range(2, max_check + 1)
+                            )
+                            if not row_has_data:
+                                target_row = r
+                                break
+                            else:
+                                logger.warning(
+                                    "Row %d in %s has SL %s but already contains data for another entry. "
+                                    "Will not overwrite/erase; searching for next available empty row.",
+                                    r, target_sheet, target_sl
+                                )
+
+                # 3. If no matching slot found, find first genuinely empty row (all columns empty)
                 if not target_row:
                     for r in range(header_row + 1, ws.max_row + 2):
-                        val_id = ws.cell(row=r, column=col_bid).value
-                        val_desc = ws.cell(row=r, column=col_bid + 2).value
-                        if val_id is None and val_desc is None:
+                        max_check = max(ws.max_column, 20)
+                        row_has_any_data = any(
+                            ws.cell(row=r, column=c).value is not None and
+                            str(ws.cell(row=r, column=c).value).strip() != ""
+                            for c in range(1, max_check + 1)
+                        )
+                        if not row_has_any_data:
                             target_row = r
                             break
 
@@ -666,19 +700,30 @@ class MasterSheetManager:
         self,
         tender: dict[str, Any],
         target_sheet: str = "UNDER DETAILED STUDY",
-        custom_fields: dict[str, Any] | None = None
+        custom_fields: dict[str, Any] | None = None,
+        sl_no: int | None = None
     ) -> dict[str, Any]:
         """Finalizes a tender, assigns sequential SL. NO, updates Excel & Google Sheet."""
         with self.lock:
             bid_no = tender.get("bid_no") or "UNKNOWN"
             custom_fields = custom_fields or {}
 
+            requested_sl = sl_no or custom_fields.get("sl_no")
+            if requested_sl is not None:
+                try:
+                    requested_sl = int(requested_sl)
+                except (ValueError, TypeError):
+                    requested_sl = None
+
             # Check if already finalized
             existing = self.get_record(bid_no)
-            if existing:
+            if requested_sl is not None:
+                sl_no = requested_sl
+                self.highest_serial_no = max(getattr(self, "highest_serial_no", BASELINE_SERIAL_NO), sl_no)
+            elif existing and existing.get("sl_no"):
                 sl_no = existing.get("sl_no")
             else:
-                sl_no = self.get_highest_serial_number() + 1
+                sl_no = self.get_highest_serial_number(refresh=True) + 1
                 self.highest_serial_no = sl_no
 
             analysis = tender.get("analysis") or {}
@@ -1022,7 +1067,7 @@ class MasterSheetManager:
 
             return {
                 "total_count": len(self.finalized_records),
-                "highest_serial_no": self.get_highest_serial_number(),
+                "highest_serial_no": self.get_highest_serial_number(refresh=True),
                 "records": sorted_records,
                 "counts_by_sheet": sheets_count,
                 "spreadsheet_url": self.config.get("spreadsheet_url"),

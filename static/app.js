@@ -3511,8 +3511,16 @@
             document.getElementById('finalizeTitleDisplay').innerText = tender.title || 'N/A';
             document.getElementById('finalizeOrgDisplay').innerText = tender.department || ((tender.analysis || {}).buyer_org) || 'N/A';
             
-            const nextSl = (finalizedData.highest_serial_no || 1016) + 1;
-            document.getElementById('finalizeNextSlBadge').innerText = `Next SL. NO: #${nextSl}`;
+            const existingRec = (finalizedData.records || []).find(r => r.bid_no === bidNo);
+            const nextSl = existingRec && existingRec.sl_no ? existingRec.sl_no : ((finalizedData.highest_serial_no || 1016) + 1);
+            const nextBadge = document.getElementById('finalizeNextSlBadge');
+            if (nextBadge) {
+                nextBadge.innerText = `Suggested: #${(finalizedData.highest_serial_no || 1016) + 1}`;
+            }
+            const slInput = document.getElementById('finalizeSlNo');
+            if (slInput) {
+                slInput.value = nextSl;
+            }
             
             // Auto-select category
             const analysis = tender.analysis || {};
@@ -3606,6 +3614,13 @@
             const assignedVendor = document.getElementById('finalizeAssignedVendor') ? document.getElementById('finalizeAssignedVendor').value : 'auto';
             const techSpecUrl = document.getElementById('finalizeTechSpecUrl') ? document.getElementById('finalizeTechSpecUrl').value.trim() : '';
 
+            const slNoInput = document.getElementById('finalizeSlNo');
+            let customSlNo = slNoInput ? parseInt(slNoInput.value, 10) : null;
+            if (!customSlNo || isNaN(customSlNo) || customSlNo <= 0) {
+                alert("Please enter a valid positive Serial Number (SL. NO).");
+                return;
+            }
+
             const btn = document.getElementById('btnSubmitFinalize');
             const origHtml = btn.innerHTML;
             btn.disabled = true;
@@ -3618,7 +3633,9 @@
                     body: JSON.stringify({
                         bid_no: bidNo,
                         target_sheet: targetSheet,
+                        sl_no: customSlNo,
                         custom_fields: {
+                            sl_no: customSlNo,
                             work_category: workCat,
                             approval: approval,
                             oem_authorization: oemAuth,

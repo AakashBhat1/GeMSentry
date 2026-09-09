@@ -387,6 +387,105 @@ def test_web_endpoints_spec_sheet(temp_manager, monkeypatch):
     assert res_serve.status_code == 200
     assert b"Biometric Specifications" in res_serve.data
 
+def test_finalize_with_custom_sl_no(temp_manager):
+    tender = {
+        "bid_no": "TEST/GEM/CUSTOM_SL_1",
+        "title": "Custom Serial Tender",
+        "department": "Custom Dept"
+    }
+    # User manually specifies SL 1035
+    res = temp_manager.finalize_tender(tender, sl_no=1035)
+    assert res["status"] == "ok"
+    assert res["sl_no"] == 1035
+    assert res["record"]["sl_no"] == 1035
+    assert temp_manager.get_highest_serial_number() == 1035
+
+    # Another tender using custom_fields["sl_no"]
+    tender2 = {
+        "bid_no": "TEST/GEM/CUSTOM_SL_2",
+        "title": "Custom Serial Tender 2",
+        "department": "Custom Dept 2"
+    }
+    res2 = temp_manager.finalize_tender(tender2, custom_fields={"sl_no": 1040})
+    assert res2["status"] == "ok"
+    assert res2["sl_no"] == 1040
+    assert temp_manager.get_highest_serial_number() == 1040
 
 
+def test_prevent_overwriting_occupied_row_in_excel(temp_manager):
+    # In temp_manager's Excel sheet, create a row with SL 1029 that already has another tender's data
+    excel_path = temp_manager._get_active_master_paths()[0]
+    wb = openpyxl.load_workbook(excel_path)
+    ws = wb["MASTER"]
+    occupied_row = 10
+    ws.cell(row=occupied_row, column=1, value=1029)
+    ws.cell(row=occupied_row, column=8, value="EXISTING/MANUAL/1029")
+    ws.cell(row=occupied_row, column=10, value="Original Tender in 1029")
+    wb.save(excel_path)
+    wb.close()
+
+    # Now finalize a new tender via GeMSentry with sl_no=1029
+    new_tender = {
+        "bid_no": "NEW/GEMSENTRY/1029",
+        "title": "New Pushed Tender",
+        "department": "Some Dept"
+    }
+    res = temp_manager.finalize_tender(new_tender, target_sheet="MASTER", sl_no=1029)
+    assert res["status"] == "ok"
+    assert res["sl_no"] == 1029
+
+    # Verify that row 10 in Excel was NOT overwritten!
+    wb = openpyxl.load_workbook(excel_path)
+    ws = wb["MASTER"]
+    cell_id_at_10 = ws.cell(row=occupied_row, column=8).value
+    assert cell_id_at_10 == "EXISTING/MANUAL/1029", "Occupied row was overwritten!"
+    assert ws.cell(row=occupied_row, column=10).value == "Original Tender in 1029"
+
+    # Verify that the new tender was written to a different row
+    found_new = False
+    for r in range(5, ws.max_row + 1):
+        if r != occupied_row and ws.cell(row=r, column=8).value == "NEW/GEMSENTRY/1029":
+            found_new = True
+            break
+    assert found_new, "New tender was not saved to an empty row"
+    wb.close()
+
+
+def test_dynamic_excel_baseline_detection(temp_manager):
+    # Add a row to Excel manually with SL 1055 and some data
+    excel_path = temp_manager._get_active_master_paths()[0]
+    wb = openpyxl.load_workbook(excel_path)
+    ws = wb["MASTER"]
+    ws.cell(row=15, column=1, value=1055)
+    ws.cell(row=15, column=6, value="Manual Org")
+    ws.cell(row=15, column=10, value="Manual Drone Project")
+    wb.save(excel_path)
+    wb.close()
+
+    # Query highest serial number with refresh
+    highest = temp_manager.get_highest_serial_number(refresh=True)
+    assert highest == 1055
+
+    # Auto-increment should now pick 1056
+    next_tender = {"bid_no": "TEST/AUTO/NEXT", "title": "Next Auto Tender"}
+    res = temp_manager.finalize_tender(next_tender)
+    assert res["sl_no"] == 1056
+
+
+def test_api_finalize_with_custom_sl_no(monkeypatch):
+    from app import app
+    from gemsentry.master_sheet import master_sheet_manager
+    monkeypatch.setattr(master_sheet_manager, "_sync_to_local_excel", lambda *args, **kwargs: True)
+    monkeypatch.setattr(master_sheet_manager, "_sync_to_google_sheet", lambda *args, **kwargs: {"status": "ok", "mocked": True})
+
+    client = app.test_client()
+    res = client.post("/api/finalized/finalize", json={
+        "bid_no": "API/TEST/CUSTOM_SL_99",
+        "title": "API Custom SL Tender",
+        "sl_no": 1099
+    })
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data["status"] == "ok"
+    assert data["sl_no"] == 1099
 
