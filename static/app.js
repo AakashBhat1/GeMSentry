@@ -133,7 +133,7 @@
             buyer_affinity: {},
             value_preference: {
                 sweet_min_inr: 500000,
-                sweet_max_inr: 30000000
+                sweet_max_inr: null
             },
             avoid_rules: {
                 gem_q2_category: true,
@@ -243,7 +243,8 @@
 
             const vp = config.value_preference || {};
             document.getElementById('profile_sweet_min').value = vp.sweet_min_inr !== undefined ? vp.sweet_min_inr : 500000;
-            document.getElementById('profile_sweet_max').value = vp.sweet_max_inr !== undefined ? vp.sweet_max_inr : 30000000;
+            // Blank = no upper limit (large tenders are not penalised).
+            document.getElementById('profile_sweet_max').value = vp.sweet_max_inr != null ? vp.sweet_max_inr : '';
 
             const lines = config.business_lines || [];
             const blDrone = lines.find(l => l.id === 'drone') || {};
@@ -435,7 +436,8 @@
             const softAvoidReason = document.getElementById('profile_soft_avoid_reason').value.trim();
 
             const sweetMin = parseFloat(document.getElementById('profile_sweet_min').value);
-            const sweetMax = parseFloat(document.getElementById('profile_sweet_max').value);
+            const sweetMaxRaw = document.getElementById('profile_sweet_max').value.trim();
+            const sweetMax = sweetMaxRaw === '' ? null : parseFloat(sweetMaxRaw);
 
             const kwsDrone = document.getElementById('profile_kws_drone').value.split(',').map(s => s.trim()).filter(Boolean);
             const kwsPower = document.getElementById('profile_kws_power_supply').value.split(',').map(s => s.trim()).filter(Boolean);
@@ -453,8 +455,9 @@
                 showProfileFeedback("Soft avoid penalty must be between 0.0 and 1.0.", false);
                 return;
             }
-            if (isNaN(sweetMin) || sweetMin < 0 || isNaN(sweetMax) || sweetMax < 0 || sweetMin > sweetMax) {
-                showProfileFeedback("Value band sweet spot must satisfy: 0 <= sweet min <= sweet max.", false);
+            const badMax = sweetMax !== null && (isNaN(sweetMax) || sweetMax < sweetMin);
+            if (isNaN(sweetMin) || sweetMin < 0 || badMax) {
+                showProfileFeedback("Sweet spot min must be >= 0, and max (if set) must be >= min. Leave max blank for no upper limit.", false);
                 return;
             }
             if (kwsDrone.length === 0 || kwsPower.length === 0 || kwsAi.length === 0) {
@@ -831,10 +834,11 @@
             const lbl = document.getElementById('presetBandLabel');
             if (!sel || !lbl) return;
             const p = loadedPresets[sel.value];
-            if (p && p.sweet_min_inr != null && p.sweet_max_inr != null) {
+            if (p && p.sweet_min_inr != null) {
                 const fmt = v => v >= 10000000 ? `₹${(v/10000000).toFixed(2)}Cr`
                     : v >= 100000 ? `₹${(v/100000).toFixed(1)}L` : `₹${v.toLocaleString('en-IN')}`;
-                lbl.innerText = `band ${fmt(p.sweet_min_inr)} – ${fmt(p.sweet_max_inr)}`;
+                const upper = p.sweet_max_inr != null ? fmt(p.sweet_max_inr) : 'no limit';
+                lbl.innerText = `band ${fmt(p.sweet_min_inr)} – ${upper}`;
             } else { lbl.innerText = ''; }
         }
 
@@ -2160,7 +2164,7 @@
 
             const counts = {
                 shortlisted: 0, pending: 0, rejected: 0,
-                pursue: 0, review: 0, drop: 0,
+                pursue: 0, review: 0, drop: 0, highEmd: 0,
                 under5l: 0, sweet: 0, over3cr: 0,
                 dlActionable: 0, dl1520: 0, dlCritical: 0, dlWeek: 0,
                 dl2weeks: 0, dlOver20: 0,
@@ -2177,6 +2181,7 @@
                     if (analysis.recommendation === 'Pursue') counts.pursue++;
                     else if (analysis.recommendation === 'Review') counts.review++;
                     else if (analysis.recommendation === 'Drop') counts.drop++;
+                    if (analysis.high_emd_hold) counts.highEmd++;
 
                     const value = analysis.est_value_inr;
                     if (value > 0 && value < 500000) counts.under5l++;
@@ -2205,6 +2210,7 @@
             setBadge('rec-cnt-pursue', counts.pursue);
             setBadge('rec-cnt-review', counts.review);
             setBadge('rec-cnt-drop', counts.drop);
+            setBadge('rec-cnt-high-emd', counts.highEmd);
 
             setBadge('vb-cnt-all', total);
             setBadge('vb-cnt-under-5l', counts.under5l);
@@ -2247,6 +2253,7 @@
             else if (rec === 'Pursue') document.getElementById('rec-pursue').classList.add('active');
             else if (rec === 'Review') document.getElementById('rec-review').classList.add('active');
             else if (rec === 'Drop') document.getElementById('rec-drop').classList.add('active');
+            else if (rec === 'HighEMD') document.getElementById('rec-high-emd').classList.add('active');
 
             currentRec = rec;
             filterData();
@@ -2375,7 +2382,9 @@
                 // Phase 2 Filters
                 const analysis = t.analysis || {};
 
-                const matchRec = currentRec === 'all' || (analysis.recommendation && analysis.recommendation === currentRec);
+                const matchRec = currentRec === 'all'
+                    || (currentRec === 'HighEMD' ? Boolean(analysis.high_emd_hold)
+                        : (analysis.recommendation && analysis.recommendation === currentRec));
                 const matchBL = currentBusinessLine === 'all' || (analysis.business_line && analysis.business_line.id === currentBusinessLine);
                 
                 let matchVal = true;
@@ -2802,6 +2811,9 @@
                         else if (analysis.recommendation === 'Drop') recClass = 'recommendation-drop';
                         
                         recommendationChip = `<span class="rec-chip ${recClass}">${analysis.recommendation}</span>`;
+                        if (analysis.high_emd_hold) {
+                            recommendationChip += ` <span class="rec-chip recommendation-review" title="EMD above the ₹20 lakh cap, but every other check passes. Confirm the MSE/Startup EMD exemption before bidding.">High EMD · check exemption</span>`;
+                        }
                     }
 
                     // Business line tag (Phase 2)
@@ -2854,10 +2866,10 @@
                             </button>
                         `;
                     } else {
-                        // Score Badge (Risk / Phase 1)
+                        // Score Badge (Terms / Phase 1)
                         let riskClass = 'score-medium';
                         let scoreText = '';
-                        // BE-26: card_only = no PDF; Fit scored from card metadata, Risk unknown
+                        // BE-26: card_only = no PDF; Fit scored from card metadata, Terms unknown
                         const cardOnly = analysis.analysis_status === 'card_only' || analysis.score === null || analysis.score === undefined;
                         // Only GeM documents go through the RFP parser. Other
                         // portals are card-scored by design, so they get no
@@ -2870,7 +2882,7 @@
                             const rejectMax = (scoringConfig && scoringConfig.status_thresholds) ? scoringConfig.status_thresholds.reject_max : 40;
                             if (analysis.score >= shortlistMin) riskClass = 'score-high';
                             else if (analysis.score <= rejectMax) riskClass = 'score-low';
-                            scoreText = `Risk: ${analysis.score}/100`;
+                            scoreText = `Terms: ${analysis.score}/100`;
                         } else {
                             if (analysis.score >= 7) riskClass = 'score-high';
                             else if (analysis.score <= 4) riskClass = 'score-low';
@@ -2890,12 +2902,12 @@
                             let prClass = 'score-medium';
                             if (analysis.priority_score >= 70) prClass = 'score-high';
                             else if (analysis.priority_score <= 40) prClass = 'score-low';
-                            priorityBadge = `<span class="score-badge ${prClass}" style="font-weight: 700;" title="Blended best-match ranking (Fit + Risk)">⭐ ${analysis.priority_score}</span>`;
+                            priorityBadge = `<span class="score-badge ${prClass}" style="font-weight: 700;" title="Blended best-match ranking (Fit + Terms)">⭐ ${analysis.priority_score}</span>`;
                         }
 
                         const noPdfTitle = isGemTender
-                            ? 'No RFP PDF — Fit scored from card metadata; tender terms (Risk) unknown'
-                            : 'This portal is not parsed for RFP documents — Fit scored from listing metadata; tender terms (Risk) unknown';
+                            ? 'No RFP PDF — Fit scored from card metadata; tender terms unknown'
+                            : 'This portal is not parsed for RFP documents — Fit scored from listing metadata; tender terms unknown';
                         const riskBadge = cardOnly
                             ? `<span class="score-badge" style="background: var(--neutral-bg); color: var(--neutral-color); border-color: var(--neutral-border);" title="${noPdfTitle}">No PDF</span>`
                             : `<span class="score-badge ${riskClass}">${scoreText}</span>`;
@@ -2933,7 +2945,7 @@
                             const totalWeight = analysis.breakdown.reduce((sum, item) => sum + item.weight, 0);
                             breakdownHtml = `
                                 <div class="breakdown-container">
-                                    <strong>Risk Score Breakdown:</strong>
+                                    <strong>Terms Score Breakdown (higher = friendlier):</strong>
                                     ${analysis.breakdown.map(item => {
                                         const maxPoints = totalWeight > 0 ? (100 * item.weight / totalWeight) : 0;
                                         const maxPointsFormatted = maxPoints.toFixed(1);

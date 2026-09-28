@@ -10,15 +10,33 @@ from gemsentry.constants import MAX_PDF_PAGES, TENDERS_DIR, TOTAL_ANALYSIS_FIELD
 from gemsentry.defaults import DEFAULT_SCORING_CONFIG
 from gemsentry.pdf_text import extract_text
 from gemsentry.parsing.fields import parse_emd_amount, parse_emd_required, parse_epbg_percentage, parse_epbg_required, parse_prebid_required
-from gemsentry.parsing.relaxation import RELAX_STATE_RANK, detect_doc_has_exemption_table, parse_relaxation_block, relaxation_granted
+from gemsentry.parsing.relaxation import RELAX_STATE_RANK, apply_atc_relaxation, detect_doc_has_exemption_table, parse_atc_relaxation, parse_relaxation_block, relaxation_granted
 from gemsentry.parsing.signals import extract_bid_signals
 from gemsentry.profile import load_company_profile, profile_for_workspace, workspace_paths
 from gemsentry.scoring.dates import _linear_ramp, evaluate_date_window
 from gemsentry.scoring.eligibility import compute_eligibility
 from gemsentry.scoring.exemptions import _best_relaxed_bar, _describe_relaxation, _exemption_pair_subscore, get_exemption_label
 from gemsentry.scoring.fit import compute_fit_score
-from gemsentry.scoring.verdict import apply_verdict, build_score_breakdown, compute_priority_score, compute_recommendation, finalize_auto_reject, get_failed_analysis, scoring_fingerprint
+from gemsentry.scoring.verdict import apply_high_emd_hold, apply_verdict, build_score_breakdown, compute_priority_score, compute_recommendation, finalize_auto_reject, get_failed_analysis, scoring_fingerprint
 from gemsentry.storage import auto_export_summary, load_existing_metadata, save_metadata
+
+
+def _partial_bar(state, stated_bar, pct, rfp_bar):
+    """
+    Reduced bar for a partial relaxation: the figure the field quotes, else
+    the RFP requirement cut by the ATC's percentage. None when not partial or
+    when neither is known (eligibility then treats the reduction as unknown).
+    """
+    if state != "partial":
+        return None
+    if stated_bar is not None:
+        return stated_bar
+    if pct is not None and rfp_bar is not None:
+        try:
+            return float(rfp_bar) * (1.0 - float(pct) / 100.0)
+        except (TypeError, ValueError):
+            return None
+    return None
 
 
 def analyze_rfp_pdf(pdf_path, start_date_str=None, end_date_str=None,
@@ -149,6 +167,8 @@ def analyze_rfp_pdf(pdf_path, start_date_str=None, end_date_str=None,
                     )
                     emd_detail = f"EMD {emd_amount:,} ≤ free threshold {int(free_th):,}."
                 elif emd_amount >= max_th:
+                    if emd_amount > max_th:
+                        analysis["emd_status"] += f" — above ₹{int(max_th):,} cap"
                     analysis["reasons"].append(
                         f"EMD amount ({emd_amount:,} INR) at/above max penalty threshold ({int(max_th):,} INR)."
                     )
@@ -167,8 +187,17 @@ def analyze_rfp_pdf(pdf_path, start_date_str=None, end_date_str=None,
 
         # --- 2–3. Startup / MSE relaxations (BE-15 parsers + BE-17 N/A) ---
         has_exemption_table = detect_doc_has_exemption_table(text_clean)
-        st_relax = parse_relaxation_block(text_clean, "startup")
-        mse_relax = parse_relaxation_block(text_clean, "mse")
+        # The buyer's ATC can grant or take back what the form checkbox says;
+        # the clause is the more specific statement, so it is merged on top.
+        st_relax = apply_atc_relaxation(
+            parse_relaxation_block(text_clean, "startup"),
+            parse_atc_relaxation(text_clean, "startup"), "Startup")
+        mse_relax = apply_atc_relaxation(
+            parse_relaxation_block(text_clean, "mse"),
+            parse_atc_relaxation(text_clean, "mse"), "MSE")
+        atc_notes = [r["atc_note"] for r in (st_relax, mse_relax) if r.get("atc_note")]
+        if atc_notes:
+            has_exemption_table = True
         st_exp, st_turn = st_relax["exp"], st_relax["turn"]
         mse_exp, mse_turn = mse_relax["exp"], mse_relax["turn"]
         st_exp_p, st_turn_p = st_relax["exp_parsed"], st_relax["turn_parsed"]
@@ -199,14 +228,18 @@ def analyze_rfp_pdf(pdf_path, start_date_str=None, end_date_str=None,
             st_exp = st_turn = mse_exp = mse_turn = "unknown"
         else:
             analysis["startup_exemption"] = get_exemption_label(
-                st_exp, st_turn, st_relax["exp_years"], st_relax["turnover_inr"])
+                st_exp, st_turn, st_relax["exp_years"], st_relax["turnover_inr"],
+                exp_pct=st_relax["exp_pct"], turn_pct=st_relax["turn_pct"])
             analysis["mse_exemption"] = get_exemption_label(
-                mse_exp, mse_turn, mse_relax["exp_years"], mse_relax["turnover_inr"])
+                mse_exp, mse_turn, mse_relax["exp_years"], mse_relax["turnover_inr"],
+                exp_pct=mse_relax["exp_pct"], turn_pct=mse_relax["turn_pct"])
 
             for scheme, relax in (("Startup", st_relax), ("MSE", mse_relax)):
                 analysis["reasons"].append(
                     _describe_relaxation(scheme, relax)
                 )
+            analysis["reasons"].extend(atc_notes)
+        analysis["relaxation_atc_override"] = bool(atc_notes)
 
         # A refused relaxation just means normal terms, which is neutral rather
         # than risky — floor it so relaxations act as a bonus, not their absence
@@ -394,14 +427,18 @@ def analyze_rfp_pdf(pdf_path, start_date_str=None, end_date_str=None,
         best_exp_state = max(
             (st_exp, mse_exp), key=lambda s: RELAX_STATE_RANK.get(s, 0)
         )
+        rfp_exp = signals.get("rfp_min_experience_years")
+        rfp_turn = signals.get("rfp_min_turnover_inr")
         relax_exp_years = _best_relaxed_bar(
-            st_relax["exp_years"] if st_exp == "partial" else None,
-            mse_relax["exp_years"] if mse_exp == "partial" else None,
+            _partial_bar(st_exp, st_relax["exp_years"], st_relax["exp_pct"], rfp_exp),
+            _partial_bar(mse_exp, mse_relax["exp_years"], mse_relax["exp_pct"], rfp_exp),
         )
         relax_turn_inr = _best_relaxed_bar(
-            st_relax["turnover_inr"] if st_turn == "partial" else None,
-            mse_relax["turnover_inr"] if mse_turn == "partial" else None,
+            _partial_bar(st_turn, st_relax["turnover_inr"], st_relax["turn_pct"], rfp_turn),
+            _partial_bar(mse_turn, mse_relax["turnover_inr"], mse_relax["turn_pct"], rfp_turn),
         )
+        if relax_turn_inr is not None:
+            relax_turn_inr = int(round(relax_turn_inr))
         if not exemptions_na:
             signals["relax_experience_state"] = best_exp_state
             signals["relax_experience_years"] = relax_exp_years
@@ -441,6 +478,7 @@ def analyze_rfp_pdf(pdf_path, start_date_str=None, end_date_str=None,
             cfg,
             exemptions_favorable=bool(analysis.get("exemptions_favorable"))
         )
+        apply_high_emd_hold(analysis, cfg)
 
         analysis["config_fingerprint"] = scoring_fingerprint(cfg, profile)
         analysis["scored_at"] = datetime.datetime.now().isoformat(timespec="seconds")
@@ -586,6 +624,7 @@ def rederive_analysis(tender, analysis, cfg, profile):
         analysis["auto_reject"], cfg,
         exemptions_favorable=bool(analysis.get("exemptions_favorable")),
     )
+    apply_high_emd_hold(analysis, cfg)
     if analysis["auto_reject"]:
         finalize_auto_reject(analysis, date_info)
 

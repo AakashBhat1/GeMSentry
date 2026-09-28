@@ -314,16 +314,17 @@ DEFAULT_COMPANY_PROFILE = {
         }
     ],
     "buyer_affinity": {},
+    # sweet_max_inr None = no upper limit: large tenders are not penalised.
     "value_preference": {
         "sweet_min_inr": 500000,
-        "sweet_max_inr": 50000000
+        "sweet_max_inr": None
     },
     "active_preset": "main",
     "value_presets": {
         "main": {
-            "label": "Main (₹5L–₹5Cr)",
+            "label": "Main (₹5L+)",
             "sweet_min_inr": 500000,
-            "sweet_max_inr": 50000000,
+            "sweet_max_inr": None,
             "keywords": [],
             "workspace": ""
         },
@@ -338,9 +339,9 @@ DEFAULT_COMPANY_PROFILE = {
             "workspace": "personel"
         },
         "gis_survey": {
-            "label": "DGPS & GIS Survey (₹1L–₹5Cr)",
+            "label": "DGPS & GIS Survey (₹1L+)",
             "sweet_min_inr": 100000,
-            "sweet_max_inr": 50000000,
+            "sweet_max_inr": None,
             "keywords": [
                 "dgps", "dgps survey", "differential gps", "gis survey",
                 "gis mapping", "topographic survey", "cadastral survey",

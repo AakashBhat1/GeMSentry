@@ -5,7 +5,6 @@ import json
 import os
 import re
 import socket
-import ssl
 import time
 import urllib.error
 import urllib.parse
@@ -16,6 +15,7 @@ from gemsentry.constants import logger
 from gemsentry.dateparse import parse_gem_date, parse_iso_date_to_gem
 from gemsentry.search import build_search_plan, matches_search_result
 from gemsentry.sources.attribution import normalize_host
+from gemsentry.sources.http import build_verified_ssl_context
 from gemsentry.textutils import _parse_inr_amount, today_iso
 
 # Every GeM property (bidplus, mkp, ...) is a subdomain of this.
@@ -576,9 +576,9 @@ def doc_to_tender(doc, keyword):
     }
 
 
-_SSL_CTX = ssl.create_default_context()
-_SSL_CTX.check_hostname = False
-_SSL_CTX.verify_mode = ssl.CERT_NONE
+# bidplus.gem.gov.in serves a valid public chain, so verification stays on:
+# an unverified context would let anyone on the network rewrite bid data.
+_SSL_CTX = build_verified_ssl_context()
 
 
 def _is_timeout(exc):

@@ -57,7 +57,9 @@ def _apply_active_preset(profile):
         vp = dict(profile.get("value_preference") or {})
         if preset.get("sweet_min_inr") is not None:
             vp["sweet_min_inr"] = preset["sweet_min_inr"]
-        if preset.get("sweet_max_inr") is not None:
+        # A preset may set the max to null on purpose (no upper limit), so
+        # copy it whenever the key is present rather than only when non-null.
+        if "sweet_max_inr" in preset:
             vp["sweet_max_inr"] = preset["sweet_max_inr"]
         profile["value_preference"] = vp
     return profile
@@ -179,13 +181,20 @@ def validate_company_profile(payload):
     vp = payload.get("value_preference")
     if not isinstance(vp, dict):
         return "value_preference must be an object."
-    for nk in ("sweet_min_inr", "sweet_max_inr"):
-        if nk not in vp:
-            return f"value_preference.{nk} is required."
+    if "sweet_min_inr" not in vp:
+        return "value_preference.sweet_min_inr is required."
+    try:
+        sweet_min = float(vp["sweet_min_inr"])
+    except (TypeError, ValueError):
+        return "value_preference.sweet_min_inr must be numeric."
+    # sweet_max_inr is optional: absent or null means no upper limit.
+    if vp.get("sweet_max_inr") is not None:
         try:
-            float(vp[nk])
+            sweet_max = float(vp["sweet_max_inr"])
         except (TypeError, ValueError):
-            return f"value_preference.{nk} must be numeric."
+            return "value_preference.sweet_max_inr must be numeric or null."
+        if sweet_max < sweet_min:
+            return "value_preference.sweet_max_inr must be >= sweet_min_inr."
 
     return None
 

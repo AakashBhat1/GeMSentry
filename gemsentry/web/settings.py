@@ -108,7 +108,7 @@ def set_active_preset():
         vp = dict(profile.get("value_preference") or {})
         if preset.get("sweet_min_inr") is not None:
             vp["sweet_min_inr"] = preset["sweet_min_inr"]
-        if preset.get("sweet_max_inr") is not None:
+        if "sweet_max_inr" in preset:  # null = no upper limit
             vp["sweet_max_inr"] = preset["sweet_max_inr"]
         profile["value_preference"] = vp
 
@@ -180,7 +180,10 @@ def manage_sources():
 
 @settings_bp.route("/tenders/<path:filename>")
 def serve_pdf(filename):
-    # Serve PDF files securely from the tenders root so per-workspace
-    # subfolders (e.g. tenders/personel/downloads/...) resolve too.
+    # Serve PDF files from the tenders root so per-workspace subfolders
+    # (e.g. tenders/personel/downloads/...) resolve too. Only PDFs: the same
+    # tree holds metadata.db, metadata.json and backups, which must not leak.
     safe_path = filename.replace("\\", "/")
+    if not safe_path.lower().endswith(".pdf"):
+        return jsonify({"error": "Not found"}), 404
     return send_from_directory(paths.TENDERS_DIR, safe_path)

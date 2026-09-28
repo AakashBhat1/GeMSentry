@@ -166,6 +166,11 @@
                         <span>Drop</span>
                         <span class="badge-count" id="rec-cnt-drop">0</span>
                     </button>
+                    <button class="filter-btn" id="rec-high-emd" onclick="setRecFilter('HighEMD')"
+                            title="EMD above the ₹20 lakh cap, but every other check passes — check MSE/Startup EMD exemption">
+                        <span>High EMD (exemption)</span>
+                        <span class="badge-count" id="rec-cnt-high-emd">0</span>
+                    </button>
                 </div>
             </div>
 
@@ -364,8 +369,8 @@
                             <option value="priority-desc">⭐ Best Match (Priority)</option>
                             <option value="none">Default (Scrape Order)</option>
                             <option value="deadline-soonest">Deadline: Soonest First</option>
-                            <option value="score-desc">Risk Score: High to Low</option>
-                            <option value="score-asc">Risk Score: Low to High</option>
+                            <option value="score-desc">Terms Score: Friendliest First</option>
+                            <option value="score-asc">Terms Score: Toughest First</option>
                             <option value="fit-desc">Fit Score: High to Low</option>
                             <option value="fit-asc">Fit Score: Low to High</option>
                         </select>
@@ -743,8 +748,8 @@
                             <input type="number" id="profile_sweet_min" required style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 0.25rem;">
-                            <label style="font-size: 0.75rem; color: var(--text-secondary);">Sweet Spot Max (INR)</label>
-                            <input type="number" id="profile_sweet_max" required style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary);">Sweet Spot Max (INR, blank = no limit)</label>
+                            <input type="number" id="profile_sweet_max" placeholder="No upper limit" style="background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; outline: none;">
                         </div>
                     </div>
                 </div>

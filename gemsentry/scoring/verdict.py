@@ -205,17 +205,19 @@ def compute_recommendation(fit_score, risk_score, eligibility, is_expired, cfg,
     rs = risk_score if risk_score is not None else 0
 
     high_fit = fs >= fit_min
-    high_risk = rs >= shortlist_min  # high Risk-score = friendlier tender
+    # The stored field is still named risk_score for data compatibility, but
+    # it measures how friendly the tender terms are: higher = easier to bid.
+    friendly_terms = rs >= shortlist_min
 
     # Fit is the gate: a bid that doesn't match our business lines is Dropped
-    # regardless of how clean (high-Risk) the tender is. Among relevant (high-fit)
-    # bids, Risk separates Pursue (friendly) from Review (has friction).
+    # regardless of how friendly its terms are. Among relevant (high-fit)
+    # bids, the terms score separates Pursue (friendly) from Review (has friction).
     if not high_fit:
         if relevance_matched and fs >= fit_min - review_band:
             rec = "Review"  # borderline near the gate: surface, don't silently drop
         else:
             rec = "Drop"
-    elif high_risk:
+    elif friendly_terms:
         rec = "Pursue"
     else:
         rec = "Review"
@@ -237,6 +239,88 @@ def compute_recommendation(fit_score, risk_score, eligibility, is_expired, cfg,
             rec = "Review"
 
     return rec
+
+
+HIGH_EMD_REASON_PREFIX = "High EMD:"
+
+
+def _terms_score_without_emd(analysis, cfg):
+    """Terms score recomputed from the stored breakdown with EMD left out."""
+    weights = cfg.get("weights", DEFAULT_SCORING_CONFIG["weights"])
+    criteria = [
+        (b.get("criterion"), b.get("subscore", 0), b.get("detail", ""))
+        for b in analysis.get("breakdown") or []
+        if b.get("criterion") != "emd"
+    ]
+    if not criteria:
+        return None
+    score, _ = build_score_breakdown(criteria, weights)
+    return score
+
+
+def _passes_non_emd_checks(analysis, terms_ex_emd, cfg):
+    """True when the bid would be a clean candidate if the EMD were waived."""
+    if analysis.get("auto_reject") or terms_ex_emd is None:
+        return False
+    fit_cfg = cfg.get("fit") or DEFAULT_SCORING_CONFIG.get("fit", {})
+    fit_score = analysis.get("fit_score")
+    if fit_score is None or fit_score < float(fit_cfg.get("fit_min", 60)):
+        return False
+    eligibility = analysis.get("eligibility") or {}
+    if eligibility.get("verdict") != "eligible":
+        return False
+    if set(eligibility.get("flags") or ()) & UNRESOLVED_ELIGIBILITY_FLAGS:
+        return False
+    thresholds = cfg.get("status_thresholds") or DEFAULT_SCORING_CONFIG["status_thresholds"]
+    return terms_ex_emd >= float(thresholds.get("shortlist_min", 70))
+
+
+def apply_high_emd_hold(analysis, cfg):
+    """
+    Keep high-EMD bids that pass everything else, tagged for an exemption check.
+
+    EMD up to the cap (emd.max_penalty_threshold_inr, ₹20 lakh by default) is
+    scored on the normal curve. Above it the EMD sub-score is zero, which sinks
+    the bid even when fit, eligibility and terms are all fine -- yet as a Udyam
+    MSE / DPIIT startup we are often exempt from EMD. So when every other check
+    passes, the bid is kept (Review, never Drop), ranked as if the EMD were
+    waived, and flagged high_emd_hold so the dashboard lists it separately.
+    Mutates and returns the analysis.
+    """
+    emd_cfg = cfg.get("emd") or DEFAULT_SCORING_CONFIG["emd"]
+    cap = float(emd_cfg.get("max_penalty_threshold_inr", 2000000))
+    emd_amount = analysis.get("emd_amount")
+    reasons = [r for r in analysis.get("reasons") or []
+               if not str(r).startswith(HIGH_EMD_REASON_PREFIX)]
+    analysis["reasons"] = reasons
+
+    high_emd = emd_amount is not None and emd_amount > cap
+    analysis["high_emd"] = high_emd
+    analysis["high_emd_hold"] = False
+    if not high_emd:
+        return analysis
+
+    terms_ex_emd = _terms_score_without_emd(analysis, cfg)
+    if not _passes_non_emd_checks(analysis, terms_ex_emd, cfg):
+        reasons.append(
+            f"{HIGH_EMD_REASON_PREFIX} ₹{emd_amount:,} is above the ₹{int(cap):,} cap "
+            "and other checks do not all pass."
+        )
+        return analysis
+
+    analysis["high_emd_hold"] = True
+    analysis["recommendation"] = "Review"
+    analysis["priority_score"] = compute_priority_score(
+        analysis.get("fit_score"), terms_ex_emd, analysis.get("eligibility"),
+        False, cfg,
+        exemptions_favorable=bool(analysis.get("exemptions_favorable")),
+    )
+    reasons.append(
+        f"{HIGH_EMD_REASON_PREFIX} ₹{emd_amount:,} is above the ₹{int(cap):,} cap, "
+        "but every other check passes — kept under exemptions. Confirm the "
+        "MSE/Startup EMD exemption applies before bidding."
+    )
+    return analysis
 
 
 def compute_priority_score(fit_score, risk_score, eligibility, is_expired, cfg,

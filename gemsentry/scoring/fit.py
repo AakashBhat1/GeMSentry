@@ -84,6 +84,15 @@ def _apply_omnibus_dilution(best_score, best_line, best_matched, items, fit_cfg,
     )
 
 
+def _optional_positive(value):
+    """A configured amount, or None when it is blank, zero or unreadable."""
+    try:
+        amount = float(value)
+    except (TypeError, ValueError):
+        return None
+    return amount if amount > 0 else None
+
+
 def compute_fit_score(analysis, signals, eligibility, profile, cfg, card_meta=None):
     """
     Company-aware Fit score 0-100 (BE-10).
@@ -233,11 +242,16 @@ def compute_fit_score(analysis, signals, eligibility, profile, cfg, card_meta=No
     # --- value fit ---
     vp = profile.get("value_preference") or {}
     sweet_min = float(vp.get("sweet_min_inr", 500000))
-    sweet_max = float(vp.get("sweet_max_inr", 30000000))
+    # No max (null / 0) means big tenders are never penalised for size;
+    # whether we can actually bid is the eligibility gate's job, not value fit.
+    sweet_max = _optional_positive(vp.get("sweet_max_inr"))
     val = signals.get("est_value_inr")
     if val is None:
         val_sub = unknown_sub
         val_detail = f"Est. value unknown; subscore={unknown_sub}."
+    elif val >= sweet_min and sweet_max is None:
+        val_sub = 1.0
+        val_detail = f"Value ₹{val:,} at/above sweet min ₹{int(sweet_min):,} (no upper limit)."
     elif sweet_min <= val <= sweet_max:
         val_sub = 1.0
         val_detail = f"Value ₹{val:,} inside sweet band [{int(sweet_min):,}, {int(sweet_max):,}]."

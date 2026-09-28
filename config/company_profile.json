@@ -761,9 +761,9 @@
   "active_preset": "small_supply",
   "value_presets": {
     "main": {
-      "label": "Main (₹5L–₹5Cr)",
+      "label": "Main (₹5L+)",
       "sweet_min_inr": 500000,
-      "sweet_max_inr": 50000000,
+      "sweet_max_inr": null,
       "keywords": [],
       "workspace": ""
     },
@@ -785,9 +785,9 @@
       "workspace": "personel"
     },
     "gis_survey": {
-      "label": "DGPS & GIS Survey (₹1L–₹5Cr)",
+      "label": "DGPS & GIS Survey (₹1L+)",
       "sweet_min_inr": 100000,
-      "sweet_max_inr": 50000000,
+      "sweet_max_inr": null,
       "keywords": [
         "dgps",
         "dgps survey",

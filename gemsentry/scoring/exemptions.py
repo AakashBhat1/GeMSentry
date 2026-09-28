@@ -11,7 +11,17 @@ def _format_lakhs(inr):
     return f"{inr / float(LAKH_INR):g} lakh"
 
 
-def get_exemption_label(exp, turn, exp_years=None, turnover_inr=None):
+def _reduction_note(amount_text, pct):
+    """'≤ 2 yr' for a stated bar, '−15%' for an ATC percentage, else a gap note."""
+    if amount_text is not None:
+        return f"≤ {amount_text}"
+    if pct is not None:
+        return f"−{pct:g}%"
+    return None
+
+
+def get_exemption_label(exp, turn, exp_years=None, turnover_inr=None,
+                        exp_pct=None, turn_pct=None):
     """
     Map a relaxation pair to a UI label, quoting the reduced bar for partials.
 
@@ -28,11 +38,15 @@ def get_exemption_label(exp, turn, exp_years=None, turnover_inr=None):
     def amount_note():
         parts = []
         if exp == "partial":
-            parts.append(f"Experience ≤ {exp_years:g} yr" if exp_years is not None
+            note = _reduction_note(
+                f"{exp_years:g} yr" if exp_years is not None else None, exp_pct)
+            parts.append(f"Experience {note}" if note
                          else "Experience reduced (amount not stated)")
         if turn == "partial":
-            parts.append(f"Turnover ≤ {_format_lakhs(turnover_inr)}"
-                         if turnover_inr is not None
+            note = _reduction_note(
+                _format_lakhs(turnover_inr) if turnover_inr is not None else None,
+                turn_pct)
+            parts.append(f"Turnover {note}" if note
                          else "Turnover reduced (amount not stated)")
         return ", ".join(parts)
 
@@ -82,12 +96,13 @@ def _describe_relaxation(scheme, relax):
             bits.append(f"{name} fully waived")
         elif state == "partial":
             if dim == "exp":
-                amt = (f" (≤ {relax['exp_years']:g} yr)"
-                       if relax["exp_years"] is not None else " (amount not stated)")
+                stated = (f"{relax['exp_years']:g} yr"
+                          if relax["exp_years"] is not None else None)
             else:
-                amt = (f" (≤ {_format_lakhs(relax['turnover_inr'])})"
-                       if relax["turnover_inr"] is not None else " (amount not stated)")
-            bits.append(f"{name} reduced{amt}")
+                stated = (_format_lakhs(relax["turnover_inr"])
+                          if relax["turnover_inr"] is not None else None)
+            note = _reduction_note(stated, relax.get(f"{dim}_pct"))
+            bits.append(f"{name} reduced ({note or 'amount not stated'})")
         elif state == "no":
             bits.append(f"{name} not relaxed")
     return f"Relaxation Check: {scheme} — " + "; ".join(bits) + "."

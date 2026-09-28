@@ -28,6 +28,16 @@ RELAX_LABEL_RX = (
     r'(?P<answer>Yes|No)\b'
 )
 
+# Older bilingual layout splits the label with Hindi text, e.g.
+#   "MSE Exemption for Years Of Experience/ <hindi> / / and Turnover / / <hindi> Yes"
+# The gaps hold no Latin letters, so the first Latin word after "Turnover" is
+# the answer. Scope is always Experience + Turnover in this layout.
+RELAX_SPLIT_LABEL_RX = (
+    r'\b(?P<kind>Startup|MSE)\s+' + RELAX_WORD + r'\s+for\s+'
+    r'Years?\s+Of\s+Experience\s*/[^A-Za-z]{0,200}?and\s+Turnover'
+    r'[^A-Za-z]{0,200}?(?P<answer>Yes|No)\b'
+)
+
 # Value qualifiers that follow "Yes": "| Complete" or "| Partial | <amounts>"
 
 
@@ -64,7 +74,19 @@ def detect_doc_has_exemption_table(text_clean):
     """
     if not text_clean:
         return False
-    return re.search(RELAX_LABEL_RX, text_clean, re.IGNORECASE) is not None
+    return any(re.search(rx, text_clean, re.IGNORECASE)
+               for rx in (RELAX_LABEL_RX, RELAX_SPLIT_LABEL_RX))
+
+
+def _label_matches(text_clean):
+    """Yield (match, dims) for every relaxation label, standard or split layout."""
+    strict = list(re.finditer(RELAX_LABEL_RX, text_clean, re.IGNORECASE))
+    for m in strict:
+        yield m, _scope_dimensions(m.group("scope"))
+    covered = [m.span() for m in strict]
+    for m in re.finditer(RELAX_SPLIT_LABEL_RX, text_clean, re.IGNORECASE):
+        if not any(s <= m.start() < e for s, e in covered):
+            yield m, ("exp", "turn")
 
 
 def _empty_relaxation():
@@ -73,9 +95,14 @@ def _empty_relaxation():
         "turn": "unknown",
         "exp_years": None,
         "turnover_inr": None,
+        # Percentage cut quoted by an ATC clause ("relaxation of 20%"), for
+        # partial grants that give no absolute bar.
+        "exp_pct": None,
+        "turn_pct": None,
         "exp_parsed": False,
         "turn_parsed": False,
         "found": False,
+        "atc_note": None,
     }
 
 
@@ -110,12 +137,11 @@ def parse_relaxation_block(text_clean, kind):
 
     want = "startup" if kind == "startup" else "mse"
 
-    for m in re.finditer(RELAX_LABEL_RX, text_clean, re.IGNORECASE):
+    for m, dims in _label_matches(text_clean):
         if m.group("kind").lower() != want:
             continue
         result["found"] = True
 
-        dims = _scope_dimensions(m.group("scope"))
         answer = m.group("answer").lower()
         tail = text_clean[m.end():m.end() + RELAX_VALUE_WINDOW]
 
@@ -181,6 +207,190 @@ def _parse_relaxation_amounts(tail):
         except ValueError:
             turn_inr = None
     return exp_years, turn_inr
+
+
+# --- Buyer-written clauses (ATC / BQC) that change what the form field says ---
+#
+# The GeM form field is a checkbox; buyers often qualify it in the ATC. Seen in
+# the corpus: the field says "Yes | Complete" while the ATC says the exemption
+# only applies "for next tender on completion of successful trial order", and
+# the field says "No" while the ATC grants MSEs "relaxation up to 15% on prior
+# experience". The buyer's own clause is the more specific statement, so it wins.
+
+ATC_KIND_RX = {
+    "startup": r'start\s*-?\s*ups?\b',
+    "mse": r'\bMSEs?\b|\bmicro\s*(?:and|&|,)\s*small',
+}
+
+# Words that tie a clause to the experience / turnover criteria (and not to
+# EMD, security deposit or PBG exemptions, which are a different thing).
+ATC_EXP_RX = r'experience|work\s*orders?|past\s+performance'
+ATC_TURN_RX = r'turn\s*-?\s*over|financial\s+criteri|\bMAAT\b'
+ATC_BOTH_RX = r'qualifying\s+requirement|\bBQC\b|\bPQC?\b|eligibility\s+criteri'
+
+ATC_DENY_RXS = (
+    r'\bno\s+(?:relaxation|exemption)s?\s+(?:in|on|for|of|to)\b',
+    r'(?:relaxation|exemption)s?[^.]{0,80}?\b(?:shall|will|would)?\s*not\s+(?:be\s+)?'
+    r'(?:allowed|applicable|admissible|given|granted|permitted|available|considered)',
+    r'\bnot\s+(?:be\s+)?eligible\s+for\s+(?:any\s+)?(?:relaxation|exemption)',
+    # Deferred to a future bid: "exemption ... allowed for next tender on
+    # completion of successful trial order" is a refusal for this one.
+    r'(?:relaxation|exemption)[^.]{0,160}?\bnext\s+tender',
+)
+
+ATC_GRANT_PCT_RX = (
+    r'(?:relaxation|exemption)s?\s+(?:of\s+|by\s+)?(?:up\s*to\s+|upto\s+)?'
+    r'(?P<pct>\d{1,2}(?:\.\d+)?)\s*%'
+)
+
+# Sentence boundary: ". " followed by an upper-case letter or "(" -- so
+# "Rs. 100" is not one, but "... experience. (For example ..." is.
+_SENTENCE_END_RX = re.compile(r'\.\s+(?=[A-Z(])')
+_CLAUSE_REACH = 260
+
+
+def _clause_around(text, start, end):
+    """The sentence containing text[start:end], capped at _CLAUSE_REACH each way."""
+    lo = max(0, start - _CLAUSE_REACH)
+    hi = min(len(text), end + _CLAUSE_REACH)
+    before = [m.end() for m in _SENTENCE_END_RX.finditer(text, lo, start)]
+    after = _SENTENCE_END_RX.search(text, end, hi)
+    return text[before[-1] if before else lo:after.start() + 1 if after else hi]
+
+
+_FORM_LABEL_RXS = (RELAX_LABEL_RX, RELAX_SPLIT_LABEL_RX)
+
+
+def _strip_form_labels(clause):
+    for rx in _FORM_LABEL_RXS:
+        clause = re.sub(rx, " ", clause, flags=re.IGNORECASE)
+    return clause
+
+
+def _inside_form_label(text, pos):
+    """True when ``pos`` falls inside a GeM form relaxation label."""
+    lo = max(0, pos - 120)
+    for rx in _FORM_LABEL_RXS:
+        for m in re.finditer(rx, text[lo:pos + 120], re.IGNORECASE):
+            if lo + m.start() <= pos < lo + m.end():
+                return True
+    return False
+
+
+def _overlapping_matches(rx, text):
+    """Like re.finditer, but a rejected match does not hide one starting inside it."""
+    compiled = re.compile(rx, re.IGNORECASE)
+    pos = 0
+    while True:
+        m = compiled.search(text, pos)
+        if not m:
+            return
+        yield m
+        pos = m.start() + 1
+
+
+def _clause_dimensions(clause):
+    """Which criteria a clause talks about: ('exp',), ('turn',) or both."""
+    if re.search(ATC_BOTH_RX, clause, re.IGNORECASE):
+        return ("exp", "turn")
+    dims = []
+    if re.search(ATC_EXP_RX, clause, re.IGNORECASE):
+        dims.append("exp")
+    if re.search(ATC_TURN_RX, clause, re.IGNORECASE):
+        dims.append("turn")
+    return tuple(dims)
+
+
+def _snippet(clause, matched, limit=200):
+    """The clause, trimmed to ``limit`` chars but always showing ``matched``."""
+    text = " ".join(clause.split())
+    if len(text) <= limit:
+        return text
+    anchor = text.find(" ".join(matched.split()))
+    start = max(0, min(anchor - 60, len(text) - limit)) if anchor >= 0 else 0
+    piece = text[start:start + limit]
+    return ("…" if start else "") + piece + ("…" if start + limit < len(text) else "")
+
+
+def parse_atc_relaxation(text_clean, kind):
+    """
+    Find ATC clauses that grant or refuse the Startup/MSE relaxation.
+
+    Returns None when no clause applies to ``kind``, else a dict:
+        {"action": "deny" | "grant", "dims": ("exp", "turn"),
+         "pct": float | None, "evidence": str}
+    A refusal wins over a grant when the document contains both.
+    """
+    if not text_clean:
+        return None
+    kind_rx = ATC_KIND_RX["startup" if kind == "startup" else "mse"]
+
+    def clauses(rx):
+        for m in _overlapping_matches(rx, text_clean):
+            if _inside_form_label(text_clean, m.start()):
+                continue
+            # The form fields carry no full stops, so a clause window can run
+            # into them; blank the labels out so their "Startup ... Experience
+            # and Turnover" words cannot vouch for an unrelated sentence.
+            clause = _strip_form_labels(
+                _clause_around(text_clean, m.start(), m.end()))
+            if not re.search(kind_rx, clause, re.IGNORECASE):
+                continue
+            dims = _clause_dimensions(clause)
+            if dims:
+                yield m, clause, dims
+
+    for rx in ATC_DENY_RXS:
+        for m, clause, dims in clauses(rx):
+            return {"action": "deny", "dims": dims, "pct": None,
+                    "evidence": _snippet(clause, m.group(0))}
+
+    for m, clause, dims in clauses(ATC_GRANT_PCT_RX):
+        try:
+            pct = float(m.group("pct"))
+        except ValueError:
+            continue
+        if 0 < pct < 100:
+            return {"action": "grant", "dims": dims, "pct": pct,
+                    "evidence": _snippet(clause, m.group(0))}
+    return None
+
+
+def apply_atc_relaxation(relax, override, scheme):
+    """
+    Merge an ATC clause into a parsed form-field result. Returns a new dict.
+
+    deny  -> the named criteria become "no" whatever the form field said.
+    grant -> criteria the field left "no"/"unknown" become "partial" with the
+             quoted percentage; a field that already waives fully is kept.
+    """
+    if not override:
+        return relax
+    merged = dict(relax)
+    changed = []
+    for dim in override["dims"]:
+        before = merged[dim]
+        if override["action"] == "deny":
+            after = "no"
+        elif before in ("no", "unknown"):
+            after = "partial"
+            merged[f"{dim}_pct"] = override["pct"]
+        else:
+            after = before
+        if after != before:
+            merged[dim] = after
+            merged[f"{dim}_parsed"] = True
+            changed.append((dim, before, after))
+    if not changed:
+        return merged
+
+    names = {"exp": "Experience", "turn": "Turnover"}
+    moves = ", ".join(f"{names[d]} {b} → {a}" for d, b, a in changed)
+    merged["found"] = True
+    merged["atc_note"] = (
+        f"ATC overrides the {scheme} relaxation field ({moves}): \"{override['evidence']}\""
+    )
+    return merged
 
 
 def parse_exemption_pair(text_clean, kind):
