@@ -204,10 +204,12 @@ def apply_manual_pins(conn, records):
     return merged
 
 
-def upsert_many(conn, records):
-    """Insert or replace ``records`` in one transaction. Returns the count."""
-    rows = _rows_for(records)
+def upsert_many(conn, records, preserve_manual=False, return_records=False):
+    """Upsert records atomically, optionally folding in manual status pins."""
     with conn:
+        conn.execute("BEGIN IMMEDIATE")
+        merged = apply_manual_pins(conn, records) if preserve_manual else list(records)
+        rows = _rows_for(merged)
         conn.executemany(
             "INSERT INTO tenders(bid_no, data, status, status_source, "
             "source_id, end_date, first_seen, score) "
@@ -220,7 +222,32 @@ def upsert_many(conn, records):
             rows,
         )
         bump_revision(conn)
+        stored = list(load_all(conn).values()) if return_records else None
+    if return_records:
+        return stored
     return len(rows)
+
+
+def delete_many(conn, bid_nos):
+    """Delete the specified bids, leaving all other rows untouched."""
+    bids = list(dict.fromkeys(bid_nos))
+    if not bids:
+        return 0
+    with conn:
+        conn.execute("BEGIN IMMEDIATE")
+        deleted = conn.executemany(
+            "DELETE FROM tenders WHERE bid_no = ?", ((bid,) for bid in bids)
+        ).rowcount
+        bump_revision(conn)
+    return deleted
+
+
+def clear(conn):
+    """Explicitly empty the workspace store."""
+    with conn:
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute("DELETE FROM tenders")
+        bump_revision(conn)
 
 
 def replace_all(conn, records, preserve_manual=True):
@@ -297,7 +324,7 @@ def ensure_migrated(tenders_dir, json_records=None):
             if json_records is None:
                 json_records = _read_legacy_json(tenders_dir)
             if json_records:
-                replace_all(conn, json_records)
+                upsert_many(conn, json_records)
                 logger.info(
                     "Migrated %d record(s) from metadata.json into %s",
                     len(json_records), DB_FILENAME,

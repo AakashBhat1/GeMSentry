@@ -19,8 +19,12 @@ def get_failed_analysis(reason):
         "epbg_required": "Unknown",
         "epbg_percentage": None,
         "score": None,
+        "terms_score": None,
         "score_scale": 100,
         "analysis_status": "failed",
+        "pages_total": None,
+        "pages_read": None,
+        "pages_truncated": False,
         "parsed_fields": 0,
         "na_fields": 0,
         "total_fields": TOTAL_ANALYSIS_FIELDS,
@@ -179,12 +183,12 @@ def scoring_fingerprint(cfg, profile):
         return None
 
 
-def compute_recommendation(fit_score, risk_score, eligibility, is_expired, cfg,
-                           relevance_matched=False):
+def compute_recommendation(fit_score, terms_score, eligibility, is_expired, cfg,
+                           relevance_matched=False, truncated=False):
     """
     Fit-gated recommendation (BE-11): Pursue / Review / Drop.
-    Fit gates first — low-fit bids Drop regardless of Risk. Among relevant bids,
-    Risk splits Pursue (friendly) vs Review (has friction). Watch is retired.
+    Fit gates first — low-fit bids Drop regardless of terms. Among relevant bids,
+    terms split Pursue (friendly) vs Review (has friction). Watch is retired.
     Never overwrites manual status — advisory only.
 
     relevance_matched: a business line matched the bid content. Bids inside
@@ -192,7 +196,7 @@ def compute_recommendation(fit_score, risk_score, eligibility, is_expired, cfg,
     of Drop (BE-28) — a false Drop loses a tender forever; a false Review costs
     a human ten seconds.
     """
-    if risk_score is None and fit_score is None:
+    if terms_score is None and fit_score is None:
         return None
 
     fit_cfg = cfg.get("fit") or DEFAULT_SCORING_CONFIG.get("fit", {})
@@ -202,12 +206,10 @@ def compute_recommendation(fit_score, risk_score, eligibility, is_expired, cfg,
     shortlist_min = float(thresholds.get("shortlist_min", 70))
 
     fs = fit_score if fit_score is not None else 0
-    rs = risk_score if risk_score is not None else 0
+    ts = terms_score if terms_score is not None else 0
 
     high_fit = fs >= fit_min
-    # The stored field is still named risk_score for data compatibility, but
-    # it measures how friendly the tender terms are: higher = easier to bid.
-    friendly_terms = rs >= shortlist_min
+    friendly_terms = ts >= shortlist_min
 
     # Fit is the gate: a bid that doesn't match our business lines is Dropped
     # regardless of how friendly its terms are. Among relevant (high-fit)
@@ -235,7 +237,9 @@ def compute_recommendation(fit_score, risk_score, eligibility, is_expired, cfg,
         elig_flags = set((eligibility or {}).get("flags") or ())
         if rec == "Pursue" and elig_flags & UNRESOLVED_ELIGIBILITY_FLAGS:
             rec = "Review"
-        if risk_score is None and rec == "Pursue":
+        if terms_score is None and rec == "Pursue":
+            rec = "Review"
+        if truncated and rec == "Pursue":
             rec = "Review"
 
     return rec
@@ -323,18 +327,18 @@ def apply_high_emd_hold(analysis, cfg):
     return analysis
 
 
-def compute_priority_score(fit_score, risk_score, eligibility, is_expired, cfg,
+def compute_priority_score(fit_score, terms_score, eligibility, is_expired, cfg,
                            exemptions_favorable=False):
     """
     Single blended 0-100 Priority score for best-first ranking (Feature B).
-    Combines Fit (company match) and Risk (tender friendliness). Advisory only —
+    Combines Fit (company match) and terms (tender friendliness). Advisory only —
     never overwrites manual status. Expired bids are forced to 0.
 
     exemptions_favorable: when the tender explicitly grants Startup/MSE
     experience or turnover relaxations, apply a priority boost (config
     priority.exemption_boost) since such tenders are easier for us to win.
     """
-    if fit_score is None and risk_score is None:
+    if fit_score is None and terms_score is None:
         return None
     if is_expired:
         return 0
@@ -346,8 +350,8 @@ def compute_priority_score(fit_score, risk_score, eligibility, is_expired, cfg,
     parts = []
     if fit_score is not None:
         parts.append((fw, float(fit_score)))
-    if risk_score is not None:
-        parts.append((rw, float(risk_score)))
+    if terms_score is not None:
+        parts.append((rw, float(terms_score)))
     total_w = sum(w for w, _ in parts)
     if total_w <= 0:
         return None

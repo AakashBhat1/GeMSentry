@@ -3,12 +3,14 @@
 import datetime
 import json
 import os
+import random
 import re
 import socket
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from email.utils import parsedate_to_datetime
 from bs4 import BeautifulSoup
 
 from gemsentry.constants import logger
@@ -34,6 +36,13 @@ DEFAULT_SEARCH_RETRIES = 1
 DEFAULT_KEYWORD_DEADLINE = 60
 DEFAULT_AUTO_SEARCH_DEADLINE = 300
 MAX_SEARCH_PAGES = 1000
+
+
+class SessionBlocked(RuntimeError):
+    """GeM rejected the harvested session; search results are incomplete."""
+
+    def __init__(self):
+        super().__init__("GeM session blocked, results incomplete")
 
 
 def search_deadline(max_pages):
@@ -596,6 +605,21 @@ def _is_transient_http_error(exc):
     return isinstance(exc, urllib.error.HTTPError) and exc.code in {408, 429, 500, 502, 503, 504}
 
 
+def _retry_after(exc):
+    if not isinstance(exc, urllib.error.HTTPError) or exc.code != 429:
+        return None
+    value = exc.headers.get("Retry-After") if exc.headers else None
+    if not value:
+        return None
+    try:
+        return max(0.0, float(value))
+    except ValueError:
+        try:
+            return max(0.0, (parsedate_to_datetime(value) - datetime.datetime.now(datetime.UTC)).total_seconds())
+        except (TypeError, ValueError, OverflowError):
+            return None
+
+
 def _post_search_page(keyword, cookie_header, csrf_token, page_num, sort_order,
                       timeout=DEFAULT_SEARCH_TIMEOUT):
     """POST one all-bids-data page. Raises on HTTP/network failure."""
@@ -615,7 +639,14 @@ def _post_search_page(keyword, cookie_header, csrf_token, page_num, sort_order,
         method="POST",
     )
     with _current_urlopen()(req, context=_SSL_CTX, timeout=timeout) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+        body = resp.read().decode("utf-8", errors="replace")
+        try:
+            result = json.loads(body)
+        except ValueError as exc:
+            raise SessionBlocked() from exc
+        if not isinstance(result, dict) or "response" not in result:
+            raise SessionBlocked()
+        return result
 
 
 def fetch_keyword_bids_api(
@@ -630,6 +661,7 @@ def fetch_keyword_bids_api(
     timeout=DEFAULT_SEARCH_TIMEOUT,
     retries=DEFAULT_SEARCH_RETRIES,
     deadline=None,
+    stop_event=None,
 ):
     tenders = []
     seen_bid_nos = set()
@@ -649,6 +681,8 @@ def fetch_keyword_bids_api(
         )
 
     for search_query in plan.queries:
+        if stop_event is not None and stop_event.is_set():
+            raise SessionBlocked()
         if target_count and matching_target_count >= target_count:
             break
         if deadline - (time.monotonic() - started) <= 0:
@@ -664,6 +698,8 @@ def fetch_keyword_bids_api(
         excluded = 0
         outside_dates = 0
         for page_num in range(1, safety_max_pages + 1):
+            if stop_event is not None and stop_event.is_set():
+                raise SessionBlocked()
             remaining = deadline - (time.monotonic() - started)
             if remaining <= 0:
                 logger.error(
@@ -686,15 +722,30 @@ def fetch_keyword_bids_api(
                         query, cookie_header, csrf_token, page_num, sort_order,
                         timeout=page_timeout,
                     )
+                    if not isinstance(res_json, dict) or "response" not in res_json:
+                        raise SessionBlocked()
                     last_error = None
                     break
                 except Exception as exc:
+                    if (isinstance(exc, SessionBlocked)
+                            or isinstance(exc, urllib.error.HTTPError) and exc.code == 403):
+                        if stop_event is not None:
+                            stop_event.set()
+                        raise SessionBlocked() from exc
                     last_error = exc
                     if (_is_timeout(exc) or _is_transient_http_error(exc)) and attempt < attempts:
+                        backoff = min(2 ** (attempt - 1) + random.uniform(0, 0.25),
+                                      max(0.0, deadline - (time.monotonic() - started)))
+                        retry_after = _retry_after(exc)
+                        if retry_after is not None:
+                            backoff = min(max(backoff, retry_after),
+                                          max(0.0, deadline - (time.monotonic() - started)))
                         logger.warning(
-                            "Keyword '%s' (query '%s') page %d temporarily failed (attempt %d/%d, %ss); retrying.",
-                            keyword, query, page_num, attempt, attempts, page_timeout,
+                            "Keyword '%s' (query '%s') page %d temporarily failed (attempt %d/%d, %ss); retrying in %.1fs.",
+                            keyword, query, page_num, attempt, attempts, page_timeout, backoff,
                         )
+                        if backoff > 0:
+                            time.sleep(backoff)
                         continue
                     break
 

@@ -93,8 +93,10 @@ def evaluate_date_window(start_date_str, end_date_str, cfg, now=None):
     # Old soft rules → reasons + 0.5 multipliers (no longer force score 1)
     if start_date_obj:
         days_since_start = (current_date - start_date_obj).days
-        if days_since_start > 30 and (start_date_obj.month != current_date.month or start_date_obj.year != current_date.year):
-            msg = f"Start date ({start_date_str}) is older than 30 days and not in the current month"
+        stale_cfg = cfg.get("dates") or DEFAULT_SCORING_CONFIG["dates"]
+        stale_days = int(stale_cfg.get("stale_start_days", 30))
+        if stale_cfg.get("stale_start_penalty", False) and days_since_start > stale_days:
+            msg = f"Start date ({start_date_str}) is older than {stale_days} days"
             reasons.append(msg)
             subscore *= 0.5
         duration_days = (end_date_obj - start_date_obj).days

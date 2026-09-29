@@ -89,6 +89,12 @@ def extract_raw_text(pdf_path, max_pages=MAX_PDF_PAGES):
     return "\n".join((page.extract_text() or "") for page in pages) + "\n"
 
 
+def page_counts(pdf_path, max_pages=MAX_PDF_PAGES):
+    """Return (total pages, pages examined), including on cache hits."""
+    total = len(PdfReader(pdf_path).pages)
+    return total, min(total, max_pages)
+
+
 def extract_text(pdf_path, max_pages=MAX_PDF_PAGES, use_cache=True):
     """Return whitespace-normalised text for ``pdf_path``.
 

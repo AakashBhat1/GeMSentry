@@ -3,6 +3,7 @@
 import gzip
 import json
 import os
+import sqlite3
 import sys
 
 import pytest
@@ -12,6 +13,7 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 import app as app_module  # noqa: E402
+from gemsentry import storage as tender_storage  # noqa: E402
 from gemsentry.tender_view import (  # noqa: E402
     HEAVY_ANALYSIS_FIELDS, TenderResponseCache, project_for_list, stat_key,
 )
@@ -126,6 +128,10 @@ def client(tmp_path, monkeypatch):
         lambda *a, **k: (str(tenders_dir), str(tenders_dir / "downloads")),
     )
     monkeypatch.setattr(
+        tender_storage, "workspace_paths",
+        lambda *a, **k: (str(tenders_dir), str(tenders_dir / "downloads")),
+    )
+    monkeypatch.setattr(
         app_module.scraper, "load_existing_metadata",
         lambda *a, **k: {RECORD["bid_no"]: json.loads(json.dumps(RECORD))},
     )
@@ -206,6 +212,26 @@ def test_detail_endpoint_returns_the_heavy_members(client):
 
 def test_detail_endpoint_404s_for_an_unknown_bid(client):
     assert client.get("/api/tenders/GEM/9999/NOPE").status_code == 404
+
+
+def test_detail_endpoint_uses_indexed_lookup_without_loading_corpus(client, monkeypatch):
+    def boom(*_args, **_kwargs):
+        raise AssertionError("full corpus load is forbidden for detail requests")
+
+    monkeypatch.setattr(tender_storage.db, "load_all", boom)
+    resp = client.get(f"/api/tenders/{RECORD['bid_no']}")
+    assert resp.status_code == 200
+    assert _body(resp)["tender"]["analysis"] == RECORD["analysis"]
+
+
+def test_single_record_json_fallback_when_database_is_unavailable(client, monkeypatch):
+    def unavailable(*_args, **_kwargs):
+        raise sqlite3.OperationalError("database unavailable")
+
+    monkeypatch.setattr(tender_storage.db, "ensure_migrated", unavailable)
+    resp = client.get(f"/api/tenders/{RECORD['bid_no']}")
+    assert resp.status_code == 200
+    assert _body(resp)["tender"]["analysis"] == RECORD["analysis"]
 
 
 def test_errors_do_not_leak_internal_exception_text(client, monkeypatch):

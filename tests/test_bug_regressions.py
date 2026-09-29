@@ -102,14 +102,14 @@ def test_an_automatic_status_is_still_free_to_change(tmp_path):
 
 
 def test_clearing_a_workspace_is_not_blocked_by_pins(tmp_path):
-    """An empty save must empty the store, pins included."""
+    """Explicit clear must empty the store, pins included."""
     workspace = str(tmp_path)
     storage.save_metadata([RECORD], workspace)
     storage.update_record(
         RECORD["bid_no"], {"status": "Shortlisted", "status_source": "manual"},
         workspace,
     )
-    storage.save_metadata([], workspace)
+    storage.clear_workspace(workspace, str(tmp_path / "downloads"))
     assert storage.load_existing_metadata(workspace) == {}
 
 
@@ -356,7 +356,7 @@ def test_a_failed_commit_raises_instead_of_returning_quietly(tmp_path, monkeypat
     def refuse(_conn, _records, **_kwargs):
         raise sqlite3.OperationalError("database is locked")
 
-    monkeypatch.setattr(db, "replace_all", refuse)
+    monkeypatch.setattr(db, "upsert_many", refuse)
     with pytest.raises(storage.StorageError):
         storage.save_metadata([{**RECORD, "status": "Rejected"}], str(tmp_path))
 
@@ -368,7 +368,7 @@ def test_a_failed_commit_leaves_the_existing_exports_untouched(tmp_path, monkeyp
     def refuse(_conn, _records, **_kwargs):
         raise sqlite3.OperationalError("database is locked")
 
-    monkeypatch.setattr(db, "replace_all", refuse)
+    monkeypatch.setattr(db, "upsert_many", refuse)
     with pytest.raises(storage.StorageError):
         storage.save_metadata([{**RECORD, "status": "Rejected"}], str(tmp_path))
 

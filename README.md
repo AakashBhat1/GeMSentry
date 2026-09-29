@@ -28,18 +28,18 @@ The following diagram illustrates how GeMSentry operates from keyword search to 
 
 ```mermaid
 graph TD
-    A[Start Scraper / API Trigger] --> B[Launch Playwright with Stealth Config]
+    A[Start Scraper / API Trigger] --> B[Playwright harvests GeM search cookies]
     B --> C[Search GeM Portal using Keywords]
     C --> D[Parse Search Result Cards]
-    D --> E{Match Date Policy?}
-    E -- No --> F[Mark Rejected & Save Metadata]
+    D --> E{Inside closing window?}
+    E -- No --> F[Auto-reject expired or closing too soon]
     E -- Yes --> G[Check Download Cache]
     G -- Not Cached --> H[Download RFP PDF Document]
     G -- Cached --> I[Skip Download]
-    H --> J[PyPDF Reader scans first 3 pages]
+    H --> J[PyPDF reads up to the configured page cap]
     I --> J
     J --> K[Regex Scoring Engine processes exemptions]
-    K --> L[Save details to metadata.json & metadata.js]
+    K --> L[Save to SQLite; export JSON and CSV]
     L --> M[Serve local Flask Backend server]
     M --> N[Load Interactive Dashboard on localhost:5000]
     F --> L
@@ -49,11 +49,11 @@ graph TD
 
 ## ✨ Features
 
-- **🛡️ Stealth Automation:** Uses Playwright with custom user agents, locale configurations, and anti-detection evasion scripts to bypass aggressive web application firewalls (WAF).
-- **📋 Keyword Scouting:** Automatically queries keywords defined dynamically in your `config/keywords.csv` file.
-- **📅 Dynamic Date Gates:** Automatically rejects tenders that are old or don't match the current month, ensuring you only focus on active bids.
-- **🧠 Automated RFP Analyzer:** Automatically parses downloaded PDFs for critical details:
-  - **EMD Amount:** Detects EMD presence and triggers warnings if it exceeds 10 Lakhs.
+- **GeM search session:** Playwright opens the listing page with a desktop user agent and `en-IN` locale to harvest GeM search cookies. It is not designed to defeat bot-protection or WAFs. A blocked session (HTTP 403 or a non-JSON captcha page) stops further GeM keywords, keeps tenders already collected, logs `GeM session blocked, results incomplete`, and finishes as a partial run. The dashboard job outcome is `partial`; `python -m gemsentry.cli` exits 2. External portals are still queried.
+- **Keyword scouting:** Queries the keywords in `config/keywords.csv`.
+- **Closing-window gate:** Auto-rejects bids that have already closed, and bids closing sooner than `date_window.min_days_to_bid` (default 5 days); those PDFs are not downloaded. Remaining time scores on a ramp that reaches full credit at `full_credit_days` (default 14). An age penalty for a start date older than `dates.stale_start_days` (default 30) applies only when `dates.stale_start_penalty` is true (default false).
+- **RFP analyzer:** Reads each downloaded PDF up to `analysis.max_pdf_pages` (default 40). When the file is longer, the record includes `Analysed N of M pages; later terms not checked.` and a Pursue verdict is downgraded to Review.
+  - **EMD amount:** Detects whether earnest money is required. Amounts at or below `emd.free_threshold_inr` (default ₹2 lakh) score full credit; the penalty reaches zero at `emd.max_penalty_threshold_inr` (default ₹20 lakh).
   - **Startup Exemption:** Identifies turnover/experience exemptions for startups.
   - **MSE Exemption:** Identifies micro & small enterprise exemptions.
   - **Pre-Bid Details:** Detects pre-bid meeting necessity and pulls scheduling dates.
@@ -173,11 +173,12 @@ SOFTWARE
 MILITARY GRADE
 ```
 
-### 🗓️ Date Policy Engine
-The system uses strict filters inside `scraper.py` to triage tenders:
-* **Start Date Rule:** Must match the current calendar month and year.
-* **Duration Rule:** The bid duration (End Date - Start Date) must be at least 7 days.
-* **Remaining Time Rule:** The time left to submit must be at least 7 days.
+### Date window
+Date scoring is in `gemsentry/scoring/dates.py`, configured under `date_window` and `dates` in `config/scoring_config.json`:
+* **Hard reject:** the bid has already closed, or it closes in fewer than `min_days_to_bid` days (default 5). Those PDFs are not downloaded.
+* **Closing ramp:** remaining time scores from 0 at the deadline up to full credit at `full_credit_days` (default 14).
+* **Short duration:** a window shorter than `min_days` (default 7) halves the date subscore.
+* **Stale start (opt-in):** with `dates.stale_start_penalty` set to true, a start date older than `stale_start_days` (default 30) halves the date subscore. The flag is false by default.
 
 ---
 

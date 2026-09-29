@@ -4,6 +4,7 @@ Usage:  python -m gemsentry.cli --keywords drone "power supply" --pages 3
 """
 import argparse
 import datetime
+import sys
 
 from gemsentry.constants import logger
 from gemsentry.dateparse import parse_gem_date
@@ -64,6 +65,7 @@ def report_deadlines(matches, min_days, max_days):
 
 def main(argv=None):
     args = build_parser().parse_args(argv)
+    warnings = []
 
     if args.filter_only:
         all_tenders = list(load_existing_metadata().values())
@@ -76,15 +78,20 @@ def main(argv=None):
             target_count=args.target_per_keyword,
             min_days_left=args.min_days_left,
             max_days_left=args.max_days_left,
+            warnings=warnings,
         )
 
+    for warning in warnings:
+        logger.error("%s", warning)
+
     if args.min_days_left is None and args.max_days_left is None:
-        return
+        return 2 if warnings else 0
 
     min_days = args.min_days_left if args.min_days_left is not None else 0
     max_days = args.max_days_left if args.max_days_left is not None else 9999
     report_deadlines(filter_by_deadline(all_tenders, min_days, max_days), min_days, max_days)
+    return 2 if warnings else 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -87,6 +87,12 @@ def test_upsert_overwrites_an_existing_row(conn):
     assert db.get(conn, RECORD["bid_no"])["title"] == "Revised"
 
 
+def test_explicit_delete_many_leaves_other_rows(conn):
+    db.upsert_many(conn, [RECORD, {**RECORD, "bid_no": "OTHER/1"}])
+    assert db.delete_many(conn, [RECORD["bid_no"]]) == 1
+    assert set(db.load_all(conn)) == {"OTHER/1"}
+
+
 def test_update_one_merges_and_leaves_the_rest_alone(conn):
     db.replace_all(conn, [RECORD])
     updated = db.update_one(conn, RECORD["bid_no"], {"status": "Shortlisted"})
@@ -192,6 +198,46 @@ def test_save_still_writes_the_json_export(tmp_path):
     storage.save_metadata([RECORD], str(tmp_path))
     exported = json.loads((tmp_path / "metadata.json").read_text(encoding="utf-8"))
     assert exported == [RECORD]
+
+
+def test_bulk_save_preserves_another_connections_new_row_and_exports_it(tmp_path):
+    storage.save_metadata([RECORD], str(tmp_path))
+    stale_snapshot = list(storage.load_existing_metadata(str(tmp_path)).values())
+    other = {**RECORD, "bid_no": "OTHER/1"}
+    conn = db.connect(str(tmp_path))
+    try:
+        db.upsert_many(conn, [other])
+    finally:
+        conn.close()
+    stored = storage.save_metadata(stale_snapshot, str(tmp_path))
+    assert {r["bid_no"] for r in stored} == {RECORD["bid_no"], "OTHER/1"}
+    exported = json.loads((tmp_path / "metadata.json").read_text(encoding="utf-8"))
+    assert {r["bid_no"] for r in exported} == {RECORD["bid_no"], "OTHER/1"}
+
+
+def test_bulk_save_preserves_a_manual_pin_from_another_connection(tmp_path):
+    storage.save_metadata([RECORD], str(tmp_path))
+    stale_snapshot = list(storage.load_existing_metadata(str(tmp_path)).values())
+    conn = db.connect(str(tmp_path))
+    try:
+        db.update_one(conn, RECORD["bid_no"],
+                      {"status": "Shortlisted", "status_source": "manual"})
+    finally:
+        conn.close()
+    stored = storage.save_metadata(stale_snapshot, str(tmp_path))
+    assert stored[0]["status"] == "Shortlisted"
+    assert stored[0]["status_source"] == "manual"
+
+
+def test_clear_workspace_empties_store(tmp_path):
+    storage.save_metadata([RECORD], str(tmp_path))
+    storage.clear_workspace(str(tmp_path), str(tmp_path / "downloads"))
+    conn = db.connect(str(tmp_path))
+    try:
+        assert db.count(conn) == 0
+    finally:
+        conn.close()
+    assert json.loads((tmp_path / "metadata.json").read_text(encoding="utf-8")) == []
 
 
 def test_update_record_changes_one_field(tmp_path):

@@ -2975,12 +2975,15 @@
                                     }).join('')}
                                 </div>
                             `;
-                        } else {
-                            const reasonsHtml = (analysis.reasons || []).map(r => `<li>${escapeHtml(r)}</li>`).join('');
-                            breakdownHtml = `
-                                <div class="analysis-reasons">
+                        }
+
+                        let reasonsBlockHtml = '';
+                        if (analysis.reasons && analysis.reasons.length > 0) {
+                            const reasonsHtml = analysis.reasons.map(r => `<li>${escapeHtml(r)}</li>`).join('');
+                            reasonsBlockHtml = `
+                                <div class="analysis-reasons" style="border-top: 1px solid var(--border-color); padding-top: 0.75rem; margin-top: 0.5rem; width: 100%;">
                                     <strong>Evaluation Analysis:</strong>
-                                    <ul>
+                                    <ul style="margin: 0.35rem 0 0 1.2rem; font-size: 0.8rem; color: var(--text-secondary);">
                                         ${reasonsHtml}
                                     </ul>
                                 </div>
@@ -3067,8 +3070,10 @@
                                         <div><strong>MSE Relaxation:</strong> ${escapeHtml(analysis.mse_exemption) || 'No'}</div>
                                         <div><strong>Pre-Bid Meeting:</strong> ${escapeHtml(prebidVal)}</div>
                                         <div><strong>ePBG Guarantee:</strong> ${escapeHtml(epbgVal)}</div>
+                                        ${analysis.pages_total ? `<div><strong>Pages:</strong> ${analysis.pages_read} of ${analysis.pages_total}${analysis.pages_truncated ? ' <span style="color: var(--warning-color); font-weight: 600;">(Truncated)</span>' : ''}</div>` : ''}
                                     </div>
                                     ${breakdownsWrapperHtml}
+                                    ${reasonsBlockHtml}
                                     ${eligibilityDetailsHtml}
                                 </div>
                             </details>

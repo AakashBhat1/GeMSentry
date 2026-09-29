@@ -76,6 +76,22 @@ def load_existing_metadata(tenders_dir=None):
     return _load_metadata_json(tenders_dir)
 
 
+def get_record(bid_no, tenders_dir=None):
+    """Read one tender by primary key, with the legacy JSON/CSV fallback."""
+    tenders_dir = tenders_dir if tenders_dir is not None else workspace_paths()[0]
+    try:
+        conn = db.ensure_migrated(tenders_dir)
+        try:
+            record = db.get(conn, bid_no)
+            if record is not None or db.count(conn):
+                return record
+        finally:
+            conn.close()
+    except sqlite3.Error as e:
+        logger.error("Tender database unavailable (%s); falling back to JSON.", e)
+    return _load_metadata_json(tenders_dir).get(bid_no)
+
+
 def _load_metadata_json(tenders_dir):
     """Fallback reader for the JSON export."""
     json_path = os.path.join(tenders_dir, "metadata.json")
@@ -187,14 +203,13 @@ def _csv_row(t):
 
 
 def save_metadata(tenders_list, tenders_dir=None):
-    """Persist the whole workspace: SQLite (store of record) + JSON/CSV exports.
+    """Upsert the supplied records and refresh full-workspace JSON/CSV exports.
 
     The exports keep tools/ and the workspace-discovery checks working. Both
     files are written atomically under a process-wide lock, so an interrupted
     save leaves the previous good copy intact.
 
-    For changing a single record, prefer ``update_record`` -- this function
-    rewrites everything by design.
+    For changing a single record, prefer ``update_record``.
 
     Returns the records as stored, which can differ from ``tenders_list`` by a
     status the user pinned while the caller was working -- those decisions are
@@ -209,7 +224,9 @@ def save_metadata(tenders_list, tenders_dir=None):
         try:
             conn = db.connect(tenders_dir)
             try:
-                stored = db.replace_all(conn, tenders_list)
+                stored = db.upsert_many(
+                    conn, tenders_list, preserve_manual=True, return_records=True
+                )
             finally:
                 conn.close()
         except sqlite3.Error as e:
@@ -450,16 +467,13 @@ def clear_workspace(tenders_dir=None, downloads_dir=None):
             )
             shutil.rmtree(full, ignore_errors=True)
 
-    save_metadata([], tenders_dir)
-
-    # Drop the SQLite store as well; leaving it would repopulate on next load.
-    for suffix in ("", "-wal", "-shm"):
-        stale_db = db.db_path(tenders_dir) + suffix
-        if os.path.exists(stale_db):
-            try:
-                os.remove(stale_db)
-            except OSError as e:
-                logger.warning("Could not remove %s during clear: %s", stale_db, e)
+    with _save_lock:
+        conn = db.connect(tenders_dir)
+        try:
+            db.clear(conn)
+        finally:
+            conn.close()
+        write_exports([], tenders_dir)
 
     # Remove only THIS profile's workbook from the central reports folder
     label = workspace_label(tenders_dir)

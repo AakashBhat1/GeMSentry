@@ -6,6 +6,15 @@ import re
 
 from gemsentry.constants import _INDIAN_STATES
 
+_STATE_BY_NAME = {state.casefold(): state for state in _INDIAN_STATES}
+_STATE_PATTERN = re.compile(
+    r"\b(?:" + "|".join(
+        re.escape(state).replace(r"\ ", r"\s+")
+        for state in sorted(_INDIAN_STATES, key=len, reverse=True)
+    ) + r")\b",
+    re.IGNORECASE,
+)
+
 
 def sanitize_filename(name):
     return re.sub(r'[\\/*?:"<>|]', '_', name).strip().replace(" ", "_")
@@ -67,11 +76,8 @@ def _clean_english_phrase(s, max_len=120):
 def _match_indian_state(text):
     if not text:
         return None
-    low = text.lower()
-    for st in _INDIAN_STATES:
-        if st.lower() in low:
-            return st
-    return None
+    match = _STATE_PATTERN.search(text)
+    return _STATE_BY_NAME[re.sub(r"\s+", " ", match.group()).casefold()] if match else None
 
 # ---------------------------------------------------------------------------
 # BE-15 helpers: bilingual GeM layout — English label then value, no colon.

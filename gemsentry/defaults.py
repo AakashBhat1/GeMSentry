@@ -21,6 +21,9 @@ DEFAULT_SCORING_CONFIG = {
         "full_credit_days": 14,
         "min_days_to_bid": 5
     },
+    "dates": {"stale_start_penalty": False, "stale_start_days": 30},
+    "analysis": {"max_pdf_pages": 40},
+    "search": {"max_workers": 5},
     "epbg": {
         "free_threshold_pct": 3.0,
         "max_penalty_pct": 10.0

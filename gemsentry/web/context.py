@@ -82,6 +82,11 @@ def _bearer_token() -> str | None:
 
 
 def enforce_auth():
+    if request.method in UNSAFE_METHODS:
+        origin = request.headers.get("Origin")
+        if (request.headers.get("Sec-Fetch-Site", "").lower() == "cross-site"
+                or (origin and urlparse(origin).netloc.casefold() != request.host.casefold())):
+            return jsonify({"error": "Cross-site requests are forbidden."}), 403
     # One config read per request, keeping the decision and comparison consistent.
     cfg = paths.load_server_config()
     if not is_auth_enabled(cfg):
@@ -285,6 +290,7 @@ def run_scraper_thread(keywords, max_pages, sort_order, target_count=None, min_d
             target_count=target_count,
             min_days_left=min_days_left,
             max_days_left=max_days_left,
+            warnings=warnings,
         )
 
         # Fan out to the non-GeM portals (DefProc, BEL, CPPP, NTPC, states...).

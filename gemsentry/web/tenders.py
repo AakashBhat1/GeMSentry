@@ -88,8 +88,7 @@ def get_tenders():
 def get_tender_detail(bid_no):
     """Complete stored record for a single bid, including the heavy analysis."""
     try:
-        tenders_dict = scraper.load_existing_metadata()
-        record = tenders_dict.get(bid_no)
+        record = storage.get_record(bid_no)
         if record is None:
             return jsonify({"error": f"Unknown bid number: {bid_no}"}), 404
         annotated = annotate_sources([record], source_registry.get_all_sources())
@@ -128,8 +127,10 @@ def get_status():
 @tenders_bp.route("/api/scrape", methods=["POST"])
 def trigger_scrape():
     global scrape_status
+    if not request.is_json:
+        return jsonify({"error": "JSON content type required."}), 415
     try:
-        params = normalize_scrape_payload(request.get_json(silent=True) or {})
+        params = normalize_scrape_payload(request.json or {})
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
 

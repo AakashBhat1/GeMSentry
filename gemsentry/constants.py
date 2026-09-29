@@ -29,7 +29,7 @@ TOTAL_ANALYSIS_FIELDS = 8
 TOTAL_SIGNAL_FIELDS = 8  # est_value, primary_item, item_category, buyer_org, buyer_dept, consignee_state, mii_required, mse_pref
 
 
-MAX_PDF_PAGES = 12
+MAX_PDF_PAGES = 40
 
 
 _INDIAN_STATES = [

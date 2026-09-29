@@ -8,7 +8,7 @@ import re
 from gemsentry.config_store import load_scoring_config
 from gemsentry.constants import MAX_PDF_PAGES, TENDERS_DIR, TOTAL_ANALYSIS_FIELDS, TOTAL_SIGNAL_FIELDS, logger
 from gemsentry.defaults import DEFAULT_SCORING_CONFIG
-from gemsentry.pdf_text import extract_text
+from gemsentry.pdf_text import extract_text, page_counts
 from gemsentry.parsing.fields import parse_emd_amount, parse_emd_required, parse_epbg_percentage, parse_epbg_required, parse_prebid_required
 from gemsentry.parsing.relaxation import RELAX_STATE_RANK, apply_atc_relaxation, detect_doc_has_exemption_table, parse_atc_relaxation, parse_relaxation_block, relaxation_granted
 from gemsentry.parsing.signals import extract_bid_signals
@@ -65,6 +65,9 @@ def analyze_rfp_pdf(pdf_path, start_date_str=None, end_date_str=None,
         "score": None,
         "score_scale": 100,
         "analysis_status": "ok",
+        "pages_total": None,
+        "pages_read": None,
+        "pages_truncated": False,
         "parsed_fields": 0,
         "na_fields": 0,
         "total_fields": TOTAL_ANALYSIS_FIELDS,
@@ -98,7 +101,18 @@ def analyze_rfp_pdf(pdf_path, start_date_str=None, end_date_str=None,
         # BE-08: whole PDF up to hard ceiling (keeps Phase-1 fields; more pages
         # for signals). Extraction dominates analysis cost, so it is cached on
         # the file's content hash -- see gemsentry.pdf_text.
-        text_clean = extract_text(pdf_path, max_pages=MAX_PDF_PAGES)
+        max_pages = int((cfg.get("analysis") or {}).get("max_pdf_pages", MAX_PDF_PAGES))
+        if max_pages < 1:
+            max_pages = MAX_PDF_PAGES
+        pages_total, pages_read = page_counts(pdf_path, max_pages)
+        analysis["pages_total"] = pages_total
+        analysis["pages_read"] = pages_read
+        analysis["pages_truncated"] = pages_read < pages_total
+        text_clean = extract_text(pdf_path, max_pages=max_pages)
+        if analysis["pages_truncated"]:
+            analysis["reasons"].append(
+                f"Analysed {pages_read} of {pages_total} pages; later terms not checked."
+            )
 
         # Track field status: "parsed" | "miss" | "na" (BE-17 not_applicable)
         # 1 emd_required, 2 emd_amount, 3 st_exp, 4 st_turn, 5 mse_exp, 6 mse_turn,
@@ -375,6 +389,7 @@ def analyze_rfp_pdf(pdf_path, start_date_str=None, end_date_str=None,
         ]
         final_score, breakdown = build_score_breakdown(criteria, weights)
         analysis["score"] = final_score
+        analysis["terms_score"] = final_score
         analysis["breakdown"] = breakdown
         analysis["analysis_status"] = "ok"
         analysis["is_expired"] = bool(date_info["is_expired"])
@@ -466,7 +481,8 @@ def analyze_rfp_pdf(pdf_path, start_date_str=None, end_date_str=None,
             eligibility,
             bool(analysis.get("auto_reject")),
             cfg,
-            relevance_matched=business_line is not None
+            relevance_matched=business_line is not None,
+            truncated=analysis["pages_truncated"],
         )
 
         # --- Feature B: blended Priority score for best-first ranking ---
@@ -547,7 +563,7 @@ def analyze_from_card(tender, scoring_config=None, company_profile=None):
 
     analysis["recommendation"] = compute_recommendation(
         fit_score, None, eligibility, analysis["auto_reject"], cfg,
-        relevance_matched=business_line is not None
+        relevance_matched=business_line is not None,
     )
     analysis["priority_score"] = compute_priority_score(
         fit_score, None, eligibility, analysis["auto_reject"], cfg
@@ -573,6 +589,11 @@ def rederive_analysis(tender, analysis, cfg, profile):
     )
     analysis["is_expired"] = bool(date_info.get("is_expired"))
     analysis["auto_reject"] = bool(date_info.get("auto_reject"))
+    analysis["pages_truncated"] = (
+        analysis.get("pages_read") is not None
+        and analysis.get("pages_total") is not None
+        and analysis["pages_read"] < analysis["pages_total"]
+    )
 
     breakdown = analysis.get("breakdown") or []
     if breakdown:
@@ -587,6 +608,7 @@ def rederive_analysis(tender, analysis, cfg, profile):
             criteria.append((name, sub, detail))
         risk, new_breakdown = build_score_breakdown(criteria, weights)
         analysis["score"] = risk
+        analysis["terms_score"] = risk
         analysis["breakdown"] = new_breakdown
 
     signals = {k: analysis.get(k) for k in (
@@ -617,7 +639,8 @@ def rederive_analysis(tender, analysis, cfg, profile):
     analysis["recommendation"] = compute_recommendation(
         fit_score, analysis.get("score"), eligibility,
         analysis["auto_reject"], cfg,
-        relevance_matched=business_line is not None
+        relevance_matched=business_line is not None,
+        truncated=analysis["pages_truncated"],
     )
     analysis["priority_score"] = compute_priority_score(
         fit_score, analysis.get("score"), eligibility,

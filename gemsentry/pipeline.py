@@ -6,6 +6,7 @@ import nlp_classifier
 import os
 import paths
 import random
+import threading
 import time
 from collections import Counter
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed, wait
@@ -22,7 +23,7 @@ from gemsentry.scoring.verdict import apply_verdict, finalize_auto_reject
 from gemsentry.search import build_search_plan
 from gemsentry.sources.attribution import build_host_index, derive_source, normalize_host
 from gemsentry.sources.gem.client import (
-    DEFAULT_DOWNLOAD_TIMEOUT, download_pdf_http, search_deadline,
+    DEFAULT_DOWNLOAD_TIMEOUT, SessionBlocked, download_pdf_http, search_deadline,
     download_rfp_pdf, fetch_keyword_bids_api, is_pdf_file, looks_like_pdf_url,
     parse_cards,
 )
@@ -324,6 +325,7 @@ def scrape(
     target_count=None,
     min_days_left=None,
     max_days_left=None,
+    warnings: list | None = None,
 ):
     logging_setup.setup_logging()
     cb_handler = logging_setup.attach_callback(log_callback) if log_callback else None
@@ -394,6 +396,10 @@ def scrape(
             else:
                 logger.info("Starting high-performance concurrent keyword ingestion...")
 
+            stop_event = threading.Event()
+            search_cfg = scoring_cfg.get("search") or DEFAULT_SCORING_CONFIG["search"]
+            max_workers = max(1, min(20, int(search_cfg.get("max_workers", 5))))
+
             def process_keyword(kw):
                 tenders = fetch_keyword_bids_api(
                     kw,
@@ -404,17 +410,18 @@ def scrape(
                     target_count=target_count,
                     min_days_left=min_days_left,
                     max_days_left=max_days_left,
+                    stop_event=stop_event,
                 )
                 return kw, tenders
 
             keyword_deadline = search_deadline(max_pages)
-            pool = ThreadPoolExecutor(max_workers=5)
+            pool = ThreadPoolExecutor(max_workers=max_workers)
             try:
                 future_to_kw = {pool.submit(process_keyword, kw): kw for kw in KEYWORDS}
                 pending = set(future_to_kw)
                 # One shared ceiling for the pool: a single hung keyword (IOT
                 # ENERGY METER on a stalled GeM page) must not block the run.
-                pool_timeout = keyword_deadline * max(1, (len(KEYWORDS) + 4) // 5)
+                pool_timeout = keyword_deadline * max(1, (len(KEYWORDS) + max_workers - 1) // max_workers)
                 done, pending = wait(pending, timeout=pool_timeout)
                 for future in pending:
                     kw = future_to_kw[future]
@@ -442,10 +449,20 @@ def scrape(
                                 refresh_listing_metadata(existing, t)
                                 if kw not in existing["keyword"]:
                                     existing["keyword"] += f", {kw}"
+                    except SessionBlocked:
+                        stop_event.set()
+                        for pending_future in pending:
+                            pending_future.cancel()
                     except Exception as e:
                         logger.error(f"Error processing keyword '{kw}': {e}")
             finally:
                 pool.shutdown(wait=False, cancel_futures=True)
+
+            if stop_event.is_set():
+                message = "GeM session blocked, results incomplete"
+                logger.error(message)
+                if warnings is not None:
+                    warnings.append(message)
 
             if new_tenders_count == 0:
                 logger.warning(f"\nFor today ({get_date_folder_name()}), no new tenders could be found.")
