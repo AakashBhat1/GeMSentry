@@ -8,6 +8,7 @@ from flask import Blueprint, jsonify, request, send_from_directory
 import logging_setup
 import paths
 import scraper
+from gemsentry import tuning
 from gemsentry.web.context import fail, source_registry
 
 logger = logging.getLogger("gemsentry")
@@ -121,6 +122,47 @@ def set_active_preset():
             "active_preset": preset_id,
             "keywords": preset.get("keywords", []),
             "value_preference": vp,
+        })
+    except Exception as e:
+        return fail(e)
+
+
+@settings_bp.route("/api/tuning/export", methods=["GET"])
+def export_tuning():
+    """Every tunable setting (keywords, profile, scoring) as one JSON bundle."""
+    try:
+        return jsonify(tuning.export_bundle())
+    except Exception as e:
+        return fail(e)
+
+
+@settings_bp.route("/api/tuning/template", methods=["GET"])
+def tuning_template():
+    """Annotated example bundle to start tuning from."""
+    return jsonify(tuning.example_bundle())
+
+
+@settings_bp.route("/api/tuning/import", methods=["POST"])
+def import_tuning():
+    """Validate (?dry_run=1) or apply a tuning bundle. All sections are
+    validated before anything is written."""
+    try:
+        data = request.get_json(silent=True)
+        if data is None:
+            return jsonify({"error": "JSON body required."}), 400
+        dry_run = request.args.get("dry_run") in ("1", "true", "yes")
+        if dry_run:
+            plan, err = tuning.plan_import(data)
+            summary = plan["summary"] if plan else None
+        else:
+            summary, err = tuning.apply_import(data)
+        if err:
+            return jsonify({"error": err}), 400
+        return jsonify({
+            "dry_run": dry_run,
+            "summary": summary,
+            "message": ("Valid. Nothing written yet." if dry_run else
+                        "Tuning applied. Takes effect on the next scrape / re-score."),
         })
     except Exception as e:
         return fail(e)

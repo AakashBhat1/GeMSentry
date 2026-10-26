@@ -21,7 +21,8 @@ def _resolve_config_path(primary: str, legacy: str, label: str) -> str | None:
     return None
 
 
-def load_keywords():
+def read_keyword_lines():
+    """keywords.csv terms as written (header and exact duplicates dropped)."""
     keywords = []
     csv_path = _resolve_config_path(
         KEYWORDS_PATH, paths.LEGACY_KEYWORDS_PATH, "keywords.csv"
@@ -37,6 +38,11 @@ def load_keywords():
                         keywords.append(clean)
         except Exception as e:
             logger.error("Error reading keywords.csv: %s", e)
+    return keywords
+
+
+def load_keywords():
+    keywords = read_keyword_lines()
 
     cleaned_keywords = []
     for kw in keywords:

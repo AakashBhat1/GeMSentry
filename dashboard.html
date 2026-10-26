@@ -54,6 +54,19 @@
                 </svg>
                 <span>Company Profile</span>
             </button>
+            <div class="tuning-menu-wrap">
+                <button class="btn-theme" id="tuningToggle" onclick="toggleTuningMenu(event)" aria-label="Tuning JSON" aria-haspopup="true" aria-expanded="false" style="padding: 0.5rem 0.85rem;">
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 4H6a2 2 0 00-2 2v3a2 2 0 01-2 2 2 2 0 012 2v3a2 2 0 002 2h2M16 4h2a2 2 0 012 2v3a2 2 0 002 2 2 2 0 00-2 2v3a2 2 0 01-2 2h-2" />
+                    </svg>
+                    <span>Tuning JSON ▾</span>
+                </button>
+                <div class="tuning-menu" id="tuningMenu" role="menu">
+                    <button type="button" role="menuitem" onclick="downloadTuning('current')">↓ Download current config<small>Everything applied on this server, ready to copy to another one</small></button>
+                    <button type="button" role="menuitem" onclick="downloadTuning('template')">↓ Download example template<small>Annotated starter file with every field explained</small></button>
+                    <button type="button" role="menuitem" onclick="openTuningModal()">✎ Edit / import JSON…<small>Business lines, buyer affinity, scrape keywords (max 1000), scoring</small></button>
+                </div>
+            </div>
             <button class="btn-theme" id="settingsToggle" onclick="openSettingsModal()" aria-label="Scoring Settings" style="padding: 0.5rem 0.85rem;">
                 <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -798,6 +811,52 @@
         </div>
     </div>
 
+    <!-- Tuning JSON Modal Overlay -->
+    <div id="tuningModal" class="modal">
+        <div class="modal-content" style="max-width: 820px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Tuning JSON</h3>
+                <button class="close-btn" onclick="closeTuningModal()">&times;</button>
+            </div>
+
+            <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: -0.5rem;">
+                Pick a section, edit the JSON, then <b>Validate</b> and <b>Apply</b>. Sections you leave out stay as they are.
+                Inside a section, each key you include replaces the current one.
+            </div>
+
+            <div class="tuning-row">
+                <label for="tuningSection" style="font-size: 0.78rem; color: var(--text-secondary);">Section</label>
+                <select id="tuningSection" class="tuning-field" onchange="loadTuningSection()">
+                    <option value="all">Everything (keywords + profile + scoring)</option>
+                    <option value="business_lines">Business Lines Keywords (all lines)</option>
+                    <option value="buyer_affinity">Buyer Affinity (Name: Score)</option>
+                    <option value="scrape_keywords">Scrape Keywords (max 1000)</option>
+                    <option value="scoring_config">Scoring Config</option>
+                    <option value="company_profile">Full Company Profile</option>
+                </select>
+                <button type="button" class="btn btn-secondary" onclick="loadTuningSection()" style="padding: 0.4rem 0.8rem;">Reload current</button>
+                <button type="button" class="btn btn-secondary" onclick="loadTuningExample()" style="padding: 0.4rem 0.8rem;">Load example</button>
+            </div>
+
+            <textarea id="tuningEditor" class="tuning-field" spellcheck="false" oninput="updateTuningStats()" aria-label="Tuning JSON editor"></textarea>
+            <div id="tuningStats" style="font-size: 0.75rem; color: var(--text-secondary); margin-top: -0.75rem;"></div>
+
+            <div id="tuningFeedback" style="display: none; padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 500; white-space: pre-line;"></div>
+
+            <div class="tuning-row" style="justify-content: space-between;">
+                <div class="tuning-row">
+                    <input type="file" id="tuningFile" accept=".json,application/json" style="display: none;" onchange="readTuningFile(event)">
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('tuningFile').click()" style="padding: 0.5rem 1rem;">↑ Upload .json</button>
+                    <button type="button" class="btn btn-secondary" onclick="downloadTuningEditor()" style="padding: 0.5rem 1rem;">↓ Download this JSON</button>
+                </div>
+                <div class="tuning-row">
+                    <button type="button" class="btn btn-secondary" onclick="submitTuning(true)" style="padding: 0.5rem 1rem;">Validate</button>
+                    <button type="button" class="btn btn-primary" onclick="submitTuning(false)" style="padding: 0.5rem 1.5rem;">Apply</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Saved Daily Excels Modal Overlay -->
     <div id="savedExcelsModal" class="modal">
         <div class="modal-content" style="max-width: 680px; max-height: 80vh; display: flex; flex-direction: column;">
@@ -1326,5 +1385,6 @@
     <!-- Script loading and dynamic injector -->
     <script src="/static/auth.js"></script>
     <script src="/static/app.js"></script>
+    <script src="/static/tuning.js"></script>
 </body>
 </html>

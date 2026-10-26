@@ -2200,3 +2200,52 @@
             font-size: 0.75rem;
             display: inline-block;
         }
+
+        /* Tuning JSON dropdown + editor */
+        .tuning-menu-wrap { position: relative; }
+        .tuning-menu {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: calc(100% + 6px);
+            min-width: 240px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.45);
+            padding: 0.35rem;
+            z-index: 900;
+        }
+        .tuning-menu.open { display: block; }
+        .tuning-menu button {
+            display: block;
+            width: 100%;
+            text-align: left;
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            padding: 0.55rem 0.7rem;
+            border-radius: 6px;
+            font-size: 0.82rem;
+            cursor: pointer;
+        }
+        .tuning-menu button:hover { background: var(--input-bg); }
+        .tuning-menu small { display: block; color: var(--text-secondary); font-size: 0.72rem; }
+        .tuning-field {
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.4rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            outline: none;
+        }
+        #tuningEditor {
+            font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+            font-size: 0.78rem;
+            height: 360px;
+            resize: vertical;
+            white-space: pre;
+            tab-size: 2;
+        }
+        .tuning-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
