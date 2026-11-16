@@ -13,12 +13,13 @@ import os
 import threading
 from urllib.parse import urlparse
 
-from flask import jsonify, request
+from flask import g, jsonify, request
 
 import logging_setup
 import paths
 import scraper
 from gemsentry import tender_view
+from gemsentry.crm.auth_service import crm_auth_service
 from gemsentry.google_webhook import is_apps_script_url  # noqa: F401 (stable re-export)
 from gemsentry.live_excel import live_excel_manager
 from gemsentry.search import expand_keywords
@@ -73,12 +74,39 @@ UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 PUBLIC_PATHS = {"/", "/favicon.ico", "/api/auth/status", "/api/auth/verify",
                 "/api/auth/logout"}
 
+ADMIN_DEFAULT_USER = {
+    "id": "etspl",
+    "username": "etspl",
+    "display_name": "ETSPL Admin",
+    "role": "admin",
+    "company_id": "etspl",
+    "company_name": "ETSPL (Earnest Tactical)",
+    "disk_folder": "etspl",
+    "subfolder_scope": "",
+    "is_active": 1,
+}
+
 
 def _bearer_token() -> str | None:
     header = request.headers.get("Authorization", "")
     if header.startswith("Bearer "):
         return header[7:].strip() or None
     return None
+
+
+def _is_non_admin_allowed_request() -> bool:
+    path = request.path or ""
+    if path in ("/", "/favicon.ico"):
+        return True
+    if request.endpoint == "static" or path.startswith("/static/"):
+        return True
+    if path.startswith("/api/auth/"):
+        return True
+    if path == "/api/crm" or path.startswith("/api/crm/"):
+        return True
+    if path.startswith("/tenders/"):
+        return True
+    return False
 
 
 def enforce_auth():
@@ -89,6 +117,9 @@ def enforce_auth():
             return jsonify({"error": "Cross-site requests are forbidden."}), 403
     # One config read per request, keeping the decision and comparison consistent.
     cfg = paths.load_server_config()
+    g.server_config = cfg
+    g.current_user = None
+
     if not is_auth_enabled(cfg):
         forwarded = any(request.headers.get(name) for name in (
             "Forwarded", "X-Forwarded-For", "X-Forwarded-Host",
@@ -97,11 +128,6 @@ def enforce_auth():
         host = urlparse(request.host_url).hostname
         if forwarded or not paths.is_loopback(host) or not paths.is_loopback(request.remote_addr):
             return jsonify({"error": "Remote or proxied access requires a configured access key."}), 403
-        return None
-    if request.path in PUBLIC_PATHS:
-        return None
-    if request.endpoint == "static":
-        return None
 
     token = _bearer_token()
 
@@ -115,11 +141,29 @@ def enforce_auth():
     if token is None and request.method not in UNSAFE_METHODS:
         token = request.cookies.get("gemsentry_token")
 
-    if not check_auth(token, cfg):
+    if token:
+        user = crm_auth_service.resolve_session(token)
+        if user is not None:
+            g.current_user = user
+
+    if g.current_user is None and is_auth_enabled(cfg) and check_auth(token, cfg):
+        g.current_user = dict(ADMIN_DEFAULT_USER)
+
+    if g.current_user is None and not is_auth_enabled(cfg):
+        g.current_user = dict(ADMIN_DEFAULT_USER)
+
+    if g.current_user is None:
+        if request.path in PUBLIC_PATHS or request.endpoint == "static":
+            return None
         return jsonify({
             "error": "Unauthorized: Authentication required.",
-            "auth_required": True
+            "auth_required": True,
         }), 401
+
+    if g.current_user.get("role") != "admin" and not _is_non_admin_allowed_request():
+        return jsonify({"error": "Forbidden: administrator access required."}), 403
+
+    return None
 
 # Threading and status control.
 #

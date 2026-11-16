@@ -30,6 +30,7 @@ from gemsentry.web.context import (  # noqa: E402,F401
     normalize_scrape_payload, scrape_status, source_registry, status_lock,
     tenders_cache,
 )
+from gemsentry.web.crm import crm_bp  # noqa: E402
 from gemsentry.web.live_excel import live_excel_bp  # noqa: E402
 from gemsentry.web.master_sheet import master_sheet_bp  # noqa: E402
 from gemsentry.web.settings import settings_bp  # noqa: E402
@@ -40,6 +41,7 @@ logger = logging.getLogger("gemsentry")
 app = Flask(__name__, static_folder="static", static_url_path="/static")
 
 app.register_blueprint(auth_bp)
+app.register_blueprint(crm_bp)
 app.register_blueprint(tenders_bp)
 app.register_blueprint(settings_bp)
 app.register_blueprint(live_excel_bp)
@@ -47,6 +49,19 @@ app.register_blueprint(master_sheet_bp)
 
 # Runs before every request on every blueprint.
 app.before_request(enforce_auth)
+
+
+@app.after_request
+def apply_security_headers(response):
+    """Attach baseline browser-hardening headers to every HTTP response."""
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    response.headers.setdefault("Referrer-Policy", "same-origin")
+    response.headers.setdefault(
+        "Permissions-Policy",
+        "camera=(), microphone=(), geolocation=()",
+    )
+    return response
 
 
 @app.errorhandler(Exception)

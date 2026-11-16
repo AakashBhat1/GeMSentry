@@ -81,6 +81,16 @@ function cleanSpreadsheetId(val) {
  * Resolves vendor configuration strictly from the explicit choice made on the site.
  * Zero keyword sniffing or regex heuristics — completely user-controlled!
  */
+const VENDOR_ALIASES = {
+  rajiv_mital: 'drone',
+  'rajiv mital': 'drone',
+  'rajiv mittal': 'drone',
+  rajiv_tyagi: 'power_supply',
+  'rajiv tyagi': 'power_supply',
+  hanmars: 'biometrics',
+  sandeep: 'biometrics'
+};
+
 function detectVendorInfo(payload) {
   payload = payload || {};
   const tender = payload.tender || {};
@@ -90,6 +100,13 @@ function detectVendorInfo(payload) {
     payload.job_aligned_to || tender.job_aligned_to ||
     payload.work_category || tender.work_category || ''
   ).toLowerCase().trim();
+
+  if (customVendor && VENDOR_CONFIG[customVendor]) {
+    return VENDOR_CONFIG[customVendor];
+  }
+  if (customVendor && VENDOR_ALIASES[customVendor] && VENDOR_CONFIG[VENDOR_ALIASES[customVendor]]) {
+    return VENDOR_CONFIG[VENDOR_ALIASES[customVendor]];
+  }
 
   for (const vendor of Object.values(VENDOR_CONFIG)) {
     if (customVendor && customVendor === vendor.vendor.toLowerCase()) return vendor;
@@ -168,11 +185,28 @@ function authorizedPayload(payload) {
 }
 
 function configureVendors(payload) {
-  const vendors = payload.vendor_sheets || {};
+  const vendors = (payload && payload.vendor_sheets) || {};
   for (const key of Object.keys(VENDOR_CONFIG)) {
     const configured = vendors[key] || {};
     VENDOR_CONFIG[key].spreadsheetId = cleanSpreadsheetId(configured.spreadsheet_id || configured.spreadsheet_url);
     VENDOR_CONFIG[key].vendor = String(configured.name || VENDOR_CONFIG[key].category);
+    if (configured.color) {
+      VENDOR_CONFIG[key].color = String(configured.color);
+    }
+  }
+  for (const key of Object.keys(vendors)) {
+    const configured = vendors[key];
+    if (!configured || typeof configured !== 'object') continue;
+    if (!VENDOR_CONFIG[key]) {
+      const cat = String(configured.category || configured.name || key);
+      VENDOR_CONFIG[key] = {
+        vendor: String(configured.name || cat),
+        category: cat,
+        color: String(configured.color || '#E2E8F0'),
+        headerColor: String(configured.header_color || configured.headerColor || '#1F3864'),
+        spreadsheetId: cleanSpreadsheetId(configured.spreadsheet_id || configured.spreadsheet_url)
+      };
+    }
   }
 }
 
@@ -974,7 +1008,10 @@ function syncExistingTendersToVendors() {
   if (lastRow <= 4) return { status: 'ok', synced: 0, message: 'No data rows in MASTER' };
 
   const data = masterSheet.getRange(5, 1, lastRow - 4, MASTER_HEADERS.length).getValues();
-  let syncedCounts = { drone: 0, power_supply: 0, biometrics: 0 };
+  let syncedCounts = {};
+  for (const key of Object.keys(VENDOR_CONFIG)) {
+    syncedCounts[key] = 0;
+  }
 
   data.forEach(function(row) {
     const slNo = row[0];
@@ -996,7 +1033,7 @@ function syncExistingTendersToVendors() {
           tender_id: bidNo,
           description: title
         }, vinfo);
-        if (vKey) syncedCounts[vKey]++;
+        if (vKey) syncedCounts[vKey] = (syncedCounts[vKey] || 0) + 1;
       } catch (err) {
         Logger.log("Error syncing row to " + vinfo.vendor + ": " + err);
       }

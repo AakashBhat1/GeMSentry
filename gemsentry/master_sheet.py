@@ -104,6 +104,35 @@ VENDOR_DEFINITIONS = {
 }
 
 
+CRM_VENDOR_ALIASES = {
+    "rajiv_mital": "drone",
+    "rajiv mital": "drone",
+    "rajiv mittal": "drone",
+    "rajiv_tyagi": "power_supply",
+    "rajiv tyagi": "power_supply",
+    "hanmars": "biometrics",
+    "sandeep": "biometrics",
+}
+
+CRM_EXTRA_VENDORS = {
+    "watchdogs": {
+        "id": "watchdogs",
+        "name": "Watchdogs",
+        "category_label": "Security & Watchdogs",
+        "hex_color": "DDD6FE",
+        "web_color": "#DDD6FE",
+        "keywords": [],
+    },
+}
+
+
+def _normalize_color_pair(raw_color: str | None, fallback_hex: str = "E2E8F0") -> tuple[str, str]:
+    clean = str(raw_color or "").strip().lstrip("#").upper()
+    if len(clean) != 6 or not re.fullmatch(r"[0-9A-F]{6}", clean):
+        clean = fallback_hex
+    return clean, f"#{clean}"
+
+
 def detect_vendor(tender: dict[str, Any] | None, custom_vendor: str | None = None,
                   vendor_sheets: dict | None = None) -> dict[str, Any]:
     """Detects the assigned vendor and master sheet color for a tender.
@@ -112,17 +141,56 @@ def detect_vendor(tender: dict[str, Any] | None, custom_vendor: str | None = Non
     - Drone vendor (Drone / UAV) -> Red (FEE2E2)
     - Power supply vendor (Power Supply / Electrical) -> Yellow (FEF08A)
     - Biometrics vendor (Biometrics & Face Recognition) -> Blue (BFDBFE)
+    - Dynamic CRM vendors (e.g. Watchdogs -> DDD6FE, custom CRM vendor sheets)
     """
     tender = tender or {}
-    definitions = {key: {**value, "name": ((vendor_sheets or {}).get(key) or {}).get("name") or value["name"]}
-                   for key, value in VENDOR_DEFINITIONS.items()}
+    vs_map = vendor_sheets if isinstance(vendor_sheets, dict) else {}
+    definitions = {
+        key: {**value, "name": (vs_map.get(key) or {}).get("name") or value["name"]}
+        for key, value in VENDOR_DEFINITIONS.items()
+    }
+    extra_definitions: dict[str, dict[str, Any]] = {}
+    for key, value in CRM_EXTRA_VENDORS.items():
+        vs_entry = vs_map.get(key) if isinstance(vs_map.get(key), dict) else {}
+        hex_c, web_c = _normalize_color_pair(vs_entry.get("color") or value["web_color"], value["hex_color"])
+        extra_definitions[key] = {
+            **value,
+            "name": vs_entry.get("name") or value["name"],
+            "category_label": vs_entry.get("category") or value["category_label"],
+            "hex_color": hex_c,
+            "web_color": web_c,
+        }
+    for key, vs_entry in vs_map.items():
+        if key in definitions or key in extra_definitions or not isinstance(vs_entry, dict):
+            continue
+        hex_c, web_c = _normalize_color_pair(vs_entry.get("color"))
+        extra_definitions[key.lower()] = {
+            "id": key,
+            "name": vs_entry.get("name") or key,
+            "category_label": vs_entry.get("category") or vs_entry.get("name") or key,
+            "hex_color": hex_c,
+            "web_color": web_c,
+            "keywords": [],
+        }
+
     override = str(custom_vendor or tender.get("assigned_vendor") or "").strip().lower()
     if override:
+        if override in ("none", "unassigned", "default", "general", "etspl", "small"):
+            return {"id": None, "name": None, "category_label": "General", "hex_color": None, "web_color": None}
+        # If a custom/CRM vendor key has its own dedicated spreadsheet configured, prefer it directly
+        if override in extra_definitions:
+            direct_vs = vs_map.get(override) or {}
+            if override not in CRM_VENDOR_ALIASES or direct_vs.get("spreadsheet_id") or direct_vs.get("spreadsheet_url"):
+                return extra_definitions[override]
+        mapped_alias = CRM_VENDOR_ALIASES.get(override)
+        if mapped_alias and mapped_alias in definitions:
+            return definitions[mapped_alias]
         for vid, vinfo in definitions.items():
             if override in (vid, vinfo["name"].lower(), vinfo["category_label"].lower()) or vid in override:
                 return vinfo
-        if override in ("none", "unassigned", "default", "general"):
-            return {"id": None, "name": None, "category_label": "General", "hex_color": None, "web_color": None}
+        for vid, vinfo in extra_definitions.items():
+            if override in (vid, str(vinfo["name"]).lower(), str(vinfo["category_label"]).lower()):
+                return vinfo
 
     analysis = tender.get("analysis") or {}
     bl = analysis.get("business_line") or {}
@@ -657,11 +725,16 @@ class MasterSheetManager:
         self,
         record: dict[str, Any],
         target_sheet: str = "MASTER",
-        secondary_sheet: str | None = None
+        secondary_sheet: str | None = None,
+        extra_vendor_sheets: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """Builds a comprehensive payload for Google Apps Script with both flat fields and nested tender."""
         rfp = record.get("rfp_link") or record.get("drive_link") or record.get("pdf_url") or ""
-        vendor_sheets = self.config.get("vendor_sheets") or {}
+        vendor_sheets = dict(self.config.get("vendor_sheets") or {})
+        if isinstance(extra_vendor_sheets, dict):
+            for k, v in extra_vendor_sheets.items():
+                if isinstance(v, dict):
+                    vendor_sheets[k] = {**(vendor_sheets.get(k) or {}), **v}
         return {
             "action": "append_tender",
             "target_sheet": target_sheet,
@@ -695,6 +768,61 @@ class MasterSheetManager:
             "vendor_sheets": vendor_sheets,
             "tender": record
         }
+
+    def _resolve_tech_spec_on_finalize(
+        self,
+        bid_no: str,
+        tender: dict[str, Any],
+        custom_fields: dict[str, Any],
+        vendor_id: str | None,
+    ) -> tuple[str, str]:
+        """Persist and optionally upload tech spec bytes/file provided during finalize_tender."""
+        explicit_url = str(custom_fields.get("tech_spec_url") or "").strip()
+        spec_filename = str(custom_fields.get("tech_spec_filename") or tender.get("tech_spec_filename") or "").strip()
+        spec_bytes = custom_fields.get("tech_spec_file_bytes") or tender.get("tech_spec_file_bytes")
+        spec_local = custom_fields.get("tech_spec_local_path") or tender.get("tech_spec_local_path")
+
+        if spec_bytes is None and spec_local:
+            abs_spec = spec_local if os.path.isabs(str(spec_local)) else os.path.join(paths.ROOT, str(spec_local))
+            if os.path.isfile(abs_spec):
+                try:
+                    with open(abs_spec, "rb") as fh:
+                        spec_bytes = fh.read()
+                    if not spec_filename:
+                        spec_filename = os.path.basename(abs_spec)
+                except OSError as exc:
+                    logger.warning("Could not read tech_spec_local_path %s: %s", abs_spec, exc)
+
+        if not isinstance(spec_bytes, (bytes, bytearray)) or not spec_bytes:
+            return explicit_url, spec_filename
+
+        safe_slug = re.sub(r"[^a-zA-Z0-9_-]", "_", bid_no)
+        spec_dir = os.path.join(paths.TECH_SPECS_DIR, safe_slug)
+        os.makedirs(spec_dir, exist_ok=True)
+        clean_name = os.path.basename(spec_filename or f"tech_spec_{safe_slug}.pdf")
+        local_dest = os.path.join(spec_dir, clean_name)
+        try:
+            with open(local_dest, "wb") as fh:
+                fh.write(spec_bytes)
+        except OSError as exc:
+            logger.warning("Could not save local tech spec copy %s: %s", local_dest, exc)
+
+        resolved_url = explicit_url
+        if not resolved_url and (self.config.get("apps_script_url") or "").strip():
+            b64 = base64.b64encode(bytes(spec_bytes)).decode("utf-8")
+            drive_res = self._sync_to_google_sheet({
+                "action": "upload_tech_spec_to_drive",
+                "bid_no": bid_no,
+                "filename": clean_name,
+                "base64_data": b64,
+                "vendor_id": vendor_id,
+            })
+            if drive_res.get("status") == "ok" and drive_res.get("drive_link"):
+                resolved_url = str(drive_res["drive_link"])
+
+        if not resolved_url:
+            resolved_url = f"/api/finalized/spec-sheet/{safe_slug}"
+        return resolved_url, clean_name
 
     def finalize_tender(
         self,
@@ -736,7 +864,9 @@ class MasterSheetManager:
             # Exemptions & EMD
             exp_exempt = "YES" if "yes" in str(analysis.get("startup_exemption", "")).lower() else "NO"
             trn_exempt = "YES" if "yes" in str(analysis.get("mse_exemption", "")).lower() else "NO"
-            emd_val = analysis.get("emd_amount") or 0.0
+            emd_val = analysis.get("emd_amount")
+            if emd_val is None:
+                emd_val = tender.get("emd_amount") or 0.0
             if "no emd" in str(analysis.get("emd_status", "")).lower():
                 emd_val = 0.0
 
@@ -749,9 +879,34 @@ class MasterSheetManager:
                 "SUPPLY"
             ).upper()
 
+            # Dynamic CRM vendor sheet enrichment
+            merged_vs = dict(self.config.get("vendor_sheets") or {})
+            extra_vs = custom_fields.get("extra_vendor_sheets")
+            if isinstance(extra_vs, dict):
+                for k, v in extra_vs.items():
+                    if isinstance(v, dict):
+                        merged_vs[k] = {**(merged_vs.get(k) or {}), **v}
+
             # Vendor Detection & Assignment
             vendor_override = custom_fields.get("assigned_vendor")
-            vendor_info = detect_vendor(tender, vendor_override, self.config.get("vendor_sheets"))
+            vendor_info = detect_vendor(tender, vendor_override, merged_vs)
+            if custom_fields.get("vendor_color") and vendor_info.get("id"):
+                hc, wc = _normalize_color_pair(custom_fields.get("vendor_color"), vendor_info.get("hex_color") or "E2E8F0")
+                vendor_info = {**vendor_info, "hex_color": hc, "web_color": wc}
+
+            spec_url, spec_fname = self._resolve_tech_spec_on_finalize(
+                bid_no=bid_no,
+                tender=tender,
+                custom_fields=custom_fields,
+                vendor_id=vendor_info.get("id"),
+            )
+            final_spec_url = spec_url or (existing.get("tech_spec_url", "") if existing else "")
+            final_spec_fname = spec_fname or (existing.get("tech_spec_filename", "") if existing else "")
+            final_spec_ts = (
+                now.isoformat()
+                if spec_url
+                else (existing.get("tech_spec_updated_at", "") if existing else "")
+            )
 
             record = {
                 "sl_no": sl_no,
@@ -760,8 +915,8 @@ class MasterSheetManager:
                 "work_category": work_cat,
                 "download_date": now.strftime("%Y-%m-%d"),
                 "month": now.strftime("%B").upper(),
-                "organisation": analysis.get("buyer_org") or tender.get("department") or "N/A",
-                "location": analysis.get("consignee_state") or "N/A",
+                "organisation": analysis.get("buyer_org") or tender.get("organisation") or tender.get("department") or "N/A",
+                "location": analysis.get("consignee_state") or tender.get("location") or "N/A",
                 "title": tender.get("title") or analysis.get("primary_item") or "N/A",
                 "end_date": end_date,
                 "end_time": end_time,
@@ -780,9 +935,9 @@ class MasterSheetManager:
                 "vendor_color": vendor_info.get("hex_color"),
                 "vendor_web_color": vendor_info.get("web_color"),
                 "vendor_category": vendor_info.get("category_label"),
-                "tech_spec_url": custom_fields.get("tech_spec_url") or (existing.get("tech_spec_url", "") if existing else ""),
-                "tech_spec_filename": custom_fields.get("tech_spec_filename") or (existing.get("tech_spec_filename", "") if existing else ""),
-                "tech_spec_updated_at": existing.get("tech_spec_updated_at", "") if existing else (now.isoformat() if custom_fields.get("tech_spec_url") else "")
+                "tech_spec_url": final_spec_url,
+                "tech_spec_filename": final_spec_fname,
+                "tech_spec_updated_at": final_spec_ts
             }
 
             # Update records
@@ -801,7 +956,8 @@ class MasterSheetManager:
             gsheet_payload = self._build_gsheet_payload(
                 record=record,
                 target_sheet="MASTER",
-                secondary_sheet=target_sheet if target_sheet != "MASTER" else None
+                secondary_sheet=target_sheet if target_sheet != "MASTER" else None,
+                extra_vendor_sheets=extra_vs if isinstance(extra_vs, dict) else None,
             )
             gsheet_res = self._sync_to_google_sheet(gsheet_payload)
 

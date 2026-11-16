@@ -3,7 +3,7 @@
 import logging
 import os
 
-from flask import Blueprint, jsonify, request, send_from_directory
+from flask import Blueprint, g, jsonify, request, send_from_directory
 
 import logging_setup
 import paths
@@ -220,6 +220,13 @@ def manage_sources():
         return fail(e)
 
 
+def _is_within_dir(root_dir: str, candidate: str) -> bool:
+    try:
+        return os.path.commonpath([root_dir, candidate]) == root_dir
+    except ValueError:
+        return False
+
+
 @settings_bp.route("/tenders/<path:filename>")
 def serve_pdf(filename):
     # Serve PDF files from the tenders root so per-workspace subfolders
@@ -228,4 +235,34 @@ def serve_pdf(filename):
     safe_path = filename.replace("\\", "/")
     if not safe_path.lower().endswith(".pdf"):
         return jsonify({"error": "Not found"}), 404
+    if safe_path.startswith("/"):
+        return jsonify({"error": "Forbidden"}), 403
+
+    base_dir = os.path.realpath(paths.TENDERS_DIR)
+    candidate = os.path.realpath(os.path.join(base_dir, safe_path))
+    if not _is_within_dir(base_dir, candidate):
+        return jsonify({"error": "Forbidden"}), 403
+
+    user = getattr(g, "current_user", None)
+    if not user:
+        return jsonify({"error": "Forbidden"}), 403
+    if user.get("role") != "admin":
+        disk_folder = (user.get("disk_folder") or "").strip()
+        if not disk_folder and user.get("company_id"):
+            from gemsentry.crm import crm_service
+            company = crm_service.repo.get_company(user["company_id"])
+            disk_folder = (company.get("disk_folder") or "").strip() if company else ""
+        if not disk_folder:
+            return jsonify({"error": "Forbidden"}), 403
+
+        company_dir = os.path.realpath(os.path.join(base_dir, disk_folder))
+        if not _is_within_dir(company_dir, candidate):
+            return jsonify({"error": "Forbidden"}), 403
+
+        subfolder_scope = (user.get("subfolder_scope") or "").strip()
+        if subfolder_scope:
+            scope_dir = os.path.realpath(os.path.join(company_dir, subfolder_scope))
+            if not _is_within_dir(scope_dir, candidate):
+                return jsonify({"error": "Forbidden"}), 403
+
     return send_from_directory(paths.TENDERS_DIR, safe_path)

@@ -83,32 +83,43 @@ def setup_logging(level: int = logging.INFO) -> logging.Logger:
     )
     logger.addHandler(console)
 
-    # Rotating file: keep more detail (DEBUG)
-    file_handler = RotatingFileHandler(
-        paths.APP_LOG_PATH,
-        maxBytes=2 * 1024 * 1024,
-        backupCount=5,
-        encoding="utf-8",
-    )
-    file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(
-        logging.Formatter(
-            "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
-    )
-    logger.addHandler(file_handler)
-
     # Bounded in-memory buffer for /api/status live feed
     buffer_handler = BufferHandler(log_buffer, level=level)
     logger.addHandler(buffer_handler)
+
+    # Rotating file: keep more detail (DEBUG). On Windows another process may
+    # hold gemsentry.log open; fall back cleanly to console + memory buffer.
+    file_log_error: OSError | None = None
+    try:
+        file_handler = RotatingFileHandler(
+            paths.APP_LOG_PATH,
+            maxBytes=2 * 1024 * 1024,
+            backupCount=5,
+            encoding="utf-8",
+        )
+        file_handler.setLevel(logging.DEBUG)
+        file_handler.setFormatter(
+            logging.Formatter(
+                "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S",
+            )
+        )
+        logger.addHandler(file_handler)
+    except OSError as exc:
+        file_log_error = exc
 
     # Quiet noisy third-party loggers
     for noisy in ("playwright", "urllib3", "asyncio", "werkzeug"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
 
     _CONFIGURED = True
-    logger.debug("Logging configured; app log at %s", paths.APP_LOG_PATH)
+    if file_log_error is not None:
+        logger.warning(
+            "File logging unavailable (%s); continuing with console and memory log buffer.",
+            file_log_error,
+        )
+    else:
+        logger.debug("Logging configured; app log at %s", paths.APP_LOG_PATH)
     return logger
 
 

@@ -651,12 +651,29 @@
             themeIcon.innerHTML = isDark ? SUN_ICON : MOON_ICON;
         }
 
-        // Fetch data from local Flask API on load
-        window.addEventListener('DOMContentLoaded', () => {
-            updateThemeButton(document.body.classList.contains('dark-mode'));
-            initSearchInput();
-            runSplash();
-            checkAuthRequirement();
+        let appInitializedAfterAuth = false;
+
+        async function initializeAuthenticatedApp(forceReload = false) {
+            if (window.__gemsentryAuthLocked) return;
+            if (appInitializedAfterAuth && !forceReload) return;
+            appInitializedAfterAuth = true;
+
+            if (window.CRMState && typeof window.CRMState.loadBootstrap === 'function') {
+                await window.CRMState.loadBootstrap();
+            }
+
+            const isAdmin = !window.CRMState || window.CRMState.isAdmin();
+            if (!isAdmin) {
+                if (window.CRMState && typeof window.CRMState.switchMode === 'function') {
+                    window.CRMState.switchMode('folders');
+                }
+                return;
+            }
+
+            if (window.CRMState && typeof window.CRMState.switchMode === 'function') {
+                window.CRMState.switchMode('inbox');
+            }
+
             loadScoringConfig();
             loadCompanyProfile();
             refreshData();
@@ -666,6 +683,18 @@
             fetchLiveExcelStatus();
             startLiveExcelTicker();
             loadFinalizedData();
+        }
+        window.initializeAuthenticatedApp = initializeAuthenticatedApp;
+
+        // Fetch data from local Flask API on load ONLY after auth verification succeeds
+        window.addEventListener('DOMContentLoaded', async () => {
+            updateThemeButton(document.body.classList.contains('dark-mode'));
+            initSearchInput();
+            runSplash();
+            const isAuthed = await checkAuthRequirement();
+            if (isAuthed && !window.__gemsentryAuthLocked) {
+                await initializeAuthenticatedApp(true);
+            }
         });
 
         // Every keystroke used to re-filter and re-render the whole list.
@@ -1213,6 +1242,8 @@
         }
 
         async function checkScraperStatus() {
+            if (window.__gemsentryAuthLocked) return;
+            if (window.CRMState && !window.CRMState.isAdmin()) return;
             try {
                 const response = await fetch('/api/status');
                 const data = await response.json();
@@ -1576,6 +1607,8 @@
         }
 
         async function fetchLiveExcelStatus() {
+            if (window.__gemsentryAuthLocked) return;
+            if (window.CRMState && !window.CRMState.isAdmin()) return;
             try {
                 const res = await fetch('/api/live-excel');
                 if (!res.ok) return;
@@ -2709,6 +2742,13 @@
             document.getElementById('visible-count').innerText = items.length;
             document.getElementById('total-count').innerText = tenders.length;
 
+            renderedGroups = buildGroups(items, currentGroupBy);
+
+            if (window.CRMInboxView && typeof window.CRMInboxView.renderInboxSplitPane === 'function') {
+                window.CRMInboxView.renderInboxSplitPane(items, renderedGroups, currentGroupBy);
+                return;
+            }
+
             if (items.length === 0) {
                 renderedGroups = [];
                 listContainer.innerHTML = `
@@ -2720,8 +2760,6 @@
                 `;
                 return;
             }
-
-            renderedGroups = buildGroups(items, currentGroupBy);
 
             if (currentGroupBy === 'none') {
                 const group = renderedGroups[0];
