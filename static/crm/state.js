@@ -44,7 +44,9 @@
             previewData: null,
             targetCompanyId: 'etspl',
             targetSubfolderId: '',
-            autoFetchAndSync: true
+            autoFetchAndSync: true,
+            openPanel: null, // 'folder' | 'response' | 'details' | null — collapsed by default so the PDF keeps the space
+            focusMode: false
         },
         admin: {
             users: [],

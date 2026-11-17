@@ -212,25 +212,37 @@
             const embedded = this.getEmbeddedAnnexures();
             const assignments = this.getAssignments();
 
-            // 1. Header + Sticky Action Bar
-            const headerEl = this.buildHeaderAndActionBar(baseTender, assignments, isAdmin, isVendor);
-            container.appendChild(headerEl);
+            const layout = window.CRMInspectorLayout;
+            layout.applyFocus(container);
 
-            // 2. Vendor / Member Participation Response Box (shown in folders mode, for any non-admin user, or when assigned to a CRM folder)
+            // 1. Compact header (bid, pills, title, triage)
+            container.appendChild(this.buildHeaderAndActionBar(baseTender, assignments, isAdmin, isVendor));
+
+            // 2. Collapsible panels — collapsed by default so the document keeps the space
+            const panels = [];
+            const folderBar = this.buildFolderActionBar(isAdmin);
+            if (folderBar) {
+                panels.push({ id: 'folder', label: '📁 Folder & Sync', node: folderBar });
+            }
+            // Participation response: folders mode, any non-admin user, or when assigned to a CRM folder
             if (ctx.mode === 'folders' || !isAdmin || ctx.crmTender) {
                 const responseBox = this.buildParticipationBox(baseTender, isAdmin, isVendor);
-                if (responseBox) container.appendChild(responseBox);
+                if (responseBox) {
+                    const decision = String(baseTender.vendor_decision || 'PENDING').toUpperCase();
+                    panels.push({ id: 'response', label: '📋 Response', badge: decision, node: responseBox });
+                }
             }
+            const meta = this.buildMetadataStrip(baseTender, isAdmin, isVendor);
+            panels.push({ id: 'details', label: '📊 Details & Score', badge: meta.badge, node: meta.node });
 
-            // 3. Collapsible Metadata & Score Strip
-            const metaStrip = this.buildMetadataStrip(baseTender, isAdmin, isVendor);
-            container.appendChild(metaStrip);
+            const deck = layout.buildPanelDeck(panels);
+            container.appendChild(deck.bar);
+            container.appendChild(deck.body);
 
-            // 4. Document Tabs Bar
-            const docTabsBar = this.buildDocumentTabsBar(baseTender, crmFiles, embedded, isAdmin);
-            container.appendChild(docTabsBar);
+            // 3. Document Tabs Bar
+            container.appendChild(this.buildDocumentTabsBar(baseTender, crmFiles, embedded, isAdmin));
 
-            // 5. Inline Viewer Container (iframe PDF or CSV table)
+            // 4. Inline Viewer Container (iframe PDF or CSV table) — fills the remaining height
             const viewerArea = el('div', { className: 'crm-viewer-container', id: 'crmInlineViewerArea' });
             container.appendChild(viewerArea);
             this.renderActiveDocument(viewerArea, baseTender, crmFiles, embedded);
@@ -238,7 +250,6 @@
 
         buildHeaderAndActionBar(baseTender, assignments, isAdmin, isVendor) {
             const ctx = this.context;
-            const state = window.CRMState;
             const bidNo = ctx.bidNo || baseTender.bid_no || 'Confidential Bid';
             const statusText = baseTender.status || 'Pending Review';
 
@@ -292,14 +303,18 @@
             const topRow = el('div', { className: 'crm-inspector-title-row' }, [
                 el('div', { style: { display: 'flex', flexDirection: 'column', gap: '0.3rem', flex: '1' } }, [
                     el('div', { style: { display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' } }, badgeNodes),
-                    el('div', { className: 'crm-inspector-title', text: baseTender.title || 'Untitled Tender' })
+                    el('div', { className: 'crm-inspector-title', title: baseTender.title || '', text: baseTender.title || 'Untitled Tender' })
                 ]),
                 triageGroup
             ]);
 
-            const children = [topRow];
+            return el('div', { className: 'crm-inspector-header' }, [topRow]);
+        },
 
-            // Sticky Folder Move & Sync Bar (Admin only)
+        buildFolderActionBar(isAdmin) {
+            const ctx = this.context;
+            const state = window.CRMState;
+            // Folder Move & Sync Bar (Admin only)
             if (isAdmin && state.companies.length > 0) {
                 const companySelect = el('select', {
                     className: 'crm-select-sm',
@@ -403,7 +418,7 @@
                     })
                     : null;
 
-                const actionBar = el('div', { className: 'crm-inspector-actionbar' }, [
+                return el('div', { className: 'crm-inspector-actionbar' }, [
                     companySelect,
                     subfolderSelect,
                     newSfBtn,
@@ -411,10 +426,8 @@
                     moveBtn,
                     removeBtn
                 ]);
-                children.push(actionBar);
             }
-
-            return el('div', { className: 'crm-inspector-header' }, children);
+            return null;
         },
 
         buildParticipationBox(baseTender, isAdmin, isVendor) {
@@ -538,15 +551,14 @@
             });
 
             return el('div', { className: 'crm-vendor-response-box' }, [
-                el('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.4rem' } }, [
-                    el('span', { style: { fontSize: '0.76rem', fontWeight: '700', textTransform: 'uppercase', color: 'var(--primary-accent)' }, text: '📋 Participation Response & Remarks' }),
-                    stageSelect
-                ]),
                 el('div', { className: 'crm-decision-btns' }, [
                     btnPending,
                     btnYes,
                     btnNo,
                     btnClarify,
+                    stageSelect
+                ]),
+                el('div', { className: 'crm-decision-btns' }, [
                     remarksInput,
                     saveBtn
                 ])
@@ -600,17 +612,10 @@
                 ]));
             }
 
-            const summaryRightText = (!isRedactedVendor && analysis.recommendation)
-                ? `Recommendation: ${analysis.recommendation} ▾`
-                : 'Click to toggle details ▾';
-
-            return el('details', { className: 'crm-inspector-meta' }, [
-                el('summary', {}, [
-                    el('span', { text: '📊 Tender Metadata, Exemptions & Score Breakdown' }),
-                    el('span', { style: { color: 'var(--primary-accent)' }, text: summaryRightText })
-                ]),
-                el('div', { className: 'crm-meta-grid' }, cells)
-            ]);
+            return {
+                badge: (!isRedactedVendor && analysis.recommendation) ? String(analysis.recommendation) : '',
+                node: el('div', { className: 'crm-meta-grid' }, cells)
+            };
         },
 
         buildDocumentTabsBar(baseTender, crmFiles, embedded, isAdmin) {
@@ -674,9 +679,8 @@
                 const fetchDocsBtn = el('button', {
                     type: 'button',
                     className: 'btn-crm-toolbar',
-                    style: { padding: '0.32rem 0.65rem', fontSize: '0.75rem' },
                     title: 'Extract and download all embedded GeM Tech Specs, BOQs, and ATC documents into this dossier',
-                    text: '⬇️ Fetch All GeM Docs',
+                    text: '⬇️ Fetch GeM Docs',
                     onClick: () => this.handleFetchAllGemDocs(fetchDocsBtn)
                 });
 
@@ -694,7 +698,6 @@
 
                 const kindSelect = el('select', {
                     className: 'crm-select-sm',
-                    style: { padding: '0.28rem 0.45rem', fontSize: '0.73rem' },
                     title: 'Select document type for upload'
                 }, [
                     el('option', { value: 'tech_spec', text: '📑 Tech Spec' }),
@@ -705,9 +708,9 @@
 
                 const uploadBtn = el('button', {
                     type: 'button',
-                    className: 'btn-crm-toolbar',
-                    style: { padding: '0.32rem 0.65rem', fontSize: '0.75rem', borderColor: 'var(--accent-border)', color: 'var(--primary-accent)' },
-                    text: '➕ Upload Spec/File',
+                    className: 'btn-crm-toolbar is-accent',
+                    title: 'Upload a Tech Spec, BOQ, ATC or annexure into this dossier',
+                    text: '➕ Upload',
                     onClick: () => fileInput.click()
                 });
 
@@ -728,6 +731,7 @@
         async renderActiveDocument(viewerArea, baseTender, crmFiles, embedded) {
             clear(viewerArea);
             const ctx = this.context;
+            const layout = window.CRMInspectorLayout;
             const active = (ctx && ctx.activeTab) || { type: 'rfp', id: 'main_rfp' };
 
             if (active.type === 'crm_file' && active.file) {
@@ -736,12 +740,10 @@
                 const inlineUrl = `/api/crm/files/${encodeURIComponent(f.id)}?inline=1`;
                 const downloadUrl = `/api/crm/files/${encodeURIComponent(f.id)}`;
 
-                viewerArea.appendChild(el('div', { className: 'crm-viewer-toolbar' }, [
-                    el('span', { style: { fontWeight: '600' }, text: `📎 ${f.filename || 'Document'} (${f.file_kind || 'file'})` }),
-                    el('div', { style: { display: 'flex', gap: '0.6rem', alignItems: 'center' } }, [
-                        el('a', { href: inlineUrl, target: '_blank', rel: 'noopener noreferrer', style: { color: 'var(--primary-accent)', fontWeight: '600', textDecoration: 'none' }, text: '↗ Pop Out' }),
-                        el('a', { href: downloadUrl, download: f.filename || 'document', style: { color: 'var(--secondary-accent)', fontWeight: '600', textDecoration: 'none' }, text: '⬇️ Download' })
-                    ])
+                viewerArea.appendChild(layout.buildViewerToolbar(`📎 ${f.filename || 'Document'} (${f.file_kind || 'file'})`, [
+                    layout.viewerLink(inlineUrl, '↗ Pop Out'),
+                    layout.viewerLink(downloadUrl, '⬇️ Download', { download: f.filename || 'document' }),
+                    ...layout.buildViewerControls(this.activeContainer, viewerArea)
                 ]));
 
                 if (fname.endsWith('.csv')) {
@@ -775,7 +777,7 @@
                 if (fname.endsWith('.pdf')) {
                     viewerArea.appendChild(el('iframe', {
                         className: 'crm-pdf-frame',
-                        src: inlineUrl,
+                        src: layout.withFitWidth(inlineUrl),
                         title: f.filename || 'PDF Document'
                     }));
                     return;
@@ -819,16 +821,14 @@
             // Default: Main RFP PDF
             const pdfUrl = resolveMainPdfUrl(ctx.tender, ctx.crmTender, crmFiles, ctx.previewData);
             if (pdfUrl) {
-                viewerArea.appendChild(el('div', { className: 'crm-viewer-toolbar' }, [
-                    el('span', { style: { fontWeight: '600' }, text: `📄 Main RFP Document (${ctx.bidNo || 'PDF'})` }),
-                    el('div', { style: { display: 'flex', gap: '0.65rem', alignItems: 'center' } }, [
-                        el('a', { href: pdfUrl, target: '_blank', rel: 'noopener noreferrer', style: { color: 'var(--primary-accent)', fontWeight: '600', textDecoration: 'none' }, text: '↗ Open Full PDF' }),
-                        baseTender.pdf_url ? el('a', { href: baseTender.pdf_url, target: '_blank', rel: 'noopener noreferrer', style: { color: 'var(--text-secondary)', textDecoration: 'none' }, text: '🌐 Original Portal Link' }) : null
-                    ])
+                viewerArea.appendChild(layout.buildViewerToolbar(`📄 Main RFP · ${ctx.bidNo || 'PDF'}`, [
+                    layout.viewerLink(pdfUrl, '↗ Open in Tab'),
+                    baseTender.pdf_url ? layout.viewerLink(baseTender.pdf_url, '🌐 Portal', { muted: true }) : null,
+                    ...layout.buildViewerControls(this.activeContainer, viewerArea)
                 ]));
                 viewerArea.appendChild(el('iframe', {
                     className: 'crm-pdf-frame',
-                    src: pdfUrl,
+                    src: layout.withFitWidth(pdfUrl),
                     title: `RFP PDF ${ctx.bidNo || ''}`
                 }));
             } else {
