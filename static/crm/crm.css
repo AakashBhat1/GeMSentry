@@ -223,10 +223,10 @@
     display: none;
 }
 
-/* --- Discovery Inbox 2-Pane Split Layout --- */
+/* --- Discovery Inbox Full-Width List --- */
 .crm-inbox-split {
     display: grid;
-    grid-template-columns: minmax(380px, 42%) minmax(480px, 1fr);
+    grid-template-columns: 1fr;
     gap: 1rem;
     width: 100%;
     height: calc(100vh - 210px);
@@ -384,7 +384,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 240px;
+    max-width: 520px;
 }
 
 .crm-pill {
@@ -429,18 +429,475 @@
     border-color: var(--success-border);
 }
 
-/* --- Right Pane: Inline Inspector --- */
-.crm-inspector-pane {
+/* --- Full-screen Tender Page (details left, document right) --- */
+body.crm-page-open {
+    overflow: hidden;
+}
+
+.crm-tender-page {
+    position: fixed;
+    inset: 0;
+    z-index: 10050;
     display: flex;
     flex-direction: column;
+    background-color: var(--bg-color);
+}
+
+.crm-tender-page[hidden] {
+    display: none;
+}
+
+.crm-page-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.5rem 1rem;
+    background-color: var(--card-bg);
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    flex-shrink: 0;
+}
+
+.crm-page-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.42rem 0.85rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background-color: var(--surface-sunken);
+    color: var(--text-primary);
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.crm-page-back:hover,
+.crm-page-nav:hover:not(:disabled) {
+    border-color: var(--primary-accent);
+    color: var(--primary-accent);
+}
+
+.crm-page-navgroup {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.crm-page-nav {
+    padding: 0.38rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background-color: var(--card-bg);
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.crm-page-nav:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.crm-page-counter {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+    min-width: 5.5rem;
+    text-align: center;
+}
+
+.crm-page-hint {
+    margin-left: auto;
+    font-size: 0.74rem;
+    color: var(--text-muted);
+}
+
+.crm-page-body {
+    flex: 1;
+    min-height: 0;
+    padding: 0.85rem 1rem 1rem;
+}
+
+.crm-tp-layout {
+    display: grid;
+    grid-template-columns: minmax(340px, 30%) 1fr;
+    gap: 0.85rem;
+    height: 100%;
+}
+
+.crm-tp-layout.is-focus {
+    grid-template-columns: 1fr;
+}
+
+.crm-tp-layout.is-focus .crm-tp-side {
+    display: none;
+}
+
+/* Left: details column */
+.crm-tp-side {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 0.15rem;
+    scrollbar-width: thin;
+}
+
+.crm-tp-head,
+.crm-tp-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.crm-tp-head {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.crm-tp-pills {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+}
+
+.crm-tp-rec-pill {
+    padding: 0.12rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    border: 1px solid var(--neutral-border);
+    background-color: var(--neutral-bg);
+    color: var(--neutral-color);
+}
+
+.crm-tp-rec-pill.is-pursue,
+.crm-tp-verdict.is-pursue {
+    background-color: var(--success-bg);
+    border-color: var(--success-border);
+    color: var(--success-color);
+}
+
+.crm-tp-rec-pill.is-review,
+.crm-tp-verdict.is-review {
+    background-color: var(--warning-bg);
+    border-color: var(--warning-border);
+    color: var(--warning-color);
+}
+
+.crm-tp-rec-pill.is-drop,
+.crm-tp-verdict.is-drop {
+    background-color: var(--failed-bg);
+    border-color: var(--failed-border);
+    color: var(--failed-color);
+}
+
+.crm-tp-title {
+    font-size: 1.02rem;
+    font-weight: 700;
+    line-height: 1.35;
+    color: var(--text-primary);
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.crm-tp-buyer {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.crm-tp-seg {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.35rem;
+    margin-top: 0.15rem;
+}
+
+.crm-tp-seg-btn {
+    padding: 0.38rem 0.5rem;
+    border-radius: 7px;
+    border: 1px solid var(--border-color);
+    background-color: var(--surface-sunken);
+    color: var(--text-secondary);
+    font-size: 0.76rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.crm-tp-seg-btn:hover {
+    color: var(--text-primary);
+    border-color: var(--border-strong);
+}
+
+.crm-tp-seg-btn.active-short {
+    background-color: var(--success-bg);
+    border-color: var(--success-border);
+    color: var(--success-color);
+}
+
+.crm-tp-seg-btn.active-pending {
+    background-color: var(--warning-bg);
+    border-color: var(--warning-border);
+    color: var(--warning-color);
+}
+
+.crm-tp-seg-btn.active-rejected {
+    background-color: var(--failed-bg);
+    border-color: var(--failed-border);
+    color: var(--failed-color);
+}
+
+.crm-tp-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.crm-tp-card-title {
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.crm-tp-verdict {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.6rem 0.8rem;
+    border-radius: 10px;
+    border: 1px solid var(--neutral-border);
+    background-color: var(--neutral-bg);
+    color: var(--neutral-color);
+}
+
+.crm-tp-verdict-label {
+    font-size: 0.74rem;
+    font-weight: 700;
+    opacity: 0.85;
+}
+
+.crm-tp-verdict-val {
+    font-size: 1.25rem;
+    font-weight: 800;
+}
+
+.crm-tp-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.45rem;
+}
+
+.crm-tp-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.45rem 0.3rem;
+    border-radius: 9px;
+    background-color: var(--surface-sunken);
+    border: 1px solid var(--border-color);
+}
+
+.crm-tp-stat-val {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+}
+
+.crm-tp-stat-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+}
+
+.crm-tp-elig {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.3rem;
+}
+
+.crm-tp-elig-detail,
+.crm-tp-muted {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.crm-tp-flags,
+.crm-tp-reasons {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    margin: 0;
+    padding: 0;
+    font-size: 0.8rem;
+    line-height: 1.4;
+}
+
+.crm-tp-flags li {
+    color: var(--warning-color);
+    font-weight: 600;
+}
+
+.crm-tp-reasons li {
+    position: relative;
+    padding-left: 0.95rem;
+    color: var(--text-primary);
+}
+
+.crm-tp-reasons li::before {
+    content: "";
+    position: absolute;
+    left: 0.15rem;
+    top: 0.5em;
+    width: 5px;
+    height: 5px;
+    border-radius: 999px;
+    background-color: var(--primary-accent);
+}
+
+.crm-tp-facts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem 0.85rem;
+    margin: 0;
+}
+
+.crm-tp-fact {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.crm-tp-fact.is-wide {
+    grid-column: 1 / -1;
+}
+
+.crm-tp-fact dt {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+}
+
+.crm-tp-fact dd {
+    margin: 0;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    word-break: break-word;
+}
+
+.crm-tp-fact dd a {
+    color: var(--primary-accent);
+}
+
+.crm-tp-breakdown summary {
+    cursor: pointer;
+    user-select: none;
+}
+
+.crm-tp-breakdown ul {
+    list-style: none;
+    margin: 0.35rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.crm-tp-bd-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.crm-tp-bd-pts {
+    color: var(--primary-accent);
+    font-variant-numeric: tabular-nums;
+}
+
+.crm-tp-bd-detail {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    line-height: 1.35;
+}
+
+.crm-tp-row {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+}
+
+.crm-tp-remarks {
+    width: 100%;
+    resize: vertical;
+    min-height: 3.2rem;
+    padding: 0.5rem 0.65rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    background-color: var(--input-bg);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 0.8rem;
+}
+
+.crm-tp-save {
+    margin-left: auto;
+    padding: 0.42rem 0.9rem;
+    font-size: 0.8rem;
+}
+
+.crm-tp-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.76rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.crm-tp-danger {
+    color: var(--failed-color);
+    border-color: var(--failed-border);
+}
+
+/* Right: document column */
+.crm-tp-doc {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
     background-color: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 12px;
     overflow: hidden;
     box-shadow: var(--shadow-sm);
-    height: 100%;
-    min-height: 0;
-    min-width: 0;
 }
 
 .crm-inspector-empty {
@@ -455,128 +912,7 @@
     gap: 0.5rem;
 }
 
-.crm-inspector-header {
-    padding: 0.6rem 0.9rem 0.5rem;
-    background-color: var(--card-bg);
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-    flex-shrink: 0;
-}
-
-.crm-inspector-title-row {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 0.75rem;
-}
-
-.crm-inspector-title {
-    font-size: 0.92rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    line-height: 1.3;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-/* --- Collapsible Panel Deck (Folder & Sync / Response / Details) --- */
-.crm-panel-bar {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0 0.9rem 0.55rem;
-    background-color: var(--card-bg);
-    border-bottom: 1px solid var(--border-color);
-    flex-shrink: 0;
-    overflow-x: auto;
-    scrollbar-width: thin;
-}
-
-.crm-panel-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.28rem 0.6rem;
-    border-radius: 999px;
-    border: 1px solid var(--border-color);
-    background-color: var(--surface-sunken);
-    color: var(--text-secondary);
-    font-size: 0.74rem;
-    font-weight: 600;
-    white-space: nowrap;
-    cursor: pointer;
-    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-}
-
-.crm-panel-chip:hover {
-    color: var(--text-primary);
-    border-color: var(--primary-accent);
-}
-
-.crm-panel-chip.active {
-    background-color: var(--primary-accent-soft);
-    color: var(--primary-accent);
-    border-color: var(--accent-border);
-}
-
-.crm-panel-chip-badge {
-    font-size: 0.66rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    padding: 0.02rem 0.4rem;
-    border-radius: 999px;
-    background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
-    color: var(--text-primary);
-}
-
-.crm-panel-chip-caret {
-    font-size: 0.7rem;
-    transition: transform 0.15s ease;
-}
-
-.crm-panel-chip.active .crm-panel-chip-caret {
-    transform: rotate(180deg);
-}
-
-.crm-panel-body {
-    flex-shrink: 0;
-    max-height: 42%;
-    overflow-y: auto;
-    padding: 0.65rem 0.9rem;
-    background-color: var(--surface-sunken);
-    border-bottom: 1px solid var(--border-color);
-}
-
-.crm-panel-body[hidden],
-.crm-panel-section[hidden] {
-    display: none;
-}
-
-.crm-inspector-actionbar {
-    display: flex;
-    align-items: center;
-    gap: 0.45rem;
-    flex-wrap: wrap;
-}
-
-/* --- Focus mode: hide all chrome so the document gets the full pane --- */
-.crm-inspector-pane.is-focus .crm-inspector-header,
-.crm-inspector-pane.is-focus .crm-panel-bar,
-.crm-inspector-pane.is-focus .crm-panel-body {
-    display: none;
-}
-
-/* --- Vendor Participation Response Box --- */
-.crm-vendor-response-box {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
+/* --- Participation Decision Buttons --- */
 .crm-decision-btns {
     display: flex;
     align-items: center;
@@ -682,33 +1018,6 @@
 .btn-crm-toolbar.is-accent {
     border-color: var(--accent-border);
     color: var(--primary-accent);
-}
-
-/* --- Tender Details / Score Grid (inside the Details panel) --- */
-.crm-meta-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 0.5rem 0.85rem;
-    font-size: 0.76rem;
-}
-
-.crm-meta-cell {
-    display: flex;
-    flex-direction: column;
-    gap: 0.1rem;
-}
-
-.crm-meta-label {
-    font-size: 0.68rem;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    font-weight: 700;
-}
-
-.crm-meta-val {
-    color: var(--text-primary);
-    font-weight: 600;
-    word-break: break-word;
 }
 
 /* --- Inline PDF & CSV Viewer Area --- */
@@ -829,10 +1138,10 @@
     max-width: 100%;
 }
 
-/* --- 3-Column Companies & Folders Explorer --- */
+/* --- 2-Column Companies & Folders Explorer --- */
 .crm-folders-layout {
     display: grid;
-    grid-template-columns: 270px minmax(360px, 34%) 1fr;
+    grid-template-columns: 270px minmax(0, 1fr);
     gap: 1rem;
     height: calc(100vh - 140px);
     min-height: 580px;
@@ -1114,9 +1423,19 @@
         grid-template-columns: 1fr;
         height: auto;
     }
-    .crm-inbox-split .crm-inspector-pane,
-    .crm-folders-layout .crm-inspector-pane {
-        height: 88vh;
+    .crm-tp-layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 85vh;
+        height: auto;
+    }
+    .crm-tp-side {
+        overflow: visible;
+    }
+    .crm-page-body {
+        overflow-y: auto;
+    }
+    .crm-page-hint {
+        display: none;
     }
     .crm-folders-layout {
         grid-template-columns: 1fr;

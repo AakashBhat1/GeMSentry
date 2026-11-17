@@ -1,7 +1,8 @@
 /* ==========================================================================
-   GeMSentry CRM Discovery Inbox 2-Pane Split View
-   Left Pane: High-density tender list + bulk selection + bulk move to folder
-   Right Pane: Shared Inline Inspector (PDF/CSV/Annexures/Move & Sync)
+   GeMSentry CRM Discovery Inbox
+   Full-width tender list + bulk selection + bulk move to folder.
+   Clicking a tender opens the full-screen Tender Page (tender_page.js):
+   details on the left, the RFP PDF full-height on the right.
    Security: Strictly uses crmEl / crmClear / textContent.
    ========================================================================== */
 (function () {
@@ -97,38 +98,21 @@
                 });
             }
 
-            // Ensure split wrapper exists so we don't destroy the right-pane iframe when re-filtering if same bid stays selected
-            let splitWrap = document.getElementById('crmInboxSplitWrap');
+            let listWrap = document.getElementById('crmInboxSplitWrap');
             let leftPane = document.getElementById('crmInboxLeftPane');
-            let rightPane = document.getElementById('crmInboxInspectorPane');
-
-            if (!splitWrap || !leftPane || !rightPane || !listContainer.contains(splitWrap)) {
+            if (!listWrap || !leftPane || !listContainer.contains(listWrap)) {
                 clear(listContainer);
                 leftPane = el('div', { id: 'crmInboxLeftPane', className: 'crm-inbox-left' });
-                rightPane = el('div', { id: 'crmInboxInspectorPane', className: 'crm-inspector-pane' });
-                splitWrap = el('div', { id: 'crmInboxSplitWrap', className: 'crm-inbox-split' }, [
-                    leftPane,
-                    rightPane
-                ]);
-                listContainer.appendChild(splitWrap);
+                listWrap = el('div', { id: 'crmInboxSplitWrap', className: 'crm-inbox-split' }, [leftPane]);
+                listContainer.appendChild(listWrap);
             }
 
             const prevSelected = state.inbox.selectedBidNo;
-            const stillVisible = prevSelected && this.lastItems.some((t) => t.bid_no === prevSelected);
-            if (!stillVisible) {
-                state.inbox.selectedBidNo = this.lastItems[0] ? this.lastItems[0].bid_no : null;
+            if (prevSelected && !this.lastItems.some((t) => t.bid_no === prevSelected)) {
+                state.inbox.selectedBidNo = null;
             }
 
             this.renderLeftPane(leftPane);
-
-            if (!state.inbox.selectedBidNo) {
-                window.CRMInspector.renderEmpty(rightPane, 'No matching tenders for the active filters.');
-            } else if (!stillVisible || !window.CRMInspector.context || window.CRMInspector.context.bidNo !== state.inbox.selectedBidNo) {
-                const selectedTender = this.lastItems.find((t) => t.bid_no === state.inbox.selectedBidNo);
-                if (selectedTender) {
-                    this.openInInspector(selectedTender, rightPane);
-                }
-            }
         },
 
         refreshLeftPaneOnly() {
@@ -406,34 +390,49 @@
             return row;
         },
 
-        selectTenderRow(tender) {
-            if (!tender || !tender.bid_no) return;
-            const state = window.CRMState;
-            state.inbox.selectedBidNo = tender.bid_no;
-
+        /** Highlight a row (keyboard / return from the tender page) without opening it. */
+        highlightRow(bidNo, scrollIntoView) {
+            window.CRMState.inbox.selectedBidNo = bidNo;
             const container = document.getElementById('crmInboxRowsContainer');
-            if (container) {
-                container.querySelectorAll('.crm-tender-row').forEach((node) => {
-                    const match = node.dataset.bidNo === tender.bid_no;
-                    node.classList.toggle('selected', match);
-                });
-            }
-
-            const rightPane = document.getElementById('crmInboxInspectorPane');
-            if (rightPane) {
-                this.openInInspector(tender, rightPane);
+            if (!container) return;
+            let activeRow = null;
+            container.querySelectorAll('.crm-tender-row').forEach((node) => {
+                const match = node.dataset.bidNo === bidNo;
+                node.classList.toggle('selected', match);
+                if (match) activeRow = node;
+            });
+            if (scrollIntoView && activeRow && typeof activeRow.scrollIntoView === 'function') {
+                activeRow.scrollIntoView({ block: 'nearest' });
             }
         },
 
-        openInInspector(tender, rightPane) {
-            window.CRMInspector.inspect(rightPane, {
-                tender: tender,
-                mode: 'inbox',
-                onMoved: () => {
-                    this.refreshLeftPaneOnly();
-                },
-                onUpdated: () => {
-                    this.refreshLeftPaneOnly();
+        selectTenderRow(tender) {
+            if (!tender || !tender.bid_no) return;
+            this.highlightRow(tender.bid_no, false);
+            this.openTenderPage(tender);
+        },
+
+        openTenderPage(tender) {
+            const list = this.lastItems;
+            const index = list.findIndex((t) => t.bid_no === tender.bid_no);
+            window.CRMTenderPage.open({
+                list: index >= 0 ? list : [tender],
+                index: Math.max(index, 0),
+                backLabel: 'Discovered Tenders',
+                toInspectOptions: (item) => ({
+                    tender: item,
+                    mode: 'inbox',
+                    onMoved: () => this.refreshLeftPaneOnly(),
+                    onUpdated: () => this.refreshLeftPaneOnly()
+                }),
+                onClose: (item) => {
+                    if (!item) return;
+                    const pos = this.lastItems.findIndex((t) => t.bid_no === item.bid_no);
+                    if (pos >= this.rowLimit) {
+                        this.rowLimit = Math.ceil((pos + 1) / INBOX_PAGE_SIZE) * INBOX_PAGE_SIZE;
+                        this.refreshLeftPaneOnly();
+                    }
+                    this.highlightRow(item.bid_no, true);
                 }
             });
         },
@@ -476,6 +475,7 @@
 
         handleKeyDown(e) {
             if (window.CRMState.activeMode !== 'inbox') return;
+            if (window.CRMTenderPage && window.CRMTenderPage.isOpen) return;
             const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
             if (tag === 'input' || tag === 'textarea' || tag === 'select' || (e.target && e.target.isContentEditable)) {
                 return;
@@ -483,30 +483,27 @@
             if (document.querySelector('.modal[style*="flex"]') || document.querySelector('.crm-dialog-backdrop')) {
                 return;
             }
-            if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+            if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter') return;
 
             const items = this.lastItems.slice(0, this.rowLimit);
             if (items.length === 0) return;
-            e.preventDefault();
-
             const currentBid = window.CRMState.inbox.selectedBidNo;
             let idx = items.findIndex((t) => t.bid_no === currentBid);
+
+            if (e.key === 'Enter') {
+                if (idx < 0 || (e.target && e.target.tagName && e.target.tagName.toLowerCase() === 'button')) return;
+                e.preventDefault();
+                this.openTenderPage(items[idx]);
+                return;
+            }
+
+            e.preventDefault();
             if (e.key === 'ArrowDown') {
                 idx = idx < items.length - 1 ? idx + 1 : 0;
             } else {
                 idx = idx > 0 ? idx - 1 : items.length - 1;
             }
-            const nextTender = items[idx];
-            if (nextTender) {
-                this.selectTenderRow(nextTender);
-                const container = document.getElementById('crmInboxRowsContainer');
-                if (container) {
-                    const activeRow = container.querySelector('.crm-tender-row.selected');
-                    if (activeRow && typeof activeRow.scrollIntoView === 'function') {
-                        activeRow.scrollIntoView({ block: 'nearest' });
-                    }
-                }
-            }
+            if (items[idx]) this.highlightRow(items[idx].bid_no, true);
         }
     };
 

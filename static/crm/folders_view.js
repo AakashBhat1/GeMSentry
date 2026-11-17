@@ -1,8 +1,8 @@
 /* ==========================================================================
    GeMSentry CRM Companies & Folders 3-Column Explorer
    Left: Company & Subfolder Tree + New Subfolder + Export Excel (.xlsx)
-   Middle: Searchable Dossier List + Stage/Decision Filters + Sync Badges
-   Right: Shared Inline Inspector (PDF/CSV/Annexures + Vendor Response Box)
+   Right: Searchable Dossier List + Stage/Decision Filters + Sync Badges
+   Clicking a dossier opens the full-screen Tender Page (tender_page.js).
    Security: Strictly uses crmEl / crmClear / textContent.
    ========================================================================== */
 (function () {
@@ -33,14 +33,11 @@
                 clear(root);
                 const treePane = el('div', { id: 'crmFoldersTreePane', className: 'crm-folders-tree-pane' });
                 const listPane = el('div', { id: 'crmFoldersListPane', className: 'crm-folders-list-pane' });
-                const inspectorPane = el('div', { id: 'crmFoldersInspectorPane', className: 'crm-inspector-pane' });
                 layout = el('div', { id: 'crmFoldersLayout', className: 'crm-folders-layout' }, [
                     treePane,
-                    listPane,
-                    inspectorPane
+                    listPane
                 ]);
                 root.appendChild(layout);
-                window.CRMInspector.renderEmpty(inspectorPane, 'Select a tender dossier from the middle column to view its RFP PDF, Tech Spec, BOQ CSV, and record your participation decision.');
             }
 
             this.renderTreePane();
@@ -374,17 +371,6 @@
                 return;
             }
 
-            const prevId = state.folders.selectedCrmTenderId;
-            const stillPresent = prevId && list.some((d) => String(d.id || d.crm_tender_id) === String(prevId));
-            if (!stillPresent) {
-                const first = list[0];
-                state.folders.selectedCrmTenderId = first.id || first.crm_tender_id;
-                state.folders.selectedTenderObj = first;
-                const inspectorPane = document.getElementById('crmFoldersInspectorPane');
-                if (inspectorPane) {
-                    this.openDossierInInspector(first, inspectorPane);
-                }
-            }
 
             list.forEach((dossier) => {
                 const dId = dossier.id || dossier.crm_tender_id;
@@ -436,10 +422,7 @@
                         listBody.querySelectorAll('.crm-tender-row').forEach((n) => {
                             n.classList.toggle('selected', n.dataset.crmId === String(dId));
                         });
-                        const inspectorPane = document.getElementById('crmFoldersInspectorPane');
-                        if (inspectorPane) {
-                            this.openDossierInInspector(dossier, inspectorPane);
-                        }
+                        this.openDossierPage(dossier);
                     }
                 }, [
                     el('div', { className: 'crm-row-body' }, [
@@ -457,21 +440,43 @@
             });
         },
 
-        openDossierInInspector(dossier, inspectorPane) {
-            window.CRMInspector.inspect(inspectorPane, {
-                tender: dossier,
-                crmTender: dossier,
-                mode: 'folders',
-                onMoved: async () => {
-                    this.renderTreePane();
-                    await this.loadDossiers();
-                },
-                onUpdated: async (info) => {
-                    if (info && info.removed) {
-                        window.CRMState.folders.selectedCrmTenderId = null;
+        openDossierPage(dossier) {
+            const list = window.CRMState.folders.tenders || [];
+            const idOf = (d) => String(d.id || d.crm_tender_id);
+            const index = list.findIndex((d) => idOf(d) === idOf(dossier));
+            window.CRMTenderPage.open({
+                list: index >= 0 ? list : [dossier],
+                index: Math.max(index, 0),
+                backLabel: 'Folder Dossiers',
+                toInspectOptions: (item) => ({
+                    tender: item,
+                    crmTender: item,
+                    mode: 'folders',
+                    onMoved: async () => {
+                        this.renderTreePane();
+                        await this.loadDossiers();
+                    },
+                    onUpdated: async (info) => {
+                        if (info && info.removed) {
+                            window.CRMState.folders.selectedCrmTenderId = null;
+                            window.CRMTenderPage.close();
+                        }
+                        this.renderTreePane();
+                        await this.loadDossiers();
                     }
-                    this.renderTreePane();
-                    await this.loadDossiers();
+                }),
+                onClose: (item) => {
+                    if (!item) return;
+                    const state = window.CRMState;
+                    state.folders.selectedCrmTenderId = item.id || item.crm_tender_id;
+                    state.folders.selectedTenderObj = item;
+                    const listBody = document.getElementById('crmDossierListBody');
+                    if (!listBody) return;
+                    listBody.querySelectorAll('.crm-tender-row').forEach((n) => {
+                        const match = n.dataset.crmId === idOf(item);
+                        n.classList.toggle('selected', match);
+                        if (match) n.scrollIntoView({ block: 'nearest' });
+                    });
                 }
             });
         }

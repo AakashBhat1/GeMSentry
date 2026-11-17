@@ -45,8 +45,7 @@
             targetCompanyId: 'etspl',
             targetSubfolderId: '',
             autoFetchAndSync: true,
-            openPanel: null, // 'folder' | 'response' | 'details' | null — collapsed by default so the PDF keeps the space
-            focusMode: false
+            focusMode: false // tender page: hide the details column so the document uses the full width
         },
         admin: {
             users: [],
