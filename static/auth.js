@@ -84,6 +84,8 @@ function updateUserSessionUI(user) {
             roleSpan.textContent = effectiveUser.company_name
                 ? `${effectiveUser.company_name} · ${role}`
                 : role;
+            // Narrow headers truncate the pill; keep the full text on hover.
+            badge.title = `${nameSpan.textContent} — ${roleSpan.textContent}`;
             badge.appendChild(nameSpan);
             badge.appendChild(roleSpan);
         } else {

@@ -1425,11 +1425,12 @@ body.crm-page-open {
     }
     .crm-tp-layout {
         grid-template-columns: 1fr;
-        grid-template-rows: auto 85vh;
+        grid-template-rows: max-content 85vh;
         height: auto;
     }
     .crm-tp-side {
         overflow: visible;
+        min-height: auto; /* never squeeze the details row under the document */
     }
     .crm-page-body {
         overflow-y: auto;
@@ -1440,5 +1441,42 @@ body.crm-page-open {
     .crm-folders-layout {
         grid-template-columns: 1fr;
         height: auto;
+    }
+}
+
+/* --- Phone: tender page bars wrap instead of overflowing --- */
+@media (max-width: 720px) {
+    .crm-page-bar {
+        gap: 0.5rem;
+        padding: 0.45rem 0.6rem;
+    }
+    .crm-page-back span:last-child {
+        display: none;
+    }
+    .crm-page-counter {
+        min-width: 0;
+    }
+    .crm-page-body {
+        padding: 0.6rem;
+    }
+    .crm-tp-layout {
+        grid-template-rows: max-content 75vh;
+    }
+    .crm-doc-tabs-bar,
+    .crm-viewer-toolbar {
+        flex-wrap: wrap;
+        row-gap: 0.35rem;
+    }
+    .crm-doc-actions,
+    .crm-viewer-actions {
+        flex-wrap: wrap;
+        flex-shrink: 1;
+        min-width: 0;
+    }
+    .crm-tp-facts {
+        grid-template-columns: 1fr;
+    }
+    .crm-tp-seg-btn {
+        padding: 0.45rem 0.3rem;
     }
 }

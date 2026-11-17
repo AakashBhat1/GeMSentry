@@ -1,0 +1,207 @@
+/* ==========================================================================
+   GeMSentry — responsive app header + CRM mode bar
+   Labels never wrap. As the window narrows, buttons collapse to icons
+   (tooltips come from each button's title attribute) in priority order:
+     ≤2100px  settings-type buttons + theme → icons, subtitle hidden
+     ≤1360px  Export / Sheet Tracker / Sign Out → icons, company pill hidden
+     ≤960px   user name + app name hidden (logo mark only); mode bar scrolls
+     ≤720px   phone: two rows — logo on top, swipeable button row below
+   ========================================================================== */
+
+header {
+    padding: 0.55rem 1.25rem;
+    min-height: 60px;
+    gap: 1rem;
+}
+
+.header-left {
+    flex-shrink: 0;
+    min-width: 0;
+}
+
+.logo-text h1,
+.logo-text p {
+    white-space: nowrap;
+}
+
+.header-right {
+    gap: 0.5rem;
+    min-width: 0;
+    flex-wrap: nowrap;
+}
+
+.header-right > *,
+.header-right .btn,
+.header-right .btn-theme {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+/* Long "Company (Full Name) · role" pill: one line, truncated. */
+.user-session-badge {
+    max-width: 340px;
+    min-width: 0;
+    white-space: nowrap;
+}
+
+.user-session-badge > span:first-child {
+    flex-shrink: 0;
+}
+
+.user-session-badge .user-role-pill {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Header height is fixed by the rules above; keep the mode bar flush below it. */
+.crm-mode-bar {
+    top: 60px;
+    padding: 0.45rem 1.25rem;
+    flex-wrap: nowrap;
+}
+
+.crm-mode-tabs,
+.crm-mode-actions {
+    flex-wrap: nowrap;
+    min-width: 0;
+}
+
+.crm-mode-tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.crm-mode-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.crm-mode-tab,
+.btn-crm-toolbar {
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* --- Tier 1: settings-type buttons and theme toggle become icons --- */
+@media (max-width: 2100px) {
+    .logo-text p {
+        display: none;
+    }
+    #sourcesToggle > span,
+    #profileToggle > span,
+    #tuningToggle > span,
+    #settingsToggle > span,
+    #themeToggle > span {
+        display: none;
+    }
+    #sourcesToggle,
+    #profileToggle,
+    #tuningToggle,
+    #settingsToggle,
+    #themeToggle {
+        padding: 0.5rem !important;
+    }
+    .user-session-badge {
+        max-width: 280px;
+    }
+}
+
+/* --- Tier 2: action buttons become icons, company pill hidden --- */
+@media (max-width: 1360px) {
+    #exportExcelBtn > span,
+    #masterSheetBtn > span:not(#finalizedCountBadge),
+    #signOutBtn > span,
+    #authKeyBtn > span {
+        display: none;
+    }
+    #exportExcelBtn,
+    #masterSheetBtn,
+    #signOutBtn,
+    #authKeyBtn {
+        padding: 0.5rem !important;
+    }
+    #finalizedCountBadge {
+        margin-left: 0 !important;
+    }
+    .user-session-badge .user-role-pill {
+        display: none;
+    }
+    .crm-mode-bar {
+        padding: 0.45rem 1rem;
+    }
+    .crm-mode-tab {
+        padding: 0.45rem 0.75rem;
+    }
+}
+
+/* --- Tier 3: logo mark only, no user name --- */
+@media (max-width: 960px) {
+    .logo-text {
+        display: none;
+    }
+    .user-session-badge {
+        display: none !important;
+    }
+    /* Tabs + Hide Filters / Overview HUD stay usable: swipe the bar sideways. */
+    .crm-mode-bar {
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+    .crm-mode-bar::-webkit-scrollbar {
+        display: none;
+    }
+    .crm-mode-tabs {
+        overflow-x: visible;
+        flex-shrink: 0;
+    }
+    .crm-mode-actions {
+        flex-shrink: 0;
+    }
+}
+
+/* --- Phone: two-row header, swipeable icon row, non-sticky mode bar --- */
+@media (max-width: 720px) {
+    header {
+        flex-wrap: wrap;
+        padding: 0.5rem 0.75rem;
+        row-gap: 0.45rem;
+        position: static;
+    }
+    .header-left {
+        flex: 1;
+    }
+    .logo-text {
+        display: block;
+    }
+    .logo-text h1 {
+        font-size: 1.05rem;
+    }
+    .header-right {
+        order: 3;
+        width: 100%;
+        overflow-x: auto;
+        scrollbar-width: none;
+        padding-bottom: 0.1rem;
+    }
+    .header-right::-webkit-scrollbar {
+        display: none;
+    }
+    .header-right {
+        gap: 0.35rem;
+    }
+    #headerScrapePortalBtn > span {
+        display: none;
+    }
+    #headerScrapePortalBtn {
+        padding: 0.5rem 0.65rem;
+    }
+    .crm-mode-bar {
+        position: static;
+        padding: 0.4rem 0.75rem;
+    }
+    .crm-mode-tab {
+        padding: 0.42rem 0.65rem;
+        font-size: 0.8rem;
+    }
+}

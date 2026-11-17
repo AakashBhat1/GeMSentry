@@ -12,6 +12,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/app.css">
     <link rel="stylesheet" href="/static/crm/crm.css">
+    <link rel="stylesheet" href="/static/header_responsive.css">
 </head>
 <body>
 
@@ -42,21 +43,21 @@
             </div>
         </div>
         <div class="header-right">
-            <button class="btn-theme" id="sourcesToggle" onclick="openSourcesModal()" aria-label="Portals Hub" style="padding: 0.5rem 0.85rem; border-color: var(--accent-border); color: var(--primary-accent);">
+            <button class="btn-theme" id="sourcesToggle" title="Portals Hub" onclick="openSourcesModal()" aria-label="Portals Hub" style="padding: 0.5rem 0.85rem; border-color: var(--accent-border); color: var(--primary-accent);">
                 <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="10"></circle>
                     <path stroke-linecap="round" stroke-linejoin="round" d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"></path>
                 </svg>
                 <span>Portals Hub</span>
             </button>
-            <button class="btn-theme" id="profileToggle" onclick="openProfileModal()" aria-label="Company Profile" style="padding: 0.5rem 0.85rem;">
+            <button class="btn-theme" id="profileToggle" title="Company Profile" onclick="openProfileModal()" aria-label="Company Profile" style="padding: 0.5rem 0.85rem;">
                 <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                 </svg>
                 <span>Company Profile</span>
             </button>
             <div class="tuning-menu-wrap">
-                <button class="btn-theme" id="tuningToggle" onclick="toggleTuningMenu(event)" aria-label="Tuning JSON" aria-haspopup="true" aria-expanded="false" style="padding: 0.5rem 0.85rem;">
+                <button class="btn-theme" id="tuningToggle" title="Tuning JSON" onclick="toggleTuningMenu(event)" aria-label="Tuning JSON" aria-haspopup="true" aria-expanded="false" style="padding: 0.5rem 0.85rem;">
                     <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M8 4H6a2 2 0 00-2 2v3a2 2 0 01-2 2 2 2 0 012 2v3a2 2 0 002 2h2M16 4h2a2 2 0 012 2v3a2 2 0 002 2 2 2 0 00-2 2v3a2 2 0 01-2 2h-2" />
                     </svg>
@@ -68,20 +69,20 @@
                     <button type="button" role="menuitem" onclick="openTuningModal()">✎ Edit / import JSON…<small>Business lines, buyer affinity, scrape keywords (max 1000), scoring</small></button>
                 </div>
             </div>
-            <button class="btn-theme" id="settingsToggle" onclick="openSettingsModal()" aria-label="Scoring Settings" style="padding: 0.5rem 0.85rem;">
+            <button class="btn-theme" id="settingsToggle" title="Scoring Config" onclick="openSettingsModal()" aria-label="Scoring Settings" style="padding: 0.5rem 0.85rem;">
                 <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
                 <span>Scoring Config</span>
             </button>
-            <button class="btn btn-secondary" id="exportExcelBtn" onclick="downloadSummaryExcel()" aria-label="Export Excel Summary" style="padding: 0.5rem 0.85rem; border-color: rgba(16, 185, 129, 0.4); color: #34d399;">
+            <button class="btn btn-secondary" id="exportExcelBtn" title="Export Excel" onclick="downloadSummaryExcel()" aria-label="Export Excel Summary" style="padding: 0.5rem 0.85rem; border-color: rgba(16, 185, 129, 0.4); color: #34d399;">
                 <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 <span>Export Excel</span>
             </button>
-            <button class="btn-theme" id="masterSheetBtn" onclick="openFinalizedModal()" aria-label="Master Sheet Tracker" style="padding: 0.5rem 0.85rem; border-color: rgba(245, 158, 11, 0.5); color: #f59e0b; font-weight: 600;">
+            <button class="btn-theme" id="masterSheetBtn" title="Google Sheet Tracker" onclick="openFinalizedModal()" aria-label="Master Sheet Tracker" style="padding: 0.5rem 0.85rem; border-color: rgba(245, 158, 11, 0.5); color: #f59e0b; font-weight: 600;">
                 <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                 </svg>
@@ -89,23 +90,26 @@
                 <span id="finalizedCountBadge" style="background: #f59e0b; color: #111; font-weight: 800; border-radius: 999px; padding: 0.1rem 0.45rem; font-size: 0.72rem; margin-left: 0.35rem;">0</span>
             </button>
             <div id="userSessionBadge" class="user-session-badge" style="display: none;"></div>
-            <button class="btn-theme" id="signOutBtn" onclick="signOutUser()" aria-label="Sign Out" style="display: none; padding: 0.45rem 0.75rem; border-color: rgba(239, 68, 68, 0.4); color: var(--failed-color);">
+            <button class="btn-theme" id="signOutBtn" title="Sign Out" onclick="signOutUser()" aria-label="Sign Out" style="display: none; padding: 0.45rem 0.75rem; border-color: rgba(239, 68, 68, 0.4); color: var(--failed-color);">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
                 <span>Sign Out</span>
             </button>
-            <button class="btn-theme" id="authKeyBtn" onclick="openAuthModal()" aria-label="Security Key" style="display: none; padding: 0.5rem 0.85rem; border-color: rgba(139, 92, 246, 0.4); color: #c4b5fd;">
+            <button class="btn-theme" id="authKeyBtn" title="Access Key" onclick="openAuthModal()" aria-label="Security Key" style="display: none; padding: 0.5rem 0.85rem; border-color: rgba(139, 92, 246, 0.4); color: #c4b5fd;">
                 <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                     <path stroke-linecap="round" stroke-linejoin="round" d="M7 11V7a5 5 0 0110 0v4"></path>
                 </svg>
                 <span id="authKeyStatusText">Access Key</span>
             </button>
-            <button class="btn btn-primary" id="headerScrapePortalBtn" onclick="openScraperModal()">
+            <button class="btn btn-primary" id="headerScrapePortalBtn" title="Scrape Portal" onclick="openScraperModal()">
                 <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
-                Scrape Portal
+                <span>Scrape Portal</span>
             </button>
-            <button class="btn-theme" id="themeToggle" onclick="toggleTheme()" aria-label="Toggle Theme">
+            <button class="btn-theme" id="themeToggle" title="Toggle dark / light mode" onclick="toggleTheme()" aria-label="Toggle Theme">
                 <svg id="themeIcon" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                 </svg>
