@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-import io
-
 import pytest
 
 from gemsentry.bid_preparation import service
 
 
 @pytest.fixture
- def workspace(tmp_path, monkeypatch):
+def workspace(tmp_path, monkeypatch):
     tenders = tmp_path / "tenders"
     tenders.mkdir()
     monkeypatch.setattr(service, "workspace_paths", lambda: (str(tenders), str(tenders / "downloads")))
