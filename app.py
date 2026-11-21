@@ -22,6 +22,7 @@ logging_setup.setup_logging()
 import scraper  # noqa: E402,F401  (re-exported: tests patch app.scraper)
 from gemsentry.web import context  # noqa: E402,F401
 from gemsentry.web.auth import auth_bp  # noqa: E402
+from gemsentry.web.bid_preparation import bid_preparation_bp  # noqa: E402
 
 # Re-exported so `app.<name>` stays the stable handle for tests and any
 # external caller that grew up against the single-module layout.
@@ -41,6 +42,7 @@ logger = logging.getLogger("gemsentry")
 app = Flask(__name__, static_folder="static", static_url_path="/static")
 
 app.register_blueprint(auth_bp)
+app.register_blueprint(bid_preparation_bp)
 app.register_blueprint(crm_bp)
 app.register_blueprint(tenders_bp)
 app.register_blueprint(settings_bp)
